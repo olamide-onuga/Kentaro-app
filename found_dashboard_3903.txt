@@ -1,0 +1,68 @@
+Created At: 2026-09-09T12:47:40+01:00
+Completed At: 2026-09-09T12:47:40+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 676
+Total Bytes: 25982
+Showing lines 1 to 60
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session, current_app
+2: from flask_login import login_required, current_user, logout_user
+3: from datetime import date
+4: from app.extensions import db
+5: from app.models.user import ClientProfile
+6: from app.models.coaching import CoachingPackage
+7: from app.models.workout import Workout, WorkoutExercise
+8: from app.models.progress import ClientProgram, WorkoutCompletion
+9: from app import socketio
+10: 
+11: client_bp = Blueprint('client', __name__, url_prefix='/client')
+12: 
+13: @client_bp.before_request
+14: @login_required
+15: def require_client():
+16:     if not current_user.is_client:
+17:         flash('You do not have permission to access this page.', 'danger')
+18:         return redirect(url_for('main.index'))
+19: 
+20: @client_bp.route('/chat')
+21: @login_required
+22: def chat():
+23:     profile = current_user.client_profile
+24:     if not profile or not profile.coach:
+25:         flash('No coach assigned.', 'danger')
+26:         return redirect(url_for('client.dashboard'))
+27:     partner_id = profile.coach.user_id
+28:     return render_template('client/chat.html', partner_id=partner_id)
+29: 
+30: @client_bp.route('/voice-call')
+31: @login_required
+32: def voice_call():
+33:     profile = current_user.client_profile
+34:     if not profile or not profile.coach:
+35:         flash('No coach assigned.', 'danger')
+36:         return redirect(url_for('client.dashboard'))
+37:     partner_id = profile.coach.user_id
+38:     return render_template('client/voice_call.html', partner_id=partner_id)
+39: 
+40: @client_bp.route('/dashboard')
+41: def dashboard():
+42:     profile = current_user.client_profile
+43:     today_workout = None
+44:     active_program = None
+45: 
+46:     if profile:
+47:         cp = profile.client_programs.filter_by(is_active=True).first()
+48:         if cp:
+49:             active_program = cp.program
+50:             # Find today's workout — simple heuristic: find first uncompleted workout in order
+51:             completed_ids = [c.workout_id for c in profile.completions.all()]
+52:             for phase in cp.program.phases.order_by('order').all():
+53:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+54:                     if w.id not in completed_ids:
+55:                         today_workout = w
+56:                         break
+57:                 if today_workout:
+58:                     break
+59: 
+60:     upcoming_appointments = []
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

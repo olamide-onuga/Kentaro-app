@@ -1,0 +1,28 @@
+Created At: 2026-10-21T01:12:52+01:00
+Completed At: 2026-10-21T01:12:52+01:00
+Task: a66d4733-9898-4866-9f68-3a50cd41daec/task-13158
+Status: DONE
+Log: C:\Users\Kentaro\.gemini\antigravity\brain\a66d4733-9898-4866-9f68-3a50cd41daec\.system_generated\tasks\task-13158.log
+Log output:
+<truncated 115 lines>
+ffer.query.get_or_404(offer_id)
+  app\routes\client.py:796:    if offer.client_id != profile.id:
+  app\routes\client.py:801:    profile.coach_id = offer.coach_id
+  app\routes\client.py:802:
+  app\routes\client.py:803:    # Close any active marketplace posts for this client
+> app\routes\client.py:804:    ClientPost.query.filter_by(client_id=profile.id, status='active').update({'status': 
+'closed'})
+  app\routes\client.py:805:    db.session.commit()
+  app\routes\client.py:806:
+  app\routes\client.py:807:    # Emit scout_closed event over socketio so open DMs close automatically
+  app\routes\client.py:808:    try:
+  app\routes\client.py:809:        from app import socketio
+  app\routes\client.py:810:        socketio.emit('scout_closed', {
+  app\routes\client.py:811:            'client_id': profile.id,
+  app\routes\client.py:812:            'user_id': profile.user_id
+  app\routes\client.py:813:        }, broadcast=True)
+  app\routes\client.py:814:    except Exception:
+
+
+
+Last progress: 1s ago

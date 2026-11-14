@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Account Appeal Status Update</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 20px; color: #18181b;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e4e4e7;">
+        <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="font-size: 24px; font-weight: 800; color: #09090b; margin: 0;">Kentaro Platform</h1>
+            <p style="font-size: 14px; color: #71717a; margin-top: 4px;">Account Status Decision Notice</p>
+        </div>
+
+        {% if status == 'approved' %}
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <h2 style="color: #15803d; font-size: 18px; margin-top: 0;">🎉 Your Appeal Has Been Approved!</h2>
+            <p style="font-size: 14px; color: #166534; line-height: 1.6; margin-bottom: 0;">
+                Great news! Following a review by our administration team, your Kentaro account suspension has been lifted. You can now log into your account and access all platform features.
+            </p>
+        </div>
+        {% else %}
+        <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <h2 style="color: #b91c1c; font-size: 18px; margin-top: 0;">Update Regarding Your Account Appeal</h2>
+            <p style="font-size: 14px; color: #991b1b; line-height: 1.6; margin-bottom: 0;">
+                Our administration team has reviewed your account appeal. Unfortunately, your appeal has been <strong>rejected</strong>, and your account remains suspended.
+            </p>
+        </div>
+        {% endif %}
+
+        {% if admin_notes %}
+        <div style="background-color: #f4f4f5; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+            <strong style="font-size: 12px; text-transform: uppercase; color: #71717a; display: block; margin-bottom: 6px;">Administrator Note:</strong>
+            <p style="font-size: 14px; color: #27272a; margin: 0; line-height: 1.5;">{{ admin_notes }}</p>
+        </div>
+        {% endif %}
+
+        {% if status == 'approved' %}
+        <div style="text-align: center; margin-top: 28px;">
+            <a href="{{ url_for('auth.login', _external=True) }}" style="background-color: #09090b; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 14px; padding: 12px 28px; border-radius: 9999px; display: inline-block;">Log In Now &rarr;</a>
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 32px; border-top: 1px solid #f4f4f5; padding-top: 16px; font-size: 12px; color: #a1a1aa; text-align: center;">
+            Kentaro Coaching Platform &bull; Security &amp; Compliance
+        </div>
+    </div>
+</body>
+</html>

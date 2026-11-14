@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Renew Contract with Coach {{ coach.first_name }} - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Top Navigation -->
+    <div class="flex items-center justify-between">
+        <a href="{{ url_for('client.dashboard') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition">
+            <span>←</span> Back to Dashboard
+        </a>
+        <span class="text-xs text-gray-400">Coaching Contract Renewal</span>
+    </div>
+
+    <!-- Header Section -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-sm">
+        <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-12 rounded-2xl bg-green-500/10 text-green-500 border border-green-500/20 flex items-center justify-center font-extrabold text-xl">
+                🔄
+            </div>
+            <div>
+                <h1 class="text-2xl font-extrabold text-gray-900 dark:text-gray-100">
+                    Renew Coaching Contract
+                </h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Coach {{ coach.first_name }} {{ coach.last_name }} • {{ coach.specialization or 'Personal Fitness' }}
+                </p>
+            </div>
+        </div>
+
+        <form action="{{ url_for('client.renew_contract') }}" method="POST" class="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+
+            <!-- Package Selection -->
+            <div>
+                <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Select Coaching Package</label>
+                <div class="space-y-2">
+                    {% for pkg in packages %}
+                    <label class="flex items-center justify-between p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/50 cursor-pointer hover:border-black dark:hover:border-white transition">
+                        <div class="flex items-center gap-3">
+                            <input type="radio" name="package_id" value="{{ pkg.id }}" data-payment-link="{{ pkg.payment_link or '' }}" {% if profile.active_package_id == pkg.id or loop.first %}checked{% endif %} class="accent-black dark:accent-white" onchange="updateTotal(); updatePaystackNotice()">
+                            <div>
+                                <h4 class="font-bold text-sm text-gray-900 dark:text-gray-100">{{ pkg.name }}</h4>
+                                <p class="text-xs text-gray-400">{{ pkg.duration_weeks or 4 }} weeks duration</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-extrabold text-sm text-gray-900 dark:text-gray-100">${{ pkg.renewal_monthly_price or pkg.price }}</span>
+                            <span class="text-[10px] text-gray-400 block">/ month</span>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Custom Duration (Months) -->
+            <div>
+                <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Select Contract Duration (Months)</label>
+                <div class="grid grid-cols-4 gap-2">
+                    {% for m in [1, 3, 6, 12] %}
+                    <label class="flex flex-col items-center justify-center p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/50 cursor-pointer hover:border-black dark:hover:border-white transition">
+                        <input type="radio" name="months" value="{{ m }}" {% if m == 1 %}checked{% endif %} class="sr-only" onchange="updateTotal()">
+                        <span class="font-extrabold text-sm text-gray-900 dark:text-gray-100">{{ m }}</span>
+                        <span class="text-[10px] text-gray-400">{% if m == 1 %}Month{% else %}Months{% endif %}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Promo / Discount Code -->
+            <div>
+                <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-1">Discount Code (Optional)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="discountInput" name="discount_code" placeholder="Enter promo code (e.g. OFFER10)" class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-sm font-mono uppercase text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                    <button type="button" onclick="applyDiscount()" class="px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-bold text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                        Apply
+                    </button>
+                </div>
+                <p id="discountMsg" class="text-xs font-semibold mt-1 hidden"></p>
+            </div>
+
+            <!-- Auto-Renew Toggle -->
+            <div class="flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800">
+                <div>
+                    <h4 class="font-bold text-xs text-gray-900 dark:text-gray-100">Monthly Auto-Renewal</h4>
+                    <p class="text-[11px] text-gray-400">Automatically renew contract when period ends</p>
+                </div>
+                <input type="checkbox" name="auto_renew" value="true" class="w-4 h-4 rounded accent-black dark:accent-white cursor-pointer">
+            </div>
+
+            <!-- Paystack Notice -->
+            <div id="paystackNotice" class="hidden flex items-start gap-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl px-4 py-3">
+                <span class="text-lg">&#x1F4B3;</span>
+                <p class="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                    <strong>Paystack Payment Required</strong> &mdash;
+                    After confirming, you will be redirected to your coach&rsquo;s Paystack link to complete payment.
+                </p>
+            </div>
+
+            <!-- Submit & Renewal Summary -->
+            <div class="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <div>
+                    <span class="text-xs text-gray-400 block">Total Renewal Fee</span>
+                    <span id="displayTotal" class="text-2xl font-black text-gray-900 dark:text-gray-100">$0.00</span>
+                </div>
+                <button type="submit" class="px-6 py-3 rounded-2xl btn-primary-red font-extrabold text-sm transition shadow-lg flex items-center gap-2">
+                    <span>🔄</span> Confirm & Renew Contract
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+</div>
+
+<script>
+    let activeDiscount = null;
+
+    function getSelectedMonthlyPrice() {
+        const checkedPkg = document.querySelector('input[name="package_id"]:checked');
+        if (!checkedPkg) return 0;
+        const priceLabel = checkedPkg.closest('label').querySelector('.font-extrabold');
+        return parseFloat(priceLabel.textContent.replace('$', '')) || 0;
+    }
+
+    function getSelectedMonths() {
+        const checkedM = document.querySelector('input[name="months"]:checked');
+        return checkedM ? parseInt(checkedM.value) : 1;
+    }
+
+    function updateTotal() {
+        const monthly = getSelectedMonthlyPrice();
+        const months = getSelectedMonths();
+        let total = monthly * months;
+
+        if (activeDiscount) {
+            if (activeDiscount.discount_type === 'percentage') {
+                total -= (total * activeDiscount.discount_value) / 100;
+            } else {
+                total -= activeDiscount.discount_value;
+            }
+        }
+        total = Math.max(0, total);
+        document.getElementById('displayTotal').textContent = '$' + total.toFixed(2);
+    }
+
+    function applyDiscount() {
+        const code = document.getElementById('discountInput').value.trim();
+        const msgEl = document.getElementById('discountMsg');
+        if (!code) return;
+
+        fetch('{{ url_for("client.validate_discount") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: code })
+        })
+        .then(res => res.json())
+        .then(data => {
+            msgEl.classList.remove('hidden');
+            if (data.valid) {
+                activeDiscount = data;
+                msgEl.className = 'text-xs font-semibold mt-1 text-green-600 dark:text-green-400';
+                msgEl.textContent = '✓ ' + data.message;
+            } else {
+                activeDiscount = null;
+                msgEl.className = 'text-xs font-semibold mt-1 text-red-600 dark:text-red-400';
+                msgEl.textContent = '✕ ' + data.message;
+            }
+            updateTotal();
+        })
+        .catch(() => {
+            activeDiscount = null;
+            updateTotal();
+        });
+    }
+
+    function updatePaystackNotice() {
+        const checkedPkg = document.querySelector('input[name="package_id"]:checked');
+        const notice = document.getElementById('paystackNotice');
+        if (!notice) return;
+        const link = checkedPkg ? checkedPkg.getAttribute('data-payment-link') : '';
+        if (link && !link.includes('example.com') && link.length > 5) {
+            notice.classList.remove('hidden');
+        } else {
+            notice.classList.add('hidden');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        updateTotal();
+        updatePaystackNotice();
+    });
+</script>
+{% endblock %}
+
+

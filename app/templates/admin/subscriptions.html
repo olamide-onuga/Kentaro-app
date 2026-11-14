@@ -1,0 +1,116 @@
+{% extends "admin/layout.html" %}
+{% block title %}Coach Subscriptions - Admin{% endblock %}
+{% block admin_content %}
+<div class="space-y-6 pb-10">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-5">
+    <div>
+      <a href="{{ url_for('admin.dashboard') }}" class="text-xs text-gray-400 hover:text-black dark:hover:text-white mb-1 inline-block">← Admin Dashboard</a>
+      <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100">Coach Subscriptions 📋</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">View and manage subscription assignments for all coaches.</p>
+    </div>
+    <a href="{{ url_for('admin.plans') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl btn-secondary text-sm font-bold shadow-xs transition">💎 Manage Plans</a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="px-4 py-3 rounded-2xl text-sm font-medium
+        {% if cat == 'danger' %}bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900
+        {% elif cat == 'success' %}bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-900
+        {% elif cat == 'warning' %}bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-900
+        {% else %}bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-800{% endif %}">
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+            <th class="text-left px-5 py-3 font-bold text-xs uppercase tracking-wide text-gray-500">Coach</th>
+            <th class="text-left px-5 py-3 font-bold text-xs uppercase tracking-wide text-gray-500">Current Plan</th>
+            <th class="text-left px-5 py-3 font-bold text-xs uppercase tracking-wide text-gray-500">Status</th>
+            <th class="text-left px-5 py-3 font-bold text-xs uppercase tracking-wide text-gray-500">Price/mo</th>
+            <th class="text-left px-5 py-3 font-bold text-xs uppercase tracking-wide text-gray-500">Period End</th>
+            <th class="text-left px-5 py-3 font-bold text-xs uppercase tracking-wide text-gray-500">Assign Plan</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          {% for sub in subscriptions %}
+          {% set coach = sub.coach %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-900 transition">
+            <td class="px-5 py-4">
+              {% if coach %}
+              <div class="flex items-center gap-3">
+                {% if coach.profile_photo %}
+                  <img src="{{ coach.profile_photo }}" class="w-8 h-8 rounded-full object-cover">
+                {% else %}
+                  <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500">{{ (coach.first_name or '?')[0] }}</div>
+                {% endif %}
+                <div>
+                  <p class="font-semibold text-gray-900 dark:text-gray-100">{{ coach.first_name or '' }} {{ coach.last_name or '' }}</p>
+                  <p class="text-xs text-gray-400">{{ coach.user.email if coach.user else 'N/A' }}</p>
+                </div>
+              </div>
+              {% else %}
+              <span class="text-gray-400 italic">Coach #{{ sub.coach_id }}</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-4">
+              {% if sub.plan %}
+                <span class="font-semibold text-gray-900 dark:text-gray-100">{{ sub.plan.name }}</span>
+                <p class="text-xs text-gray-400">{{ sub.plan.client_limit_display }}</p>
+              {% else %}
+                <span class="text-gray-400 italic">Unknown</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-4">
+              {% if sub.status == 'active' %}
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400">Active</span>
+              {% elif sub.status == 'expired' %}
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400">Expired</span>
+              {% elif sub.status == 'cancelled' %}
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">Cancelled</span>
+              {% else %}
+                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400">{{ sub.status|title }}</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-4 text-gray-700 dark:text-gray-300">
+              {% if sub.current_price == 0 %}Free{% else %}\${{ "%.0f"|format(sub.current_price) }}{% endif %}
+            </td>
+            <td class="px-5 py-4 text-gray-500 text-xs">
+              {% if sub.current_period_end %}
+                {{ sub.current_period_end.strftime('%b %d, %Y') }}
+              {% else %}
+                <span class="text-green-600 dark:text-green-400">No expiry</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-4">
+              {% if coach %}
+              <form method="POST" action="{{ url_for('admin.assign_coach_plan', coach_id=coach.id) }}" class="flex items-center gap-2">
+                <select name="plan_id" class="border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-xs bg-white dark:bg-black text-gray-900 dark:text-gray-100 focus:border-black outline-none">
+                  {% for plan in plans %}
+                  <option value="{{ plan.id }}" {{ 'selected' if sub.plan_id == plan.id }}>{{ plan.name }}</option>
+                  {% endfor %}
+                </select>
+                <input type="hidden" name="reason" value="Admin dashboard assignment">
+                <button type="submit" class="px-3 py-1 rounded-lg bg-black dark:bg-white text-white dark:text-black text-xs font-bold hover:opacity-70 transition">Assign</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="px-5 py-12 text-center text-gray-400 dark:text-gray-500">
+              <p class="text-3xl mb-2">📋</p>
+              <p class="font-medium">No subscriptions yet. Create plans and coaches will be assigned automatically.</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

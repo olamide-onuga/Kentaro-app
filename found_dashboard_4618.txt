@@ -1,0 +1,18 @@
+Created At: 2026-09-09T20:39:21+01:00
+Completed At: 2026-09-09T20:39:21+01:00
+The following changes were made by the replace_file_content tool to: C:\Users\Kentaro\.gemini\antigravity\scratch\kentaro\app\routes\client.py. If relevant, proactively run terminal commands to execute this code for the USER. Don't ask for permission.
+[diff_block_start]
+@@ -58,7 +58,9 @@
+         return redirect(url_for('client.dashboard'))
+     partner_id = profile.coach.user_id
+     partner_name = f"Coach {profile.coach.first_name if profile.coach.first_name else 'Coach'}"
+-    return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name)
++    from app.models.progress import FormCheckSubmission
++    form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
++    return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+ 
+ @client_bp.route('/dashboard')
+ def dashboard():
+[diff_block_end]
+
+Please note that the above snippet only shows the MODIFIED lines from the last change. It shows up to 3 lines of unchanged lines before and after the modified lines. The actual file contents may have many more lines not shown.

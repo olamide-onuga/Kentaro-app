@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Custom Program Offers — Coach Dashboard - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                <a href="{{ url_for('coach.dashboard') }}" class="hover:text-black dark:hover:text-white transition">Coach Dashboard</a>
+                <span>/</span>
+                <span class="font-bold text-gray-900 dark:text-gray-100">Program Offers</span>
+            </div>
+            <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100">Marketplace Custom Program Offers</h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Track and manage custom workout program proposals sent to prospective athletes in marketplace conversations.
+            </p>
+        </div>
+
+        <a href="{{ url_for('coach.coach_chat') }}" class="px-4 py-2.5 rounded-2xl bg-black dark:bg-white text-white dark:text-black text-xs font-black hover:opacity-90 transition self-start sm:self-auto">
+            Open Marketplace DMs →
+        </a>
+    </div>
+
+    <!-- Offers List -->
+    <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <h2 class="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                All Custom Program Offers ({{ offers|length }})
+            </h2>
+        </div>
+
+        {% if offers %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500 uppercase tracking-widest text-[10px] font-black border-b border-gray-100 dark:border-gray-800">
+                    <tr>
+                        <th class="px-6 py-3.5">Offer Ref</th>
+                        <th class="px-6 py-3.5">Athlete / Client</th>
+                        <th class="px-6 py-3.5">Program Details</th>
+                        <th class="px-6 py-3.5">Price</th>
+                        <th class="px-6 py-3.5">Date Sent</th>
+                        <th class="px-6 py-3.5">Status</th>
+                        <th class="px-6 py-3.5 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                    {% for o in offers %}
+                    <tr class="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition">
+                        <td class="px-6 py-4 font-mono font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                            <span class="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800">
+                                #{{ o.offer_ref or o.id }}
+                            </span>
+                        </td>
+
+                        <td class="px-6 py-4">
+                            {% set cl = o.client %}
+                            <div class="font-bold text-gray-900 dark:text-gray-100">
+                                {{ cl.full_name if cl else 'Athlete' }}
+                            </div>
+                            <div class="text-[10px] text-gray-400">
+                                {{ cl.user.email if cl and cl.user else '' }}
+                            </div>
+                        </td>
+
+                        <td class="px-6 py-4 max-w-xs">
+                            <div class="font-bold text-gray-900 dark:text-gray-100 truncate" title="{{ o.title }}">
+                                {{ o.title }}
+                            </div>
+                            <div class="text-[10px] text-gray-400">
+                                {{ o.duration_weeks }} Weeks • {{ o.frequency or 'Custom Routine' }}
+                            </div>
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap font-black text-gray-900 dark:text-gray-100">
+                            {{ o.currency }} {{ "%.2f"|format(o.amount) }}
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-500">
+                            {{ o.created_at.strftime('%b %d, %Y') }}
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if o.status == 'paid' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                Paid &amp; Active
+                            </span>
+                            {% elif o.status == 'accepted' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                Accepted • Pending Payment
+                            </span>
+                            {% elif o.status == 'viewed' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900">
+                                Viewed by Athlete
+                            </span>
+                            {% elif o.status == 'sent' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+                                Sent • Awaiting Review
+                            </span>
+                            {% elif o.status == 'declined' %}
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400">
+                                Declined
+                            </span>
+                            {% else %}
+                            <span class="text-[10px] font-bold text-gray-400">
+                                {{ o.status|capitalize }}
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="{{ url_for('coach.coach_chat', partner_id=o.client.user_id if o.client else 0, context='marketplace') }}"
+                                   class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-100 text-xs font-bold transition">
+                                    Chat
+                                </a>
+
+                                {% if o.status in ['sent', 'viewed'] %}
+                                <form method="POST" action="{{ url_for('coach.cancel_coach_offer', offer_id=o.id) }}" onsubmit="return confirm('Cancel this unpaid program offer?');">
+                                    <button type="submit" class="px-3 py-1.5 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs font-bold transition">
+                                        Cancel
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <span class="text-3xl">🎯</span>
+            <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 mt-2">No Custom Program Offers Yet</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto mt-1">
+                When discussing training in marketplace DMs, you can create and send custom coaching program offers directly to prospective athletes.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

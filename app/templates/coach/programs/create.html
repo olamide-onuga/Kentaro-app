@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-6">
+    <div class="mb-6 flex items-center justify-between">
+        <a href="{{ url_for('programs.index') }}" class="text-sm font-semibold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition flex items-center gap-1">
+            &larr; Back to Programs
+        </a>
+    </div>
+
+    <div class="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-200 dark:border-gray-800 p-8">
+        <div class="mb-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+            <span class="text-xs font-black uppercase tracking-widest text-amber-500">Calisthenics Routine Builder</span>
+            <h1 class="text-2xl font-black text-gray-900 dark:text-white mt-1">Create Routine / Program</h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Build structured weekly routines, set training &amp; rest days, and populate with custom exercises.</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('programs.create') }}" class="space-y-6">
+            <!-- Program Name -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">Routine / Program Name *</label>
+                <input class="w-full border border-gray-200 dark:border-gray-800 rounded-2xl p-3 bg-gray-50 dark:bg-neutral-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white" 
+                       type="text" name="name" placeholder="e.g. 4-Day Calisthenics Strength Split (Mon - Thu)" required>
+            </div>
+
+            <!-- Initial Routine Block Name -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">Block / Phase Name</label>
+                <input class="w-full border border-gray-200 dark:border-gray-800 rounded-2xl p-3 bg-gray-50 dark:bg-neutral-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white" 
+                       type="text" name="initial_phase_name" value="Weekly Routine" placeholder="e.g. Weekly Routine, Foundation Phase, Block 1">
+            </div>
+
+            <!-- 7-Day Weekly Structure Info Banner -->
+            <div class="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Complete Weekly Schedule</span>
+                </div>
+                <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                    All <strong>7 days of the week (Monday through Sunday)</strong> will be automatically set up. In the routine builder, you can add workouts to training days and toggle any day as a <strong>Rest Day</strong>.
+                </p>
+                <div class="grid grid-cols-7 gap-1.5 mt-3 text-center">
+                    {% for day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+                    <div class="p-2 rounded-xl bg-white dark:bg-black border border-amber-500/20 text-xs font-bold text-gray-800 dark:text-gray-200">
+                        {{ day }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">Routine Description &amp; Goals</label>
+                <textarea class="w-full border border-gray-200 dark:border-gray-800 rounded-2xl p-3 bg-gray-50 dark:bg-neutral-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white resize-none" 
+                          name="description" rows="3" placeholder="e.g. Designed to build strict pull-up strength, ring dip stability, muscle-up transitions, and planche basics."></textarea>
+            </div>
+
+            <button type="submit" class="w-full bg-black dark:bg-white text-white dark:text-black py-3.5 px-6 rounded-2xl font-black text-sm hover:opacity-90 transition shadow-lg flex items-center justify-center gap-2">
+                <span>Create Routine &amp; Open Builder</span> &rarr;
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

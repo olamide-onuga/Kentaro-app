@@ -1,0 +1,258 @@
+{% extends "admin/layout.html" %}
+{% block title %}Coach {{ coach.first_name }} {{ coach.last_name }} - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Header & Breadcrumb -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
+        <div>
+            <a href="{{ url_for('admin.coaches') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white mb-2 transition">
+                &larr; Back to Coaches Queue
+            </a>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                    Coach {{ coach.first_name }} {{ coach.last_name }}
+                </h1>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider
+                      {% if coach.is_approved %}bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800
+                      {% else %}bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800{% endif %}">
+                    {{ 'Approved' if coach.is_approved else 'Pending Approval' }}
+                </span>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider
+                      {% if coach.is_verified %}bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800
+                      {% else %}bg-gray-100 dark:bg-gray-800 text-gray-500{% endif %}">
+                    {{ 'Verified' if coach.is_verified else 'Unverified' }}
+                </span>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">
+                Coach ID #{{ coach.id }} • Linked User: {{ coach.user.email if coach.user else 'No Account' }}
+            </p>
+        </div>
+
+        <!-- Approval / Rejection Controls -->
+        <div class="flex items-center gap-2">
+            {% if not coach.is_approved %}
+            <form method="POST" action="{{ url_for('admin.approve_coach', coach_id=coach.id) }}">
+                <button type="submit" class="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm">
+                    ✓ Approve Coach
+                </button>
+            </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('admin.reject_coach', coach_id=coach.id) }}"
+                  onsubmit="return confirm('Revoke approval for this coach?');">
+                <button type="submit" class="px-4 py-2 rounded-2xl border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 font-bold text-xs hover:bg-red-50 dark:hover:bg-red-950/40 transition">
+                    Revoke Approval
+                </button>
+            </form>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('admin.toggle_coach_verification', coach_id=coach.id) }}">
+                <button type="submit" class="px-4 py-2 rounded-2xl border border-gray-200 dark:border-gray-800 font-bold text-xs text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                    {{ 'Remove Verification' if coach.is_verified else 'Grant Verification' }}
+                </button>
+            </form>
+
+            <a href="{{ url_for('main.public_coach_profile', coach_id=coach.id) }}" target="_blank"
+               class="px-4 py-2 rounded-2xl bg-gray-100 dark:bg-gray-900 font-bold text-xs text-gray-800 dark:text-gray-200 hover:bg-gray-200 transition">
+                Public Listing ↗
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Column 1: Profile & Credentials -->
+        <div class="space-y-6">
+            <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <h3 class="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                    Profile &amp; Credentials
+                </h3>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <span class="text-gray-400 text-[10px] uppercase font-bold block">Specialization</span>
+                        <span class="font-bold text-gray-900 dark:text-gray-100">{{ coach.specialization or 'Fitness & Nutrition' }}</span>
+                    </div>
+
+                    <div>
+                        <span class="text-gray-400 text-[10px] uppercase font-bold block">Experience</span>
+                        <span class="font-semibold text-gray-800 dark:text-gray-200">{{ coach.experience_years or 0 }} Years</span>
+                    </div>
+
+                    <div>
+                        <span class="text-gray-400 text-[10px] uppercase font-bold block">Location &amp; Timezone</span>
+                        <span class="text-gray-800 dark:text-gray-200">{{ coach.location or 'Global' }} • {{ coach.timezone or 'UTC' }}</span>
+                    </div>
+
+                    <div>
+                        <span class="text-gray-400 text-[10px] uppercase font-bold block">Billing Currency</span>
+                        <span class="font-mono font-bold text-gray-900 dark:text-gray-100">{{ coach.currency or 'USD' }}</span>
+                    </div>
+
+                    <div>
+                        <span class="text-gray-400 text-[10px] uppercase font-bold block">Average Client Rating</span>
+                        <span class="font-bold text-amber-500">⭐ {{ coach.average_rating }} ({{ coach.review_count }} reviews)</span>
+                    </div>
+                </div>
+
+                {% if coach.bio %}
+                <div class="pt-2 border-t border-gray-100 dark:border-gray-900">
+                    <span class="text-gray-400 text-[10px] uppercase font-bold block mb-1">Biography</span>
+                    <div class="bg-gray-50 dark:bg-gray-900/60 p-4 rounded-2xl text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {{ coach.bio }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Subscription Status & Assignment -->
+            <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <h3 class="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 flex items-center justify-between">
+                    <span>Platform Subscription</span>
+                    <span>💎</span>
+                </h3>
+
+                <div class="space-y-2 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-500">Current Plan:</span>
+                        <span class="font-bold text-gray-900 dark:text-gray-100">
+                            {{ subscription.plan.name if subscription and subscription.plan else 'Default Plan' }}
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-500">Status:</span>
+                        <span class="font-bold {{ 'text-emerald-600' if subscription and subscription.status == 'active' else 'text-gray-400' }}">
+                            {{ subscription.status|capitalize if subscription else 'Free' }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Assign Plan Form -->
+                <form method="POST" action="{{ url_for('admin.assign_coach_plan', coach_id=coach.id) }}" class="space-y-3 pt-3 border-t border-gray-100 dark:border-gray-900">
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300">Assign Platform Plan</label>
+                    <select name="plan_id" class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none">
+                        {% for p in all_plans %}
+                        <option value="{{ p.id }}" {% if subscription and subscription.plan_id == p.id %}selected{% endif %}>
+                            {{ p.name }} ({{ p.price_display }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="w-full py-2 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs hover:opacity-85 transition">
+                        Update Plan
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Column 2 & 3: Coach's Clients, Packages, Programs -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Clients List -->
+            <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-900 pb-3">
+                    <h3 class="font-extrabold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <span>🏋️</span> Assigned Clients / Athletes ({{ clients|length }})
+                    </h3>
+                </div>
+
+                {% if clients %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="text-gray-400 uppercase font-mono text-[10px] border-b border-gray-100 dark:border-gray-800">
+                            <tr>
+                                <th class="pb-2">Athlete Name</th>
+                                <th class="pb-2">Email</th>
+                                <th class="pb-2">Timezone</th>
+                                <th class="pb-2 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-900">
+                            {% for cl in clients %}
+                            <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-900/50">
+                                <td class="py-2.5 font-bold text-gray-900 dark:text-gray-100">
+                                    {{ cl.full_name }}
+                                </td>
+                                <td class="py-2.5 font-mono text-gray-500">
+                                    {{ cl.user.email if cl.user else 'No Email' }}
+                                </td>
+                                <td class="py-2.5 text-gray-400 font-mono">
+                                    {{ cl.timezone or 'UTC' }}
+                                </td>
+                                <td class="py-2.5 text-right">
+                                    <a href="{{ url_for('admin.client_detail', client_id=cl.id) }}" class="font-bold text-red-600 hover:underline">
+                                        Inspect &rarr;
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-xs text-gray-400 py-4 text-center">No athletes currently assigned to this coach.</p>
+                {% endif %}
+            </div>
+
+            <!-- Packages List -->
+            <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-900 pb-3">
+                    <h3 class="font-extrabold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <span>📦</span> Coaching Packages ({{ packages|length }})
+                    </h3>
+                </div>
+
+                {% if packages %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {% for pkg in packages %}
+                    <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-sm text-gray-900 dark:text-gray-100">{{ pkg.name }}</h4>
+                            <span class="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">${{ pkg.price }}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
+                            <span>Duration: {{ pkg.duration_weeks or 4 }} weeks</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ 'bg-green-100 text-green-700' if pkg.is_active else 'bg-gray-200 text-gray-700' }}">
+                                {{ 'Active' if pkg.is_active else 'Disabled' }}
+                            </span>
+                        </div>
+                        {% if pkg.description %}
+                        <p class="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2">{{ pkg.description }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-xs text-gray-400 py-4 text-center">No packages configured by this coach yet.</p>
+                {% endif %}
+            </div>
+
+            <!-- Programs List -->
+            <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-900 pb-3">
+                    <h3 class="font-extrabold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <span>📋</span> Workout Programs ({{ programs|length }})
+                    </h3>
+                </div>
+
+                {% if programs %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {% for prog in programs %}
+                    <div class="p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 text-xs">
+                        <span class="font-bold text-gray-900 dark:text-gray-100 block mb-0.5">{{ prog.name }}</span>
+                        <span class="text-gray-400 font-mono text-[11px]">{{ prog.phases.count() }} Phase(s) configured</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-xs text-gray-400 py-4 text-center">No workout programs created yet.</p>
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

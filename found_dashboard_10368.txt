@@ -1,0 +1,808 @@
+Created At: 2026-10-16T20:01:57+01:00
+Completed At: 2026-10-16T20:01:58+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1709
+Total Bytes: 67762
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session, current_app
+2: from flask_login import login_required, current_user, logout_user
+3: from datetime import date
+4: from app.extensions import db
+5: from app.models.user import ClientProfile
+6: from app.models.coaching import CoachingPackage
+7: from app.models.workout import Workout, WorkoutExercise
+8: from app.models.progress import ClientProgram, WorkoutCompletion
+9: from app.models.features import ClientPost
+10: from app import socketio
+11: 
+12: 
+13: client_bp = Blueprint('client', __name__, url_prefix='/client')
+14: 
+15: @client_bp.before_request
+16: @login_required
+17: def require_client():
+18:     if not current_user.is_client:
+19:         flash('You do not have permission to access this page.', 'danger')
+20:         return redirect(url_for('main.index'))
+21:     # Ensure client profile is complete before accessing most pages
+22:     _OPEN_ENDPOINTS = {
+23:         'client.profile', 'client.dashboard',
+24:         'client.delete_profile', 'client.rate_coach',
+25:         'client.validate_discount', 'client.get_available_slots',
+26:         'static',
+27:     }
+28:     if request.endpoint not in _OPEN_ENDPOINTS:
+29:         profile = current_user.client_profile
+30:         if not profile or not getattr(profile, 'is_complete', False):
+31:             flash('Please complete your profile before accessing this page.', 'warning')
+32:             return redirect(url_for('client.profile'))
+33: 
+34: @client_bp.route('/chat')
+35: @login_required
+36: def chat():
+37:     profile = current_user.client_profile
+38:     if not profile:
+39:         profile = ClientProfile(user_id=current_user.id)
+40:         db.session.add(profile)
+41:         db.session.commit()
+42: 
+43:     import datetime as dt
+44:     from app.models.user import ChatMessage, CoachProfile, User, ClientProfile
+45:     from app.models.features import CustomOffer
+46:     from sqlalchemy import or_, and_
+47: 
+48:     # Find all user IDs who messaged the client or were messaged by the client
+49:     msg_partners = db.session.query(ChatMessage.sender_id).filter(
+50:         ChatMessage.receiver_id == current_user.id
+51:     ).union(
+52:         db.session.query(ChatMessage.receiver_id).filter(
+53:             ChatMessage.sender_id == current_user.id
+54:         )
+55:     ).all()
+56:     partner_uids = [uid[0] for uid in msg_partners if uid[0] != current_user.id]
+57: 
+58:     all_contact_uids = []
+59:     seen = set()
+60: 
+61:     if profile.coach and profile.coach.user_id not in seen:
+62:         seen.add(profile.coach.user_id)
+63:         all_contact_uids.append(profile.coach.user_id)
+64: 
+65:     for uid in partner_uids:
+66:         if uid not in seen:
+67:             seen.add(uid)
+68:             all_contact_uids.append(uid)
+69: 
+70:     contacts = []
+71:     for uid in all_contact_uids:
+72:         u = User.query.get(uid)
+73:         if not u:
+74:             continue
+75:         c_coach = u.coach_profile
+76:         c_client = u.client_profile
+77:         is_my_coach = bool(profile.coach and u.id == profile.coach.user_id)
+78: 
+79:         if c_coach and c_coach.first_name:
+80:             name = f"Coach {c_coach.first_name} {c_coach.last_name or ''}".strip()
+81:         elif c_client and c_client.first_name:
+82:             name = c_client.full_name
+83:         else:
+84:             name = u.email.split('@')[0]
+85: 
+86:         last_msg = ChatMessage.query.filter(
+87:             or_(
+88:                 and_(ChatMessage.sender_id == current_user.id, ChatMessage.receiver_id == uid),
+89:                 and_(ChatMessage.sender_id == uid, ChatMessage.receiver_id == current_user.id)
+90:             )
+91:         ).order_by(ChatMessage.timestamp.desc()).first()
+92: 
+93:         pending_offer = None
+94:         if c_coach:
+95:             pending_offer = CustomOffer.query.filter_by(
+96:                 coach_id=c_coach.id,
+97:                 client_id=profile.id,
+98:                 status='pending'
+99:             ).order_by(CustomOffer.created_at.desc()).first()
+100: 
+101:         role_label = 'My Coach' if is_my_coach else ('Coach' if c_coach else 'Athlete')
+102: 
+103:         contacts.append({
+104:             'user': u,
+105:             'coach': c_coach,
+106:             'client': c_client,
+107:             'name': name,
+108:             'email': u.email,
+109:             'avatar': name[0].upper() if name else '?',
+110:             'is_my_coach': is_my_coach,
+111:             'is_coach': bool(c_coach),
+112:             'role_label': role_label,
+113:             'last_msg': last_msg,
+114:             'pending_offer': pending_offer
+115:         })
+116: 
+117:     contacts.sort(key=lambda c: (
+118:         c['last_msg'].timestamp if c['last_msg'] and c['last_msg'].timestamp else dt.datetime.min,
+119:         1 if c['is_my_coach'] else 0
+120:     ), reverse=True)
+121: 
+122:     target_partner_id = request.args.get('partner_id', type=int) or request.args.get('coach_user_id', type=int)
+123:     partner_id = None
+124:     active_user = None
+125:     active_coach = None
+126: 
+127:     if target_partner_id:
+128:         partner_id = target_partner_id
+129:         active_user = User.query.get(target_partner_id)
+130:         if active_user and active_user.coach_profile:
+131:             active_coach = active_user.coach_profile
+132:     elif contacts:
+133:         partner_id = contacts[0]['user'].id
+134:         active_user = contacts[0]['user']
+135:         active_coach = contacts[0]['coach']
+136:     elif profile.coach:
+137:         partner_id = profile.coach.user_id
+138:         active_user = profile.coach.user
+139:         active_coach = profile.coach
+140: 
+141:     active_offer = None
+142:     if active_coach:
+143:         active_offer = CustomOffer.query.filter_by(
+144:             coach_id=active_coach.id,
+145:             client_id=profile.id,
+146:             status='pending'
+147:         ).order_by(CustomOffer.created_at.desc()).first()
+148: 
+149:     messages = []
+150:     if partner_id:
+151:         messages = ChatMessage.query.filter(
+152:             or_(
+153:                 and_(ChatMessage.sender_id == current_user.id, ChatMessage.receiver_id == partner_id),
+154:                 and_(ChatMessage.sender_id == partner_id, ChatMessage.receiver_id == current_user.id)
+155:             )
+156:         ).order_by(ChatMessage.timestamp.asc()).all()
+157: 
+158:     return render_template('client/chat.html',
+159:                            partner_id=partner_id,
+160:                            active_user=active_user,
+161:                            coach=active_coach,
+162:                            conversations=contacts,
+163:                            contacts=contacts,
+164:                            active_offer=active_offer,
+165:                            profile=profile,
+166:                            messages=messages)
+167: 
+168: 
+169: @client_bp.route('/chat/search-users')
+170: @login_required
+171: def search_users():
+172:     q = request.args.get('q', '').strip().lower()
+173:     if not q:
+174:         return jsonify([])
+175:     from app.models.user import User, ClientProfile, CoachProfile
+176:     query = User.query.filter(User.id != current_user.id)
+177:     query = query.filter(
+178:         (User.email.ilike(f'%{q}%')) |
+179:         (User.id.in_(
+180:             CoachProfile.query.filter(
+181:                 (CoachProfile.first_name.ilike(f'%{q}%')) |
+182:                 (CoachProfile.last_name.ilike(f'%{q}%')) |
+183:                 (CoachProfile.specialization.ilike(f'%{q}%'))
+184:             ).with_entities(CoachProfile.user_id)
+185:         )) |
+186:         (User.id.in_(
+187:             ClientProfile.query.filter(
+188:                 (ClientProfile.first_name.ilike(f'%{q}%')) |
+189:                 (ClientProfile.last_name.ilike(f'%{q}%'))
+190:             ).with_entities(ClientProfile.user_id)
+191:         ))
+192:     ).limit(10).all()
+193: 
+194:     results = []
+195:     for u in query:
+196:         coach = u.coach_profile
+197:         client = u.client_profile
+198:         if coach:
+199:             name = f"Coach {coach.first_name} {coach.last_name or ''}".strip()
+200:             role = f"Coach • {coach.specialization or 'Calisthenics'}"
+201:         elif client:
+202:             name = client.full_name or u.email.split('@')[0]
+203:             role = "Athlete"
+204:         else:
+205:             name = u.email.split('@')[0]
+206:             role = "User"
+207:         results.append({
+208:             'user_id': u.id,
+209:             'name': name,
+210:             'email': u.email,
+211:             'avatar': name[0].upper() if name else '?',
+212:             'role': role,
+213:             'chat_url': url_for('client.chat', partner_id=u.id)
+214:         })
+215:     return jsonify(results)
+216: 
+217: @client_bp.route('/profile', methods=['GET', 'POST'])
+218: @login_required
+219: def profile():
+220:     client_profile = current_user.client_profile
+221:     if not client_profile:
+222:         client_profile = ClientProfile(user_id=current_user.id)
+223:         db.session.add(client_profile)
+224:         db.session.commit()
+225: 
+226:     if request.method == 'POST':
+227:         client_profile.first_name = request.form.get('first_name', '').strip()
+228:         client_profile.last_name = request.form.get('last_name', '').strip()
+229:         client_profile.phone = request.form.get('phone', '').strip()
+230:         client_profile.timezone = request.form.get('timezone', 'UTC').strip()
+231:         client_profile.fitness_goals = request.form.get('fitness_goals', '').strip()
+232:         client_profile.bio = request.form.get('bio', '').strip()
+233: 
+234:         if 'profile_photo' in request.files:
+235:             file = request.files['profile_photo']
+236:             if file and file.filename:
+237:                 from werkzeug.utils import secure_filename
+238:                 import uuid, os
+239:                 filename = f"client_{current_user.id}_{uuid.uuid4().hex[:8]}_{secure_filename(file.filename)}"
+240:                 photo_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'photos')
+241:                 os.makedirs(photo_dir, exist_ok=True)
+242:                 file.save(os.path.join(photo_dir, filename))
+243:                 client_profile.profile_photo = f"/static/uploads/photos/{filename}"
+244: 
+245:         db.session.commit()
+246:         flash('Your profile has been saved successfully!', 'success')
+247:         return redirect(url_for('client.profile'))
+248: 
+249:     return render_template('client/profile.html', profile=client_profile)
+250: 
+251: @client_bp.route('/marketplace', methods=['GET', 'POST'])
+252: @login_required
+253: def marketplace():
+254:     profile = current_user.client_profile
+255:     if not profile:
+256:         flash('Please complete your profile first.', 'warning')
+257:         return redirect(url_for('client.profile'))
+258:     if profile.coach_id:
+259:         flash('The Marketplace is reserved for athletes seeking a coach. You already have an active Calisthenics Coach!', 'info')
+260:         return redirect(url_for('client.dashboard'))
+261: 
+262:     if request.method == 'POST':
+263:         title = request.form.get('title', '').strip()
+264:         problem = request.form.get('problem', '').strip()
+265:         goal = request.form.get('goal', '').strip()
+266:         budget = request.form.get('budget', '').strip()
+267: 
+268:         if title and problem and goal:
+269:             post = ClientPost(
+270:                 client_id=profile.id,
+271:                 title=title,
+272:                 problem=problem,
+273:                 goal=goal,
+274:                 budget=budget
+275:             )
+276:             db.session.add(post)
+277:             db.session.commit()
+278:             flash('Your post looking for a coach has been published to the marketplace!', 'success')
+279:             return redirect(url_for('client.marketplace'))
+280:         else:
+281:             flash('Please fill in all required fields.', 'danger')
+282: 
+283:     my_posts = ClientPost.query.filter_by(client_id=profile.id).order_by(ClientPost.created_at.desc()).all()
+284:     all_active_posts = ClientPost.query.filter_by(status='active').order_by(ClientPost.created_at.desc()).all()
+285:     return render_template('client/marketplace.html', my_posts=my_posts, all_active_posts=all_active_posts)
+286: 
+287: @client_bp.route('/marketplace/post/<int:post_id>/close', methods=['POST'])
+288: @login_required
+289: def close_marketplace_post(post_id):
+290:     profile = current_user.client_profile
+291:     post = ClientPost.query.get_or_404(post_id)
+292:     if post.client_id == profile.id:
+293:         post.status = 'closed'
+294:         db.session.commit()
+295:         flash('Post marked as closed.', 'info')
+296:     return redirect(url_for('client.marketplace'))
+297: 
+298: @client_bp.route('/voice-call')
+299: @login_required
+300: def voice_call():
+301:     profile = current_user.client_profile
+302:     if not profile or not profile.coach:
+303:         flash('No coach assigned.', 'danger')
+304:         return redirect(url_for('client.dashboard'))
+305:     partner_id = profile.coach.user_id
+306:     partner_name = f"Coach {profile.coach.first_name if profile.coach.first_name else 'Coach'}"
+307:     from app.models.progress import FormCheckSubmission
+308:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+309:     return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+310: 
+311: @client_bp.route('/dashboard')
+312: @login_required
+313: def dashboard():
+314:     profile = current_user.client_profile
+315:     if not profile:
+316:         profile = ClientProfile(user_id=current_user.id)
+317:         db.session.add(profile)
+318:         db.session.commit()
+319:     
+320:     today_workout = None
+321:     active_program = None
+322:     progress = None
+323: 
+324:     if profile and profile.coach_id:
+325:         cp = profile.client_programs.filter_by(is_active=True).first()
+326:         if cp:
+327:             active_program = cp.program
+328:             # Find today's workout — simple heuristic: find first uncompleted workout in order
+329:             completed_ids = [c.workout_id for c in profile.completions.all()]
+330:             # Compute total workouts in active program
+331:             total_workouts = 0
+332:             if active_program:
+333:                 for phase in active_program.phases:
+334:                     total_workouts += phase.workouts.count()
+335:             # progress dict passed to template
+336:             progress = {
+337:                 'completed': len(completed_ids),
+338:                 'total': total_workouts,
+339:             }
+340:             for phase in cp.program.phases.order_by('order').all():
+341:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+342:                     if w.id not in completed_ids:
+343:                         today_workout = w
+344:                         break
+345:                 if today_workout:
+346:                     break
+347: 
+348:     upcoming_appointments = []
+349:     if profile:
+350:         from app.models.calendar import Appointment
+351:         from datetime import date as date_cls
+352:         upcoming_appointments = Appointment.query.filter(
+353:             Appointment.client_id == profile.id,
+354:             Appointment.date >= date_cls.today(),
+355:             Appointment.status == 'scheduled'
+356:         ).order_by(Appointment.date.asc(), Appointment.start_time.asc()).limit(3).all()
+357: 
+358:     # Calculate days remaining on active contract
+359:     days_remaining = None
+360:     active_contract = None
+361:     if profile:
+362:         from app.models.coaching import ClientContract
+363:         from datetime import datetime as dt_cls
+364:         active_contract = ClientContract.query.filter_by(
+365:             client_id=profile.id, status='active'
+366:         ).order_by(ClientContract.created_at.desc()).first()
+367:         if active_contract and active_contract.end_date:
+368:             delta = active_contract.end_date - dt_cls.utcnow()
+369:             days_remaining = max(0, delta.days)
+370:         elif active_contract and active_contract.start_date and profile.active_package:
+371:             weeks = profile.active_package.duration_weeks or 4
+372:             end_est = active_contract.start_date + __import__('datetime').timedelta(weeks=weeks)
+373:             delta = end_est - dt_cls.utcnow()
+374:             days_remaining = max(0, delta.days)
+375: 
+376:     pending_offers = []
+377:     negotiation_threads = []
+378:     if profile:
+379:         from app.models.features import CustomOffer
+380:         from app.models.user import ChatMessage, User
+381:         from sqlalchemy import or_
+382:         pending_offers = CustomOffer.query.filter_by(client_id=profile.id, status='pending').order_by(CustomOffer.created_at.desc()).all()
+383: 
+384:         # For coachless clients, check if any coaches have messaged them for negotiations
+385:         if not profile.coach_id:
+386:             msg_uids = db.session.query(ChatMessage.sender_id).filter(
+387:                 ChatMessage.receiver_id == current_user.id
+388:             ).union(
+389:                 db.session.query(ChatMessage.receiver_id).filter(
+390:                     ChatMessage.sender_id == current_user.id
+391:                 )
+392:             ).all()
+393:             for (uid,) in msg_uids:
+394:                 if uid != current_user.id:
+395:                     u = User.query.get(uid)
+396:                     if u and u.coach_profile:
+397:                         last_m = ChatMessage.query.filter(
+398:                             or_(
+399:                                 ((ChatMessage.sender_id == current_user.id) & (ChatMessage.receiver_id == uid)),
+400:                                 ((ChatMessage.sender_id == uid) & (ChatMessage.receiver_id == current_user.id))
+401:                             )
+402:                         ).order_by(ChatMessage.timestamp.desc()).first()
+403:                         off = CustomOffer.query.filter_by(
+404:                             coach_id=u.coach_profile.id,
+405:                             client_id=profile.id,
+406:                             status='pending'
+407:                         ).order_by(CustomOffer.created_at.desc()).first()
+408:                         negotiation_threads.append({
+409:                             'coach': u.coach_profile,
+410:                             'user': u,
+411:                             'last_msg': last_m,
+412:                             'offer': off
+413:                         })
+414: 
+415:     workout_streak = _get_workout_streak(profile) if (profile and profile.coach_id) else 0
+416:     # Ensure progress is defined (None if no program)
+417:     progress = progress if 'progress' in locals() else None
+418:     return render_template('client/dashboard.html',
+419:                            profile=profile,
+420:                            today_workout=today_workout,
+421:                            active_program=active_program,
+422:                            upcoming_appointments=upcoming_appointments,
+423:                            days_remaining=days_remaining,
+424:                            active_contract=active_contract,
+425:                            workout_streak=workout_streak,
+426:                            progress=progress,
+427:                            pending_offers=pending_offers,
+428:                            negotiation_threads=negotiation_threads)
+429: 
+430: @client_bp.route('/my-program')
+431: @login_required
+432: def my_program():
+433:     profile = current_user.client_profile
+434:     if not profile or not profile.coach_id:
+435:         flash('You do not have an active coach. Visit the Marketplace to connect with a coach and get your calisthenics routine!', 'info')
+436:         return redirect(url_for('client.marketplace'))
+437:     cp = profile.client_programs.filter_by(is_active=True).first() if profile else None
+438:     completed_ids = set(c.workout_id for c in profile.completions.all()) if profile else set()
+439:     return render_template('client/my_program.html', cp=cp, completed_ids=completed_ids, profile=profile)
+440: 
+441: @client_bp.route('/workout/<int:workout_id>')
+442: @login_required
+443: def workout_view(workout_id):
+444:     profile = current_user.client_profile
+445:     if not profile or not profile.coach_id:
+446:         flash('You do not have an active coach.', 'warning')
+447:         return redirect(url_for('client.marketplace'))
+448:     workout = Workout.query.get_or_404(workout_id)
+449:     already_completed = WorkoutCompletion.query.filter_by(
+450:         client_id=profile.id, workout_id=workout_id
+451:     ).first() if profile else None
+452:     
+453:     exercise_completions = {}
+454:     if already_completed:
+455:         for ec in already_completed.exercise_completions.all():
+456:             exercise_completions[ec.workout_exercise_id] = ec
+457:             
+458:     return render_template('client/workout_view.html',
+459:                            workout=workout,
+460:                            already_completed=already_completed,
+461:                            exercise_completions=exercise_completions,
+462:                            profile=profile)
+463: 
+464: @client_bp.route('/workout/<int:workout_id>/complete', methods=['POST'])
+465: def complete_workout(workout_id):
+466:     import json
+467:     import uuid
+468:     from werkzeug.utils import secure_filename
+469:     from app.models.progress import ExerciseCompletion
+470:     
+471:     profile = current_user.client_profile
+472:     if not profile:
+473:         flash('Profile not found.', 'danger')
+474:         return redirect(url_for('client.dashboard'))
+475: 
+476:     workout = Workout.query.get_or_404(workout_id)
+477:     existing = WorkoutCompletion.query.filter_by(client_id=profile.id, workout_id=workout_id).first()
+478:     if existing:
+479:         flash('You already completed this workout.', 'info')
+480:         return redirect(url_for('client.dashboard'))
+481: 
+482:     # Handle optional form-check video upload
+483:     video_filename = None
+484:     if 'form_check_video' in request.files:
+485:         vfile = request.files['form_check_video']
+486:         if vfile and vfile.filename != '':
+487:             ext = os.path.splitext(vfile.filename)[1].lower()
+488:             if ext in ['.mp4', '.mov', '.webm', '.avi', '.mkv']:
+489:                 video_filename = f"formcheck_{uuid.uuid4().hex[:10]}_{secure_filename(vfile.filename)}"
+490:                 save_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'videos')
+491:                 os.makedirs(save_dir, exist_ok=True)
+492:                 vfile.save(os.path.join(save_dir, video_filename))
+493: 
+494:     perceived_effort = request.form.get('perceived_effort')
+495:     try:
+496:         perceived_effort = int(perceived_effort) if perceived_effort else None
+497:     except ValueError:
+498:         perceived_effort = None
+499: 
+500:     completion = WorkoutCompletion(
+501:         client_id=profile.id,
+502:         workout_id=workout_id,
+503:         client_notes=request.form.get('notes'),
+504:         perceived_effort=perceived_effort,
+505:         video_filename=video_filename
+506:     )
+507:     db.session.add(completion)
+508:     db.session.flush()
+509: 
+510:     # Save individual exercise completion records
+511:     for we in workout.workout_exercises.all():
+512:         actual_sets = request.form.get(f'we_{we.id}_sets', type=int) or we.sets
+513:         actual_reps = request.form.get(f'we_{we.id}_reps') or we.reps
+514:         actual_weight = request.form.get(f'we_{we.id}_weight') or we.weight
+515:         ex_notes = request.form.get(f'we_{we.id}_notes')
+516:         
+517:         # Parse set-by-set details JSON if present
+518:         set_details = request.form.get(f'we_{we.id}_set_details')
+519: 
+520:         ec = ExerciseCompletion(
+521:             workout_completion_id=completion.id,
+522:             workout_exercise_id=we.id,
+523:             actual_sets=actual_sets,
+524:             actual_reps=str(actual_reps) if actual_reps else None,
+525:             actual_weight=str(actual_weight) if actual_weight else None,
+526:             set_details=set_details,
+527:             notes=ex_notes
+528:         )
+529:         db.session.add(ec)
+530: 
+531:     db.session.commit()
+532: 
+533:     # Notify coach if assigned
+534:     if profile.coach and profile.coach.user_id:
+535:         socketio.emit('notification', {
+536:             'msg': f'Client {profile.first_name or profile.user.email} completed {"Rest Day " if workout.is_rest else ""}{workout.name}.'
+537:         }, room=f'user_{profile.coach.user_id}')
+538: 
+539:     if workout.is_rest:
+540:         flash(f'Rest day "{workout.name}" logged! Recovery is essential for strength gains.', 'success')
+541:     else:
+542:         flash(f'Workout "{workout.name}" completed! Great job!', 'success')
+543:     return redirect(url_for('client.my_program'))
+544: 
+545: @client_bp.route('/history')
+546: def history():
+547:     profile = current_user.client_profile
+548:     completions = profile.completions.order_by(WorkoutCompletion.completed_at.desc()).all() if profile else []
+549:     return render_template('client/history.html', completions=completions)
+550: 
+551: @client_bp.route('/select-package/<int:package_id>', methods=['GET', 'POST'])
+552: def select_package(package_id):
+553:     package = CoachingPackage.query.get_or_404(package_id)
+554: 
+555:     if request.method == 'POST':
+556:         # Route through dummy payment page for testable Paystack checkout
+557:         session['pending_package_id'] = package.id
+558:         return redirect(url_for('client.dummy_payment', package_id=package.id))
+559: 
+560:     return render_template('client/select_package.html', package=package)
+561: 
+562: @client_bp.route('/dummy-payment/<int:package_id>')
+563: @login_required
+564: def dummy_payment(package_id):
+565:     package = CoachingPackage.query.get_or_404(package_id)
+566:     payment_url = package.payment_link or 'https://example.com/pay'
+567:     return render_template('client/dummy_payment.html', package=package, payment_url=payment_url)
+568: 
+569: @client_bp.route('/payment-success/<int:package_id>', methods=['POST', 'GET'])
+570: @login_required
+571: def payment_success(package_id):
+572:     package = CoachingPackage.query.get_or_404(package_id)
+573:     profile = current_user.client_profile
+574:     if not profile:
+575:         profile = ClientProfile(user_id=current_user.id)
+576:         db.session.add(profile)
+577:     profile.coach_id = package.coach_id
+578:     profile.active_package_id = package.id
+579:     # Persist profile first so we have a valid profile.id
+580:     db.session.commit()
+581: 
+582:     # Block if already in an active contract
+583:     from app.models.coaching import ClientContract
+584:     existing_active = ClientContract.query.filter_by(client_id=profile.id, status='active').first()
+585:     if existing_active:
+586:         flash('You already have an active coaching contract. End it first before enrolling in a new one.', 'warning')
+587:         return redirect(url_for('client.dashboard'))
+588: 
+589:     # Create contract record
+590:     from datetime import datetime, timedelta
+591:     weeks = package.duration_weeks or 4
+592:     contract = ClientContract(
+593:         client_id=profile.id,
+594:         coach_id=package.coach_id,
+595:         package_id=package.id,
+596:         status='active',
+597:         start_date=datetime.utcnow(),
+598:         end_date=datetime.utcnow() + timedelta(weeks=weeks),
+599:         monthly_renewal_price=float(package.price) / max(1, weeks // 4),
+600:         months_subscribed=max(1, weeks // 4)
+601:     )
+602:     db.session.add(contract)
+603:     db.session.commit()
+604: 
+605:     # Close any open marketplace posts for this client
+606:     active_posts = ClientPost.query.filter_by(client_id=profile.id, status='active').all()
+607:     for post in active_posts:
+608:         post.status = 'closed'
+609:     db.session.commit()
+610: 
+611:     from app.services.email import send_enrollment_email
+612:     try:
+613:         send_enrollment_email(package.coach, profile, package)
+614:     except Exception: pass
+615: 
+616:     session.pop('pending_package_id', None)
+617: 
+618:     # Notify coach via Socket.IO
+619:     if package.coach and package.coach.user_id:
+620:         socketio.emit('notification', {
+621:             'msg': f'New client {profile.first_name or current_user.email} enrolled in {package.name}!'
+622:         }, room=f'user_{package.coach.user_id}')
+623: 
+624:     flash(f'Payment successful! You are now enrolled in {package.name} with Coach {package.coach.first_name}.', 'success')
+625:     return redirect(url_for('client.dashboard'))
+626: 
+627: @client_bp.route('/renew-contract', methods=['GET', 'POST'])
+628: @login_required
+629: def renew_contract():
+630:     profile = current_user.client_profile
+631:     if not profile or not profile.coach:
+632:         flash('You currently do not have an active coach.', 'warning')
+633:         return redirect(url_for('client.dashboard'))
+634:     
+635:     from app.models.coaching import CoachingPackage, ClientContract, CoachDiscount
+636:     
+637:     packages = CoachingPackage.query.filter_by(coach_id=profile.coach_id, is_active=True).all()
+638:     active_contract = ClientContract.query.filter_by(client_id=profile.id, status='active').first()
+639:     
+640:     if request.method == 'POST':
+641:         package_id = request.form.get('package_id', type=int)
+642:         months = request.form.get('months', 1, type=int)
+643:         discount_code = request.form.get('discount_code', '').strip().upper()
+644:         auto_renew = bool(request.form.get('auto_renew'))
+645:         
+646:         package = CoachingPackage.query.get(package_id) if package_id else profile.active_package
+647:         if not package:
+648:             flash('Invalid package selected.', 'danger')
+649:             return redirect(url_for('client.renew_contract'))
+650:         
+651:         monthly_price = float(package.renewal_monthly_price or (package.price / max(1, (package.duration_weeks or 4)//4)))
+652:         total_base = monthly_price * months
+653:         discount_applied = 0.0
+654:         
+655:         if discount_code:
+656:             disc = CoachDiscount.query.filter_by(coach_id=profile.coach_id, code=discount_code, is_active=True).first()
+657:             if disc:
+658:                 if disc.discount_type == 'percentage':
+659:                     discount_applied = (total_base * float(disc.discount_value)) / 100.0
+660:                 else:
+661:                     discount_applied = float(disc.discount_value)
+662:                 disc.usage_count += 1
+663:                 db.session.commit()
+664:         
+665:         # Store pending renewal in session and redirect to payment page
+666:         session['pending_renewal'] = {
+667:             'package_id': package.id,
+668:             'months': months,
+669:             'discount_code': discount_code,
+670:             'auto_renew': auto_renew,
+671:             'monthly_price': monthly_price,
+672:             'discount_applied': discount_applied,
+673:             'total_amount': round(total_base - discount_applied, 2),
+674:         }
+675:         return redirect(url_for('client.renew_payment'))
+676:         
+677:     return render_template('client/renew_contract.html', profile=profile, coach=profile.coach, packages=packages, active_contract=active_contract)
+678: 
+679: 
+680: @client_bp.route('/renew-payment', methods=['GET'])
+681: @login_required
+682: def renew_payment():
+683:     pending = session.get('pending_renewal')
+684:     if not pending:
+685:         flash('No pending renewal found. Please start again.', 'warning')
+686:         return redirect(url_for('client.renew_contract'))
+687:     
+688:     from app.models.coaching import CoachingPackage
+689:     package = CoachingPackage.query.get(pending['package_id'])
+690:     if not package:
+691:         session.pop('pending_renewal', None)
+692:         flash('Package not found.', 'danger')
+693:         return redirect(url_for('client.renew_contract'))
+694:     
+695:     has_real_link = bool(package.payment_link and 'example.com' not in package.payment_link)
+696:     return render_template('client/renew_payment.html',
+697:                            package=package,
+698:                            pending=pending,
+699:                            has_real_link=has_real_link,
+700:                            payment_url=package.payment_link if has_real_link else None)
+701: 
+702: 
+703: @client_bp.route('/confirm-renewal', methods=['POST'])
+704: @login_required
+705: def confirm_renewal():
+706:     pending = session.get('pending_renewal')
+707:     if not pending:
+708:         flash('No pending renewal. Please start again.', 'warning')
+709:         return redirect(url_for('client.renew_contract'))
+710:     
+711:     from app.models.coaching import CoachingPackage, ClientContract
+712:     from datetime import datetime, timedelta
+713:     
+714:     profile = current_user.client_profile
+715:     package = CoachingPackage.query.get(pending['package_id'])
+716:     if not package or not profile:
+717:         session.pop('pending_renewal', None)
+718:         flash('Something went wrong. Please try again.', 'danger')
+719:         return redirect(url_for('client.renew_contract'))
+720:     
+721:     months = pending['months']
+722:     monthly_price = pending['monthly_price']
+723:     discount_applied = pending['discount_applied']
+724:     discount_code = pending.get('discount_code') or None
+725:     auto_renew = pending.get('auto_renew', False)
+726:     
+727:     # Find existing active contract — renewal EXTENDS its end date, not resets it
+728:     active_contract = ClientContract.query.filter_by(client_id=profile.id, status='active').first()
+729:     now = datetime.utcnow()
+730:     if active_contract:
+731:         active_contract.status = 'renewed'
+732:         # Start the new period from whichever is later: today or the current contract end
+733:         start_dt = active_contract.end_date if (active_contract.end_date and active_contract.end_date > now) else now
+734:     else:
+735:         start_dt = now
+736:     end_dt = start_dt + timedelta(days=30 * months)
+737:     
+738:     new_contract = ClientContract(
+739:         client_id=profile.id,
+740:         coach_id=profile.coach_id,
+741:         package_id=package.id,
+742:         status='active',
+743:         start_date=start_dt,
+744:         end_date=end_dt,
+745:         monthly_renewal_price=monthly_price,
+746:         months_subscribed=months,
+747:         auto_renew=auto_renew,
+748:         discount_applied=discount_applied,
+749:         discount_code=discount_code if discount_applied > 0 else None
+750:     )
+751:     db.session.add(new_contract)
+752:     profile.active_package_id = package.id
+753:     db.session.commit()
+754:     
+755:     from app.services.email import send_renewal_email
+756:     try:
+757:         send_renewal_email(profile.coach, profile, package, months)
+758:     except Exception: pass
+759:     
+760:     session.pop('pending_renewal', None)
+761:     
+762:     if profile.coach and profile.coach.user_id:
+763:         socketio.emit('notification', {
+764:             'msg': f'Client {profile.full_name} renewed their contract for {months} month(s)!'
+765:         }, room=f'user_{profile.coach.user_id}')
+766:     
+767:     flash(f'Contract successfully renewed for {months} month(s)!', 'success')
+768:     return redirect(url_for('client.dashboard'))
+769: 
+770: @client_bp.route('/terminate-contract', methods=['POST'])
+771: @login_required
+772: def terminate_contract():
+773:     profile = current_user.client_profile
+774:     if not profile or not profile.coach:
+775:         flash('No active coaching contract to terminate.', 'warning')
+776:         return redirect(url_for('client.dashboard'))
+777:         
+778:     reason = request.form.get('reason', 'Client requested contract termination.').strip()
+779:     
+780:     from app.models.coaching import ClientContract
+781:     from datetime import datetime
+782:     
+783:     contract = ClientContract.query.filter_by(client_id=profile.id, coach_id=profile.coach_id, status='active').first()
+784:     if not contract:
+785:         contract = ClientContract(client_id=profile.id, coach_id=profile.coach_id, package_id=profile.active_package_id)
+786:         db.session.add(contract)
+787:         
+788:     contract.status = 'terminated'
+789:     contract.terminated_by = 'client'
+790:     contract.termination_reason = reason
+791:     contract.terminated_at = datetime.utcnow()
+792:     
+793:     coach = profile.coach
+794:     coach_user_id = profile.coach.user_id if profile.coach else None
+795:     profile.coach_id = None
+796:     profile.active_package_id = None
+797: 
+798:     # Clear chat messages with coach so fresh chat starts on future contracts/posts
+799:     from app.models.user import ChatMessage
+800:     if coach_user_id:
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

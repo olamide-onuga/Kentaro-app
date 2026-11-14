@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <a href="{{ url_for('exercises.index') }}" class="text-blue-600 hover:underline">&larr; Back to Exercise Library</a>
+    </div>
+    <div class="bg-white dark:bg-black rounded-lg shadow-sm dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-800 p-8">
+        <h1 class="text-2xl font-bold mb-6">New Exercise</h1>
+        <form method="POST" action="{{ url_for('exercises.create') }}">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Exercise Name *</label>
+                    <input class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2" type="text" name="name" placeholder="e.g. Planche Push-up" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Muscle Group <span class="text-xs text-gray-400 font-normal">(Optional)</span></label>
+                    <select name="muscle_group" class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-black text-gray-900 dark:text-gray-100">
+                        <option value="">None / Any</option>
+                        <option>Chest</option>
+                        <option>Back</option>
+                        <option>Shoulders</option>
+                        <option>Biceps</option>
+                        <option>Triceps</option>
+                        <option>Legs</option>
+                        <option>Core</option>
+                        <option>Full Body</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Equipment <span class="text-xs text-gray-400 font-normal">(Optional)</span></label>
+                    <input type="text" name="equipment" placeholder="e.g. Pull-up Bar, Rings, Dumbbells, Bodyweight..." class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-black text-gray-900 dark:text-gray-100">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Difficulty <span class="text-xs text-gray-400 font-normal">(Optional)</span></label>
+                    <select name="difficulty" class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-black text-gray-900 dark:text-gray-100">
+                        <option value="">None / Any</option>
+                        <option>Beginner</option>
+                        <option>Intermediate</option>
+                        <option>Advanced</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Demo Video URL</label>
+                    <input class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2" type="url" name="video_url" placeholder="https://youtube.com/...">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                    <textarea class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2" name="description" rows="2"></textarea>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instructions</label>
+                    <textarea class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2" name="instructions" rows="4" placeholder="Step-by-step instructions for performing this exercise..."></textarea>
+                </div>
+            </div>
+            <button type="submit" class="w-full bg-black dark:bg-white text-white dark:text-black py-2 px-4 rounded-md font-medium hover:bg-gray-800 transition">Save Exercise</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

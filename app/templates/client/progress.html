@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Progress & Tracking - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto pb-16">
+    <!-- Header -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-gray-900 dark:text-gray-100">Progress & Tracking</h1>
+            <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Monitor your bodyweight, progress photos, and coach form checks.</p>
+        </div>
+        <a href="{{ url_for('client.dashboard') }}" class="inline-flex items-center text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black">
+            &larr; Dashboard
+        </a>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="flex border-b border-gray-200 dark:border-gray-800 mb-8 space-x-2 sm:space-x-8 overflow-x-auto">
+        <button type="button" onclick="switchTab('weight')" id="tabBtn_weight" class="pb-3 text-sm sm:text-base font-bold text-black dark:text-white border-b-2 border-black transition whitespace-nowrap">
+            ⚖️ Body Weight
+        </button>
+        <button type="button" onclick="switchTab('photos')" id="tabBtn_photos" class="pb-3 text-sm sm:text-base font-bold text-gray-400 dark:text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition whitespace-nowrap">
+            📸 Progress Photos
+        </button>
+        <button type="button" onclick="switchTab('formchecks')" id="tabBtn_formchecks" class="pb-3 text-sm sm:text-base font-bold text-gray-400 dark:text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition whitespace-nowrap flex items-center">
+            📹 Form Checks
+            {% set pending_count = form_checks|selectattr('status', 'equalto', 'pending')|list|length %}
+            {% if pending_count > 0 %}
+            <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-bold">{{ pending_count }}</span>
+            {% endif %}
+        </button>
+    </div>
+
+    <!-- TAB 1: BODY WEIGHT -->
+    <div id="tabContent_weight" class="space-y-8">
+        <!-- Log Weight Form & Summary Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Log Entry Card -->
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-3">Log Today's Weight</h3>
+                <form method="POST" action="{{ url_for('client.log_weight') }}">
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Weight</label>
+                        <div class="flex rounded-xl shadow-sm dark:shadow-gray-900/50">
+                            <input type="number" step="0.1" name="weight" required placeholder="e.g. 175.5" class="flex-1 border border-gray-300 dark:border-gray-700 rounded-l-xl p-2.5 text-sm font-bold focus:border-black focus:ring-0">
+                            <select name="unit" class="bg-gray-100 dark:bg-gray-900 border border-l-0 border-gray-300 dark:border-gray-700 rounded-r-xl px-3 text-sm font-semibold text-gray-600 dark:text-gray-400">
+                                <option value="lbs">lbs</option>
+                                <option value="kg">kg</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Date</label>
+                        <input type="date" name="date" value="{{ today_str }}" class="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 text-sm font-medium focus:border-black focus:ring-0">
+                    </div>
+                    <div class="mb-5">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Notes (Optional)</label>
+                        <input type="text" name="notes" placeholder="e.g. fasted morning weight" class="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 text-sm focus:border-black focus:ring-0">
+                    </div>
+                    <button type="submit" class="w-full bg-black dark:bg-white hover:bg-gray-800 text-white dark:text-black font-bold py-3 rounded-xl transition text-sm">
+                        + Save Weight Entry
+                    </button>
+                </form>
+            </div>
+
+            <!-- Weight Chart Card -->
+            <div class="lg:col-span-2 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Bodyweight Trend</h3>
+                    {% if latest_weight %}
+                    <span class="text-sm font-bold bg-green-50 text-green-700 px-3 py-1 rounded-full border border-green-200">
+                        Current: {{ latest_weight.weight }} {{ latest_weight.unit }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="h-64 sm:h-72 w-full">
+                    <canvas id="weightChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weight History Table -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Weight History Log</h3>
+            {% if weight_logs %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase border-b border-gray-100 dark:border-gray-800">
+                            <th class="py-3 px-4">Date</th>
+                            <th class="py-3 px-4">Weight</th>
+                            <th class="py-3 px-4">Notes</th>
+                            <th class="py-3 px-4 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                        {% for log in weight_logs %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-900 transition">
+                            <td class="py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">{{ log.date.strftime('%B %d, %Y') }}</td>
+                            <td class="py-3 px-4 font-black text-gray-900 dark:text-gray-100">{{ log.weight }} {{ log.unit }}</td>
+                            <td class="py-3 px-4 text-gray-500 dark:text-gray-400 italic">{{ log.notes or '-' }}</td>
+                            <td class="py-3 px-4 text-right">
+                                <form method="POST" action="{{ url_for('client.delete_weight', log_id=log.id) }}" onsubmit="return confirm('Delete this weight entry?');" class="inline">
+                                    <button type="submit" class="text-xs text-red-500 hover:text-red-700 font-bold">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
+                No weight logged yet. Add your first entry above to start charting!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- TAB 2: PROGRESS PHOTOS -->
+    <div id="tabContent_photos" class="hidden space-y-8">
+        <!-- Upload Photo Card -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50 max-w-xl">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Upload Progress Photo</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Consistent check-in photos help track visible body composition changes over time.</p>
+            <form method="POST" action="{{ url_for('client.upload_photo') }}" enctype="multipart/form-data">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                            Pose / Angle <span class="text-gray-400 font-normal lowercase">(type or select)</span>
+                        </label>
+                        <input
+                            type="text"
+                            name="category"
+                            list="categoryList"
+                            placeholder="e.g. Front Pose, Side Pose, Back Pose..."
+                            class="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 text-sm font-semibold bg-white dark:bg-black text-black dark:text-white focus:border-black dark:focus:border-white focus:ring-0"
+                        >
+                        <datalist id="categoryList">
+                            <option value="Front Pose">Front Relaxed or Flexed</option>
+                            <option value="Side Pose">Side Profile</option>
+                            <option value="Back Pose">Back / Posterior Chain</option>
+                            <option value="Front Double Bicep">Front Flexed</option>
+                            <option value="Back Lat Spread">Back Flexed</option>
+                            <option value="Legs / Calves">Lower Body Focus</option>
+                            <option value="Measurement / Scale">Measurements</option>
+                            <option value="Other">Custom Angle</option>
+                        </datalist>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Date Taken</label>
+                        <input type="date" name="date" value="{{ today_str }}" class="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 text-sm font-medium bg-white dark:bg-black text-black dark:text-white focus:border-black dark:focus:border-white focus:ring-0">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Photo File (JPG, PNG)</label>
+                    <input type="file" name="photo" accept="image/*" required class="block w-full text-xs text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800 cursor-pointer">
+                </div>
+                <div class="mb-5">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Notes</label>
+                    <input type="text" name="notes" placeholder="e.g. Week 4 check-in" class="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 text-sm focus:border-black focus:ring-0">
+                </div>
+                <button type="submit" class="w-full bg-black dark:bg-white hover:bg-gray-800 text-white dark:text-black font-bold py-3 rounded-xl transition text-sm">
+                    Upload Progress Photo
+                </button>
+            </form>
+        </div>
+
+        <!-- Photo Gallery -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Photo Timeline Gallery</h3>
+            {% if photos %}
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {% for p in photos %}
+                <div class="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm dark:shadow-gray-900/50 group">
+                    <div class="aspect-square bg-gray-200 dark:bg-gray-800 overflow-hidden relative">
+                        <img src="{{ url_for('static', filename='uploads/photos/' + p.photo_filename) }}" alt="Progress Photo" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                        <span class="absolute top-2 left-2 bg-black/75 text-white dark:text-black text-[10px] font-bold uppercase px-2 py-0.5 rounded-full">
+                            {{ p.category }}
+                        </span>
+                    </div>
+                    <div class="p-3 text-xs">
+                        <p class="font-bold text-gray-800 dark:text-gray-200">{{ p.date.strftime('%b %d, %Y') }}</p>
+                        {% if p.notes %}
+                        <p class="text-gray-500 dark:text-gray-400 truncate mt-0.5">{{ p.notes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
+                No progress photos uploaded yet. Upload your baseline check-in photo above!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- TAB 3: FORM CHECKS -->
+    <div id="tabContent_formchecks" class="hidden space-y-8">
+        <!-- Submit Video Form Check -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50 max-w-xl">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Request Form Critique</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Submit a video of your exercise technique for your coach to review and provide coaching cues.</p>
+            <form method="POST" action="{{ url_for('client.submit_form_check') }}" enctype="multipart/form-data">
+                <div class="mb-4">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                        Exercise Name <span class="text-gray-400 font-normal lowercase">(type any exercise)</span>
+                    </label>
+                    <input
+                        type="text"
+                        name="exercise_name"
+                        list="exerciseList"
+                        placeholder="e.g. Barbell Back Squat, Romanian Deadlift, Bench Press..."
+                        class="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 text-sm font-semibold bg-white dark:bg-black text-black dark:text-white focus:border-black dark:focus:border-white focus:ring-0"
+                    >
+                    <datalist id="exerciseList">
+                        {% for ex in exercises %}
+                        <option value="{{ ex.name }}">{{ ex.muscle_group or 'Exercise' }}</option>
+                        {% endfor %}
+                    </datalist>
+                    <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Type the exercise name directly or select from your coach's exercise library suggestions.</p>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Video File (MP4, WebM, MOV max 16MB)</label>
+                    <input type="file" name="video" accept="video/*" required class="block w-full text-xs text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800 cursor-pointer">
+                </div>
+                <div class="mb-5">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Notes & Questions for Coach</label>
+                    <textarea name="notes" rows="3" placeholder="e.g. Felt some lower back fatigue on the bottom of the squat, does my depth look okay?" class="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm focus:border-black focus:ring-0"></textarea>
+                </div>
+                <button type="submit" class="w-full bg-black dark:bg-white hover:bg-gray-800 text-white dark:text-black font-bold py-3 rounded-xl transition text-sm">
+                    Submit Video for Review
+                </button>
+            </form>
+        </div>
+
+        <!-- Form Checks List -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Form Check Submissions</h3>
+            {% if form_checks %}
+            <div class="space-y-6">
+                {% for fc in form_checks %}
+                <div class="border border-gray-200 dark:border-gray-800 rounded-xl p-5 {% if fc.status == 'reviewed' %}bg-green-50/20 border-green-200{% else %}bg-gray-50/50{% endif %}">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                        <div>
+                            <h4 class="font-bold text-base text-gray-900 dark:text-gray-100">
+                                {{ fc.exercise_name or (fc.exercise.name if fc.exercise else 'General Technique') }}
+                            </h4>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ fc.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                        </div>
+                        <span class="text-xs font-bold px-3 py-1 rounded-full w-max
+                            {% if fc.status == 'reviewed' %}bg-green-100 text-green-800
+                            {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                            {{ '✓ Reviewed by Coach' if fc.status == 'reviewed' else '⏳ Pending Review' }}
+                        </span>
+                    </div>
+
+                    {% if fc.client_notes %}
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mb-4 italic">"{{ fc.client_notes }}"</p>
+                    {% endif %}
+
+                    <!-- Video Preview -->
+                    <div class="rounded-xl overflow-hidden bg-black dark:bg-white max-w-sm aspect-video mb-4">
+                        <video controls playsinline class="w-full h-full object-contain">
+                            <source src="{{ url_for('static', filename='uploads/videos/' + fc.video_filename) }}" type="video/mp4">
+                        </video>
+                    </div>
+
+                    <!-- Coach Feedback Section -->
+                    {% if fc.coach_feedback %}
+                    <div class="bg-white dark:bg-black border border-green-200 rounded-xl p-4 shadow-sm dark:shadow-gray-900/50">
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="text-sm">💬</span>
+                            <h5 class="text-xs font-bold text-green-900 uppercase tracking-wider">Coach Feedback</h5>
+                        </div>
+                        <p class="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">{{ fc.coach_feedback }}</p>
+                        {% if fc.reviewed_at %}
+                        <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-2">Reviewed on {{ fc.reviewed_at.strftime('%b %d, %Y') }}</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
+                No form checks submitted yet. Upload a video above to receive direct feedback from your coach!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // Tab Switching Logic
+    function switchTab(tabName) {
+        ['weight', 'photos', 'formchecks'].forEach(t => {
+            const content = document.getElementById(`tabContent_${t}`);
+            const btn = document.getElementById(`tabBtn_${t}`);
+            if (t === tabName) {
+                content.classList.remove('hidden');
+                btn.className = "pb-3 text-sm sm:text-base font-bold text-black border-b-2 border-black transition whitespace-nowrap";
+            } else {
+                content.classList.add('hidden');
+                btn.className = "pb-3 text-sm sm:text-base font-bold text-gray-400 hover:text-gray-700 border-b-2 border-transparent transition whitespace-nowrap";
+            }
+        });
+    }
+
+    // Chart.js Weight Graph
+    document.addEventListener('DOMContentLoaded', () => {
+        const ctx = document.getElementById('weightChart');
+        if (!ctx) return;
+
+        const chartLabels = {{ (chart_labels or [])|tojson|safe }};
+        const chartData = {{ (chart_data or [])|tojson|safe }};
+
+        if (chartLabels.length === 0) {
+            ctx.parentNode.innerHTML = '<div class="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">Log at least two entries to view trendline!</div>';
+            return;
+        }
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Weight',
+                    data: chartData,
+                    borderColor: '#000000',
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#000000'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                        ticks: { font: { size: 11, weight: 'bold' } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

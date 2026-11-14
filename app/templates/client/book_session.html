@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Book 1-on-1 Session - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto pb-16">
+    <!-- Header -->
+    <div class="mb-8 flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-gray-900 dark:text-gray-100">Book Coaching Session</h1>
+            <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Schedule a 1-on-1 video call or check-in with your coach.</p>
+        </div>
+        <a href="{{ url_for('client.appointments') }}" class="inline-flex items-center text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black">
+            My Appointments &rarr;
+        </a>
+    </div>
+
+    {% if not coach %}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center">
+        <h3 class="font-bold text-yellow-900 text-lg mb-2">No Coach Assigned</h3>
+        <p class="text-yellow-700 text-sm mb-4">You need an active coach assignment to book 1-on-1 sessions.</p>
+        <a href="{{ url_for('client.dashboard') }}" class="bg-black dark:bg-white text-white dark:text-black px-5 py-2.5 rounded-xl font-bold text-sm">Go to Dashboard</a>
+    </div>
+    {% else %}
+
+    <!-- Coach Info Card -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center space-x-4">
+            <div class="w-14 h-14 bg-black dark:bg-white text-white dark:text-black rounded-2xl flex items-center justify-center font-black text-xl shadow-sm dark:shadow-gray-900/50">
+                {{ coach.first_name[0] if coach.first_name else 'C' }}
+            </div>
+            <div>
+                <h3 class="font-black text-lg text-gray-900 dark:text-gray-100">{{ coach.first_name }} {{ coach.last_name }}</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ coach.specialization or 'Fitness Coach' }} &bull; {{ config.slot_duration if config else 30 }}-Minute Sessions</p>
+            </div>
+        </div>
+        <div class="text-right sm:text-right">
+            <span class="text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider
+                {% if config and config.meeting_platform == 'google_meet' %}bg-blue-100 text-blue-800{% else %}bg-green-100 text-green-800{% endif %}">
+                {{ 'Google Meet' if config and config.meeting_platform == 'google_meet' else 'In-App Video Call' }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Booking Form -->
+    <form method="POST" action="{{ url_for('client.book_session') }}" class="space-y-8" id="bookingForm">
+        <!-- Step 1: Date Selection -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm dark:shadow-gray-900/50">
+            <h3 class="text-lg font-black text-gray-900 dark:text-gray-100 mb-1 flex items-center">
+                <span class="w-6 h-6 rounded-full bg-black dark:bg-white text-white dark:text-black text-xs flex items-center justify-center mr-2">1</span>
+                Select Session Date
+            </h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 ml-8">Choose a date within the next {{ config.booking_window_days if config else 14 }} days.</p>
+
+            <div class="ml-8">
+                <input type="date" id="sessionDate" name="date" min="{{ min_date }}" max="{{ max_date }}" value="{{ min_date }}"
+                       class="border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm font-bold text-gray-800 dark:text-gray-200 focus:border-black focus:ring-0 cursor-pointer"
+                       onchange="loadAvailableSlots()">
+            </div>
+        </div>
+
+        <!-- Step 2: Time Slot Selection -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm dark:shadow-gray-900/50">
+            <h3 class="text-lg font-black text-gray-900 dark:text-gray-100 mb-1 flex items-center">
+                <span class="w-6 h-6 rounded-full bg-black dark:bg-white text-white dark:text-black text-xs flex items-center justify-center mr-2">2</span>
+                Choose Open Time Slot
+            </h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 ml-8">Select an available time slot for your coach on this day.</p>
+
+            <div class="ml-8">
+                <div id="slotsLoading" class="text-xs text-gray-400 dark:text-gray-500 py-4 hidden">
+                    Checking coach availability...
+                </div>
+                
+                <div id="slotsContainer" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <!-- Dynamic slots injected here -->
+                </div>
+
+                <div id="noSlotsMessage" class="hidden py-6 text-center bg-gray-50 dark:bg-gray-950 rounded-xl border border-dashed border-gray-200 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400">
+                    Your coach has no available slots on this date. Please select another date!
+                </div>
+
+                <input type="hidden" name="start_time" id="selectedStartTime" required>
+                <input type="hidden" name="end_time" id="selectedEndTime" required>
+            </div>
+        </div>
+
+        <!-- Step 3: Session Notes -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm dark:shadow-gray-900/50">
+            <h3 class="text-lg font-black text-gray-900 dark:text-gray-100 mb-1 flex items-center">
+                <span class="w-6 h-6 rounded-full bg-black dark:bg-white text-white dark:text-black text-xs flex items-center justify-center mr-2">3</span>
+                Session Focus & Notes
+            </h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 ml-8">What would you like to discuss during this 1-on-1?</p>
+
+            <div class="ml-8">
+                <textarea name="client_notes" rows="3" placeholder="e.g. Reviewing my squat form, adjusting my calorie targets, or general progress review..."
+                          class="w-full border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm focus:border-black focus:ring-0"></textarea>
+            </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="confirmBookingBtn" disabled class="w-full bg-black dark:bg-white hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white dark:text-black font-black py-4 rounded-xl text-base transition shadow-lg dark:shadow-gray-900/50 flex items-center justify-center space-x-2">
+            <span>Confirm & Book Appointment</span>
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<script>
+    function loadAvailableSlots() {
+        const dateVal = document.getElementById('sessionDate').value;
+        const container = document.getElementById('slotsContainer');
+        const loading = document.getElementById('slotsLoading');
+        const noSlots = document.getElementById('noSlotsMessage');
+        const confirmBtn = document.getElementById('confirmBookingBtn');
+        const hiddenStart = document.getElementById('selectedStartTime');
+        const hiddenEnd = document.getElementById('selectedEndTime');
+
+        hiddenStart.value = '';
+        hiddenEnd.value = '';
+        confirmBtn.disabled = true;
+
+        container.innerHTML = '';
+        loading.classList.remove('hidden');
+        noSlots.classList.add('hidden');
+
+        fetch(`{{ url_for('client.get_available_slots') }}?date=${dateVal}`)
+            .then(res => res.json())
+            .then(data => {
+                loading.classList.add('hidden');
+                if (!data.slots || data.slots.length === 0) {
+                    noSlots.classList.remove('hidden');
+                    return;
+                }
+
+                data.slots.forEach(slot => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'slot-btn p-3 rounded-xl border border-gray-200 hover:border-black text-xs font-bold text-gray-800 hover:bg-gray-50 transition text-center focus:outline-none';
+                    btn.textContent = slot.formatted_start;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.slot-btn').forEach(b => {
+                            b.className = 'slot-btn p-3 rounded-xl border border-gray-200 hover:border-black text-xs font-bold text-gray-800 hover:bg-gray-50 transition text-center focus:outline-none';
+                        });
+                        btn.className = 'slot-btn p-3 rounded-xl border-2 border-black bg-black text-white text-xs font-bold transition text-center shadow';
+                        hiddenStart.value = slot.start_time;
+                        hiddenEnd.value = slot.end_time;
+                        confirmBtn.disabled = false;
+                    };
+                    container.appendChild(btn);
+                });
+            })
+            .catch(err => {
+                loading.classList.add('hidden');
+                noSlots.classList.remove('hidden');
+                console.error(err);
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (document.getElementById('sessionDate')) {
+            loadAvailableSlots();
+        }
+    });
+</script>
+{% endblock %}

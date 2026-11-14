@@ -1,0 +1,46 @@
+Created At: 2026-09-09T13:36:36+01:00
+Completed At: 2026-09-09T13:36:36+01:00
+The following changes were made by the replace_file_content tool to: C:\Users\Kentaro\.gemini\antigravity\scratch\kentaro\app\routes\client.py. If relevant, proactively run terminal commands to execute this code for the USER. Don't ask for permission.
+[diff_block_start]
+@@ -27,6 +27,28 @@
+     partner_id = profile.coach.user_id
+     return render_template('client/chat.html', partner_id=partner_id, coach=profile.coach)
+ 
++@client_bp.route('/profile', methods=['GET', 'POST'])
++@login_required
++def profile():
++    client_profile = current_user.client_profile
++    if not client_profile:
++        client_profile = ClientProfile(user_id=current_user.id)
++        db.session.add(client_profile)
++        db.session.commit()
++
++    if request.method == 'POST':
++        client_profile.first_name = request.form.get('first_name', '').strip()
++        client_profile.last_name = request.form.get('last_name', '').strip()
++        client_profile.phone = request.form.get('phone', '').strip()
++        client_profile.timezone = request.form.get('timezone', 'UTC').strip()
++        client_profile.fitness_goals = request.form.get('fitness_goals', '').strip()
++        client_profile.bio = request.form.get('bio', '').strip()
++        db.session.commit()
++        flash('Your profile has been saved successfully!', 'success')
++        return redirect(url_for('client.profile'))
++
++    return render_template('client/profile.html', profile=client_profile)
++
+ @client_bp.route('/voice-call')
+ @login_required
+ def voice_call():
+@@ -34,7 +34,8 @@
+         flash('No coach assigned.', 'danger')
+         return redirect(url_for('client.dashboard'))
+     partner_id = profile.coach.user_id
+-    return render_template('client/voice_call.html', partner_id=partner_id)
++    partner_name = f"Coach {profile.coach.first_name if profile.coach.first_name else 'Coach'}"
++    return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name)
+ 
+ @client_bp.route('/dashboard')
+ def dashboard():
+[diff_block_end]
+
+Please note that the above snippet only shows the MODIFIED lines from the last change. It shows up to 3 lines of unchanged lines before and after the modified lines. The actual file contents may have many more lines not shown.

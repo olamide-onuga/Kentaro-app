@@ -1,0 +1,116 @@
+Created At: 2026-10-06T19:54:23+01:00
+Completed At: 2026-10-06T19:54:32+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1409
+Total Bytes: 55941
+Showing lines 123 to 230
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+123:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+124:     return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+125: 
+126: @client_bp.route('/dashboard')
+127: def dashboard():
+128:     profile = current_user.client_profile
+129:     today_workout = None
+130:     active_program = None
+131: 
+132:     if profile:
+133:         cp = profile.client_programs.filter_by(is_active=True).first()
+134:         if cp:
+135:             active_program = cp.program
+136:                         # Find today's workout — simple heuristic: find first uncompleted workout in order
+137:             completed_ids = [c.workout_id for c in profile.completions.all()]
+138:             # Compute total workouts in active program
+139:             total_workouts = 0
+140:             if active_program:
+141:                 for phase in active_program.phases:
+142:                     total_workouts += phase.workouts.count()
+143:             # progress dict passed to template
+144:             progress = {
+145:                 'completed': len(completed_ids),
+146:                 'total': total_workouts,
+147:             }
+148:             for phase in cp.program.phases.order_by('order').all():
+149:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+150:                     if w.id not in completed_ids:
+151:                         today_workout = w
+152:                         break
+153:                 if today_workout:
+154:                     break
+155: 
+156:     upcoming_appointments = []
+157:     if profile:
+158:         from app.models.calendar import Appointment
+159:         from datetime import date as date_cls
+160:         upcoming_appointments = Appointment.query.filter(
+161:             Appointment.client_id == profile.id,
+162:             Appointment.date >= date_cls.today(),
+163:             Appointment.status == 'scheduled'
+164:         ).order_by(Appointment.date.asc(), Appointment.start_time.asc()).limit(3).all()
+165: 
+166:     # Calculate days remaining on active contract
+167:     days_remaining = None
+168:     active_contract = None
+169:     if profile:
+170:         from app.models.coaching import ClientContract
+171:         from datetime import datetime as dt_cls
+172:         active_contract = ClientContract.query.filter_by(
+173:             client_id=profile.id, status='active'
+174:         ).order_by(ClientContract.created_at.desc()).first()
+175:         if active_contract and active_contract.end_date:
+176:             delta = active_contract.end_date - dt_cls.utcnow()
+177:             days_remaining = max(0, delta.days)
+178:         elif active_contract and active_contract.start_date and profile.active_package:
+179:             weeks = profile.active_package.duration_weeks or 4
+180:             end_est = active_contract.start_date + __import__('datetime').timedelta(weeks=weeks)
+181:             delta = end_est - dt_cls.utcnow()
+182:             days_remaining = max(0, delta.days)
+183: 
+184:     pending_offers = []
+185:     if profile:
+186:         from app.models.features import CustomOffer
+187:         pending_offers = CustomOffer.query.filter_by(client_id=profile.id, status='pending').order_by(CustomOffer.created_at.desc()).all()
+188: 
+189:     workout_streak = _get_workout_streak(profile) if profile else 0
+190:     # Ensure progress is defined (None if no program)
+191:     progress = progress if 'progress' in locals() else None
+192:     return render_template('client/dashboard.html',
+193:                            profile=profile,
+194:                            today_workout=today_workout,
+195:                            active_program=active_program,
+196:                            upcoming_appointments=upcoming_appointments,
+197:                            days_remaining=days_remaining,
+198:                            active_contract=active_contract,
+199:                            workout_streak=workout_streak,
+200:                            progress=progress,
+201:                            pending_offers=pending_offers)
+202: 
+203: @client_bp.route('/my-program')
+204: def my_program():
+205:     profile = current_user.client_profile
+206:     cp = profile.client_programs.filter_by(is_active=True).first() if profile else None
+207:     completed_ids = set(c.workout_id for c in profile.completions.all()) if profile else set()
+208:     return render_template('client/my_program.html', cp=cp, completed_ids=completed_ids)
+209: 
+210: @client_bp.route('/workout/<int:workout_id>')
+211: def workout_view(workout_id):
+212:     profile = current_user.client_profile
+213:     workout = Workout.query.get_or_404(workout_id)
+214:     already_completed = WorkoutCompletion.query.filter_by(
+215:         client_id=profile.id, workout_id=workout_id
+216:     ).first() if profile else None
+217:     
+218:     exercise_completions = {}
+219:     if already_completed:
+220:         for ec in already_completed.exercise_completions.all():
+221:             exercise_completions[ec.workout_exercise_id] = ec
+222:             
+223:     return render_template('client/workout_view.html',
+224:                            workout=workout,
+225:                            already_completed=already_completed,
+226:                            exercise_completions=exercise_completions)
+227: 
+228: @client_bp.route('/workout/<int:workout_id>/complete', methods=['POST'])
+229: def complete_workout(workout_id):
+230:     import json
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

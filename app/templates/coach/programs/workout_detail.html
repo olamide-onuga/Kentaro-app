@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <a href="{{ url_for('programs.builder', program_id=program.id) }}" class="text-blue-600 hover:underline text-sm">&larr; Back to {{ program.name }}</a>
+        <h1 class="text-2xl font-bold mt-1">{{ workout.name }}</h1>
+        <p class="text-gray-400 dark:text-gray-500 text-sm">Week {{ workout.week_number }}, Day {{ workout.day_number }}</p>
+    </div>
+    <button onclick="document.getElementById('add-exercise-modal').classList.remove('hidden')" class="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800">+ Add Exercise</button>
+</div>
+
+<!-- Exercise List -->
+<div class="mb-6" id="exercise-list">
+    {% if workout.workout_exercises.count() == 0 %}
+    <div class="bg-gray-50 dark:bg-gray-950 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-12 text-center text-gray-400 dark:text-gray-500">
+        No exercises yet. Click "+ Add Exercise" to build this workout.
+    </div>
+    {% else %}
+    {% for we in workout.workout_exercises.order_by('order').all() %}
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-lg p-5 mb-3 flex items-start gap-4" draggable="true">
+        <div class="text-gray-300 cursor-grab mt-1">&#x2630;</div>
+        <div class="flex-grow">
+            <h4 class="font-bold text-lg">{{ we.exercise.name }}</h4>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">{{ we.exercise.muscle_group }}</p>
+            <div class="flex flex-wrap gap-4 text-sm">
+                {% if we.sets %}<span class="bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded-full"><strong>{{ we.sets }}</strong> Sets</span>{% endif %}
+                {% if we.reps %}<span class="bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded-full"><strong>{{ we.reps }}</strong> Reps</span>{% endif %}
+                {% if we.duration %}<span class="bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded-full"><strong>{{ we.duration }}</strong></span>{% endif %}
+                {% if we.rest %}<span class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full">Rest: {{ we.rest }}</span>{% endif %}
+                {% if we.weight %}<span class="bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded-full">{{ we.weight }}</span>{% endif %}
+            </div>
+            {% if we.notes %}
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 italic">{{ we.notes }}</p>
+            {% endif %}
+        </div>
+        <form method="POST" action="{{ url_for('programs.remove_exercise', program_id=program.id, workout_id=workout.id, we_id=we.id) }}">
+            <button type="submit" class="text-red-400 hover:text-red-600 text-sm">Remove</button>
+        </form>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<!-- Add Exercise Modal -->
+<div id="add-exercise-modal" class="hidden fixed inset-0 bg-black dark:bg-white bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-black rounded-lg shadow-xl p-8 max-w-lg w-full mx-4 max-h-screen overflow-y-auto">
+        <h2 class="text-xl font-bold mb-4">Add Exercise to Workout</h2>
+        <form method="POST" action="{{ url_for('programs.add_exercise', program_id=program.id, workout_id=workout.id) }}">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Exercise</label>
+                <select name="exercise_id" class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2">
+                    {% if exercises %}
+                    {% for ex in exercises %}
+                    <option value="{{ ex.id }}">{{ ex.name }} {% if ex.muscle_group %}({{ ex.muscle_group }}){% endif %}</option>
+                    {% endfor %}
+                    {% else %}
+                    <option disabled>No exercises in library yet</option>
+                    {% endif %}
+                </select>
+                <a href="{{ url_for('exercises.create') }}" class="text-blue-600 text-xs hover:underline mt-1 inline-block">+ Create new exercise</a>
+            </div>
+            <!-- Target Type Selector -->
+            <div class="mb-4">
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Target Metric Type</label>
+                <div class="flex gap-4 text-xs font-semibold">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="metric_type" value="reps" checked onclick="toggleExerciseTarget('reps')">
+                        <span>Sets &amp; Reps</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="metric_type" value="duration" onclick="toggleExerciseTarget('duration')">
+                        <span>Sets &amp; Duration</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sets *</label>
+                    <input class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-black text-gray-900 dark:text-gray-100" type="number" name="sets" placeholder="e.g. 3" min="1" required>
+                </div>
+                <div id="repsContainer">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reps</label>
+                    <input class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-black text-gray-900 dark:text-gray-100" type="text" id="repsInput" name="reps" placeholder="e.g. 10-12 or Failure">
+                </div>
+                <div id="durationContainer" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duration</label>
+                    <input class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-black text-gray-900 dark:text-gray-100" type="text" id="durationInput" name="duration" placeholder="e.g. 45 sec">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rest Interval <span class="text-xs text-gray-400 font-normal">(optional)</span></label>
+                    <input class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-black text-gray-900 dark:text-gray-100" type="text" name="rest" placeholder="e.g. 60s">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weight <span class="text-xs text-gray-400 font-normal">(optional)</span></label>
+                    <input class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-black text-gray-900 dark:text-gray-100" type="text" name="weight" placeholder="e.g. Bodyweight or 20kg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tempo <span class="text-xs text-gray-400 font-normal">(optional)</span></label>
+                    <input class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-black text-gray-900 dark:text-gray-100" type="text" name="tempo" placeholder="e.g. 3-1-1-0">
+                </div>
+            </div>
+
+            <script>
+                function toggleExerciseTarget(type) {
+                    var reps = document.getElementById('repsContainer');
+                    var dur = document.getElementById('durationContainer');
+                    var repsInp = document.getElementById('repsInput');
+                    var durInp = document.getElementById('durationInput');
+                    if (type === 'reps') {
+                        reps.classList.remove('hidden');
+                        dur.classList.add('hidden');
+                        durInp.value = '';
+                    } else {
+                        dur.classList.remove('hidden');
+                        reps.classList.add('hidden');
+                        repsInp.value = '';
+                    }
+                }
+            </script>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Coach Notes</label>
+                <textarea class="w-full border border-gray-300 dark:border-gray-700 rounded-md p-2" name="notes" rows="2" placeholder="Any technique cues or tips..."></textarea>
+            </div>
+            <div class="flex space-x-3">
+                <button type="button" onclick="document.getElementById('add-exercise-modal').classList.add('hidden')" class="flex-1 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">Cancel</button>
+                <button type="submit" class="flex-1 bg-black dark:bg-white text-white dark:text-black py-2 rounded-md hover:bg-gray-800">Add to Workout</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

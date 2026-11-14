@@ -1,0 +1,134 @@
+{% extends "admin/layout.html" %}
+{% block title %}Coaching Contracts Manager - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-8 pb-10">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
+        <div>
+            <a href="{{ url_for('admin.dashboard') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white mb-2 transition">
+                &larr; Back to Control Center
+            </a>
+            <h1 class="text-3xl md:text-4xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                Contracts Audit 📜
+            </h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Audit client subscriptions, manually extend durations, or update contract statuses.
+            </p>
+        </div>
+        <span class="px-3.5 py-1 rounded-full text-xs font-extrabold btn-secondary self-start sm:self-auto">
+            {{ contracts|length }} Contract{% if contracts|length != 1 %}s{% endif %}
+        </span>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm flex items-center gap-3">
+        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Status Filter:</span>
+        <div class="flex gap-2 flex-wrap text-xs font-bold">
+            {% for s in ['', 'active', 'completed', 'terminated', 'renewed'] %}
+            <a href="{{ url_for('admin.contracts', status=s) }}"
+               class="px-3.5 py-1.5 rounded-full transition
+                      {% if status_filter == s %}btn-primary-red text-white shadow-xs
+                      {% else %}bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800{% endif %}">
+                {{ s|capitalize if s else 'All Contracts' }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Contracts Table -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase tracking-widest font-extrabold border-b border-gray-100 dark:border-gray-800">
+                    <tr>
+                        <th class="px-6 py-4">Contract ID</th>
+                        <th class="px-6 py-4">Client</th>
+                        <th class="px-6 py-4">Coach</th>
+                        <th class="px-6 py-4">Package</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4">End Date</th>
+                        <th class="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-900">
+                    {% for c in contracts %}
+                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition">
+                        <td class="px-6 py-4 font-mono font-bold text-gray-900 dark:text-gray-100">
+                            #{{ c.id }}
+                        </td>
+                        <td class="px-6 py-4 font-semibold text-gray-900 dark:text-gray-100">
+                            {{ c.client.full_name if c.client else 'Unknown' }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-600 dark:text-gray-400">
+                            Coach {{ c.coach.first_name if c.coach else 'Unknown' }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-600 dark:text-gray-400">
+                            {{ c.package.name if c.package else 'Custom' }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wider
+                                  {% if c.status == 'active' %}bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800
+                                  {% elif c.status == 'renewed' %}bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800
+                                  {% elif c.status == 'terminated' %}bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
+                                  {% else %}bg-gray-100 dark:bg-gray-800 text-gray-500{% endif %}">
+                                {{ c.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 font-mono text-gray-600 dark:text-gray-400">
+                            {{ c.end_date.strftime('%b %d, %Y') if c.end_date else 'No Limit' }}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="openExtendModal({{ c.id }}, '{{ c.client.full_name if c.client else 'Client' }}', '{{ c.status }}')"
+                                    class="px-3.5 py-1.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs hover:opacity-80 transition">
+                                Extend / Edit &rarr;
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Extend Contract Modal -->
+<div id="extendModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+        <h3 class="font-extrabold text-base text-gray-900 dark:text-gray-100 mb-1">Extend Contract</h3>
+        <p id="extendClientName" class="text-xs text-gray-500 dark:text-gray-400 font-semibold"></p>
+        
+        <form id="extendForm" method="POST" action="" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Add Duration (Days)</label>
+                <input type="number" name="days" value="30" min="1" max="365" required
+                       class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Contract Status</label>
+                <select name="status" id="extendStatusSelect" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none">
+                    <option value="active">active</option>
+                    <option value="renewed">renewed</option>
+                    <option value="completed">completed</option>
+                    <option value="terminated">terminated</option>
+                </select>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" onclick="document.getElementById('extendModal').classList.add('hidden')" class="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400">Cancel</button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openExtendModal(contractId, clientName, currentStatus) {
+    document.getElementById('extendClientName').textContent = 'Contract for ' + clientName;
+    document.getElementById('extendStatusSelect').value = currentStatus;
+    document.getElementById('extendForm').action = '/admin/contracts/' + contractId + '/extend';
+    document.getElementById('extendModal').classList.remove('hidden');
+}
+</script>
+{% endblock %}

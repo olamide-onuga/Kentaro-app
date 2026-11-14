@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Schedule & Availability - Coach{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto pb-16 space-y-8">
+
+    <!-- Header & Breadcrumbs -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                    Coach Portal
+                </span>
+                <span class="text-gray-300 dark:text-gray-700">/</span>
+                <a href="{{ url_for('coach.schedule') }}" class="text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition">
+                    Schedule
+                </a>
+                <span class="text-gray-300 dark:text-gray-700">/</span>
+                <span class="text-xs font-semibold text-black dark:text-white">
+                    Setup
+                </span>
+            </div>
+
+            <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-gray-900 dark:text-gray-100">
+                Setup Schedule & Availability
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Configure your weekly working hours, call durations, and video meeting preferences.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <a
+                href="{{ url_for('coach.schedule') }}"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+            >
+                <span>📅</span> View Active Schedule
+            </a>
+            <a
+                href="{{ url_for('coach.dashboard') }}"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-sm font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition"
+            >
+                <span>←</span> Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Grid: Weekly Hours & Meeting Config -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+        <!-- Weekly Working Hours (Left: 7 cols) -->
+        <div class="lg:col-span-7 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-8 h-8 rounded-lg bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-sm">
+                    🕒
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">
+                        Weekly Working Hours
+                    </h2>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">
+                        Select which days clients can book 1-on-1 sessions
+                    </p>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('coach.update_availability') }}" class="mt-6">
+                <div class="space-y-3 mb-6">
+                    {% set days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                    {% for day_idx in range(7) %}
+                    {% set av = availabilities.get(day_idx) %}
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 transition gap-3">
+                        <div class="flex items-center space-x-3 w-36">
+                            <input
+                                type="checkbox"
+                                name="active_{{ day_idx }}"
+                                id="active_{{ day_idx }}"
+                                value="1"
+                                {% if av and av.is_active %}checked{% elif not av and day_idx < 5 %}checked{% endif %}
+                                class="w-4 h-4 text-black dark:text-white focus:ring-black rounded cursor-pointer"
+                            >
+                            <label for="active_{{ day_idx }}" class="text-sm font-bold text-gray-800 dark:text-gray-200 cursor-pointer">
+                                {{ days[day_idx] }}
+                            </label>
+                        </div>
+
+                        <div class="flex items-center space-x-2 text-xs">
+                            <span class="text-gray-400 dark:text-gray-500 font-medium">From</span>
+                            <input
+                                type="time"
+                                name="start_{{ day_idx }}"
+                                value="{{ av.start_time.strftime('%H:%M') if av else '09:00' }}"
+                                class="border border-gray-200 dark:border-gray-800 bg-white dark:bg-black rounded-lg p-1.5 font-semibold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                            >
+                            <span class="text-gray-400 dark:text-gray-500 font-medium">To</span>
+                            <input
+                                type="time"
+                                name="end_{{ day_idx }}"
+                                value="{{ av.end_time.strftime('%H:%M') if av else '17:00' }}"
+                                class="border border-gray-200 dark:border-gray-800 bg-white dark:bg-black rounded-lg p-1.5 font-semibold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                            >
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <button
+                    type="submit"
+                    class="w-full sm:w-auto bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-bold py-3 px-6 rounded-xl text-sm transition shadow-sm"
+                >
+                    Save Working Hours
+                </button>
+            </form>
+        </div>
+
+        <!-- Meeting Platform & Booking Settings (Right: 5 cols) -->
+        <div class="lg:col-span-5 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-8 h-8 rounded-lg bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-sm">
+                    ⚙️
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">
+                        Meeting Settings
+                    </h2>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">
+                        Customize platform & session parameters
+                    </p>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('coach.update_schedule_config') }}" class="mt-6 space-y-5">
+                <!-- Platform Toggle -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2">
+                        Video Platform
+                    </label>
+                    <div class="space-y-2.5">
+                        <label class="flex items-start p-3 border rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition {% if not config or config.meeting_platform == 'in_app' %}border-black dark:border-white bg-gray-50/50 dark:bg-gray-900/50{% else %}border-gray-200 dark:border-gray-800{% endif %}">
+                            <input
+                                type="radio"
+                                name="meeting_platform"
+                                value="in_app"
+                                class="mt-0.5 text-black dark:text-white focus:ring-black"
+                                {% if not config or config.meeting_platform == 'in_app' %}checked{% endif %}
+                                onchange="toggleGoogleMeetInput(false)"
+                            >
+                            <div class="ml-3">
+                                <span class="block text-xs font-black text-gray-900 dark:text-gray-100">In-App WebRTC Video Call (Recommended)</span>
+                                <span class="block text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">High performance video calling with screen share and multi-tasking.</span>
+                            </div>
+                        </label>
+
+                        <label class="flex items-start p-3 border rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition {% if config and config.meeting_platform == 'google_meet' %}border-black dark:border-white bg-gray-50/50 dark:bg-gray-900/50{% else %}border-gray-200 dark:border-gray-800{% endif %}">
+                            <input
+                                type="radio"
+                                name="meeting_platform"
+                                value="google_meet"
+                                class="mt-0.5 text-black dark:text-white focus:ring-black"
+                                {% if config and config.meeting_platform == 'google_meet' %}checked{% endif %}
+                                onchange="toggleGoogleMeetInput(true)"
+                            >
+                            <div class="ml-3">
+                                <span class="block text-xs font-black text-gray-900 dark:text-gray-100">Google Meet</span>
+                                <span class="block text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Redirect clients to an external Google Meet link.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Google Meet Link Input -->
+                <div id="googleMeetContainer" class="{% if not config or config.meeting_platform != 'google_meet' %}hidden{% endif %}">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1">
+                        Google Meet Link
+                    </label>
+                    <input
+                        type="url"
+                        name="google_meet_url"
+                        placeholder="https://meet.google.com/xxx-yyyy-zzz"
+                        value="{{ config.google_meet_url or '' }}"
+                        class="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-black rounded-xl p-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                    >
+                    <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Clients will receive this link upon booking.</p>
+                </div>
+
+                <!-- Slot Duration -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1">
+                        Session Duration
+                    </label>
+                    <select
+                        name="slot_duration"
+                        class="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                    >
+                        <option value="15" {% if config and config.slot_duration == 15 %}selected{% endif %}>15 Minutes</option>
+                        <option value="30" {% if not config or config.slot_duration == 30 %}selected{% endif %}>30 Minutes</option>
+                        <option value="45" {% if config and config.slot_duration == 45 %}selected{% endif %}>45 Minutes</option>
+                        <option value="60" {% if config and config.slot_duration == 60 %}selected{% endif %}>60 Minutes (1 Hour)</option>
+                    </select>
+                </div>
+
+                <!-- Booking Window -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1">
+                        Advance Booking Window
+                    </label>
+                    <select
+                        name="booking_window_days"
+                        class="w-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white rounded-xl p-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                    >
+                        <option value="7" {% if config and config.booking_window_days == 7 %}selected{% endif %}>7 Days in advance</option>
+                        <option value="14" {% if not config or config.booking_window_days == 14 %}selected{% endif %}>14 Days in advance</option>
+                        <option value="30" {% if config and config.booking_window_days == 30 %}selected{% endif %}>30 Days in advance</option>
+                    </select>
+                </div>
+
+                <button
+                    type="submit"
+                    class="w-full bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black font-bold py-3 rounded-xl text-sm transition shadow-sm"
+                >
+                    Save Meeting Settings
+                </button>
+            </form>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    function toggleGoogleMeetInput(show) {
+        const container = document.getElementById('googleMeetContainer');
+        if (container) {
+            if (show) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+    }
+</script>
+{% endblock %}

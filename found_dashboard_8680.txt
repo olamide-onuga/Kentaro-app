@@ -1,0 +1,24 @@
+Created At: 2026-10-06T20:00:29+01:00
+Completed At: 2026-10-06T20:00:29+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1409
+Total Bytes: 55941
+Showing lines 115 to 130
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+115: def voice_call():
+116:     profile = current_user.client_profile
+117:     if not profile or not profile.coach:
+118:         flash('No coach assigned.', 'danger')
+119:         return redirect(url_for('client.dashboard'))
+120:     partner_id = profile.coach.user_id
+121:     partner_name = f"Coach {profile.coach.first_name if profile.coach.first_name else 'Coach'}"
+122:     from app.models.progress import FormCheckSubmission
+123:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+124:     return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+125: 
+126: @client_bp.route('/dashboard')
+127: def dashboard():
+128:     profile = current_user.client_profile
+129:     today_workout = None
+130:     active_program = None
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,617 @@
+Created At: 2026-09-08T09:16:58+01:00
+Completed At: 2026-09-08T09:16:58+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 609
+Total Bytes: 23588
+Showing lines 1 to 609
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+2: from flask_login import login_required, current_user
+3: from datetime import date
+4: from app.extensions import db
+5: from app.models.user import ClientProfile
+6: from app.models.coaching import CoachingPackage
+7: from app.models.workout import Workout, WorkoutExercise
+8: from app.models.progress import ClientProgram, WorkoutCompletion
+9: from app import socketio
+10: 
+11: client_bp = Blueprint('client', __name__, url_prefix='/client')
+12: 
+13: @client_bp.before_request
+14: @login_required
+15: def require_client():
+16:     if not current_user.is_client:
+17:         flash('You do not have permission to access this page.', 'danger')
+18:         return redirect(url_for('main.index'))
+19: 
+20: @client_bp.route('/chat')
+21: @login_required
+22: def chat():
+23:     profile = current_user.client_profile
+24:     if not profile or not profile.coach:
+25:         flash('No coach assigned.', 'danger')
+26:         return redirect(url_for('client.dashboard'))
+27:     partner_id = profile.coach.user_id
+28:     return render_template('client/chat.html', partner_id=partner_id)
+29: 
+30: @client_bp.route('/voice-call')
+31: @login_required
+32: def voice_call():
+33:     profile = current_user.client_profile
+34:     if not profile or not profile.coach:
+35:         flash('No coach assigned.', 'danger')
+36:         return redirect(url_for('client.dashboard'))
+37:     partner_id = profile.coach.user_id
+38:     return render_template('client/voice_call.html', partner_id=partner_id)
+39: 
+40: @client_bp.route('/dashboard')
+41: def dashboard():
+42:     profile = current_user.client_profile
+43:     today_workout = None
+44:     active_program = None
+45: 
+46:     if profile:
+47:         cp = profile.client_programs.filter_by(is_active=True).first()
+48:         if cp:
+49:             active_program = cp.program
+50:             # Find today's workout — simple heuristic: find first uncompleted workout in order
+51:             completed_ids = [c.workout_id for c in profile.completions.all()]
+52:             for phase in cp.program.phases.order_by('order').all():
+53:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+54:                     if w.id not in completed_ids:
+55:                         today_workout = w
+56:                         break
+57:                 if today_workout:
+58:                     break
+59: 
+60:     upcoming_appointments = []
+61:     if profile:
+62:         from app.models.calendar import Appointment
+63:         from datetime import date
+64:         upcoming_appointments = Appointment.query.filter(
+65:             Appointment.client_id == profile.id,
+66:             Appointment.date >= date.today(),
+67:             Appointment.status == 'scheduled'
+68:         ).order_by(Appointment.date.asc(), Appointment.start_time.asc()).limit(3).all()
+69: 
+70:     return render_template('client/dashboard.html',
+71:                            profile=profile,
+72:                            today_workout=today_workout,
+73:                            active_program=active_program,
+74:                            upcoming_appointments=upcoming_appointments)
+75: 
+76: @client_bp.route('/my-program')
+77: def my_program():
+78:     profile = current_user.client_profile
+79:     cp = profile.client_programs.filter_by(is_active=True).first() if profile else None
+80:     completed_ids = set(c.workout_id for c in profile.completions.all()) if profile else set()
+81:     return render_template('client/my_program.html', cp=cp, completed_ids=completed_ids)
+82: 
+83: @client_bp.route('/workout/<int:workout_id>')
+84: def workout_view(workout_id):
+85:     profile = current_user.client_profile
+86:     workout = Workout.query.get_or_404(workout_id)
+87:     already_completed = WorkoutCompletion.query.filter_by(
+88:         client_id=profile.id, workout_id=workout_id
+89:     ).first() if profile else None
+90:     
+91:     exercise_completions = {}
+92:     if already_completed:
+93:         for ec in already_completed.exercise_completions.all():
+94:             exercise_completions[ec.workout_exercise_id] = ec
+95:             
+96:     return render_template('client/workout_view.html',
+97:                            workout=workout,
+98:                            already_completed=already_completed,
+99:                            exercise_completions=exercise_completions)
+100: 
+101: @client_bp.route('/workout/<int:workout_id>/complete', methods=['POST'])
+102: def complete_workout(workout_id):
+103:     import json
+104:     import uuid
+105:     from werkzeug.utils import secure_filename
+106:     from app.models.progress import ExerciseCompletion
+107:     
+108:     profile = current_user.client_profile
+109:     if not profile:
+110:         flash('Profile not found.', 'danger')
+111:         return redirect(url_for('client.dashboard'))
+112: 
+113:     workout = Workout.query.get_or_404(workout_id)
+114:     existing = WorkoutCompletion.query.filter_by(client_id=profile.id, workout_id=workout_id).first()
+115:     if existing:
+116:         flash('You already completed this workout.', 'info')
+117:         return redirect(url_for('client.dashboard'))
+118: 
+119:     # Handle optional form-check video upload
+120:     video_filename = None
+121:     if 'form_check_video' in request.files:
+122:         vfile = request.files['form_check_video']
+123:         if vfile and vfile.filename != '':
+124:             ext = os.path.splitext(vfile.filename)[1].lower()
+125:             if ext in ['.mp4', '.mov', '.webm', '.avi', '.mkv']:
+126:                 video_filename = f"formcheck_{uuid.uuid4().hex[:10]}_{secure_filename(vfile.filename)}"
+127:                 save_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'videos')
+128:                 os.makedirs(save_dir, exist_ok=True)
+129:                 vfile.save(os.path.join(save_dir, video_filename))
+130: 
+131:     perceived_effort = request.form.get('perceived_effort')
+132:     try:
+133:         perceived_effort = int(perceived_effort) if perceived_effort else None
+134:     except ValueError:
+135:         perceived_effort = None
+136: 
+137:     completion = WorkoutCompletion(
+138:         client_id=profile.id,
+139:         workout_id=workout_id,
+140:         client_notes=request.form.get('notes'),
+141:         perceived_effort=perceived_effort,
+142:         video_filename=video_filename
+143:     )
+144:     db.session.add(completion)
+145:     db.session.flush()
+146: 
+147:     # Save individual exercise completion records
+148:     for we in workout.workout_exercises.all():
+149:         actual_sets = request.form.get(f'we_{we.id}_sets', type=int) or we.sets
+150:         actual_reps = request.form.get(f'we_{we.id}_reps') or we.reps
+151:         actual_weight = request.form.get(f'we_{we.id}_weight') or we.weight
+152:         ex_notes = request.form.get(f'we_{we.id}_notes')
+153:         
+154:         # Parse set-by-set details JSON if present
+155:         set_details = request.form.get(f'we_{we.id}_set_details')
+156: 
+157:         ec = ExerciseCompletion(
+158:             workout_completion_id=completion.id,
+159:             workout_exercise_id=we.id,
+160:             actual_sets=actual_sets,
+161:             actual_reps=str(actual_reps) if actual_reps else None,
+162:             actual_weight=str(actual_weight) if actual_weight else None,
+163:             set_details=set_details,
+164:             notes=ex_notes
+165:         )
+166:         db.session.add(ec)
+167: 
+168:     db.session.commit()
+169: 
+170:     # Notify coach if assigned
+171:     if profile.coach and profile.coach.user_id:
+172:         socketio.emit('notification', {
+173:             'msg': f'Client {profile.first_name or profile.user.email} completed {workout.name}.'
+174:         }, room=f'user_{profile.coach.user_id}')
+175: 
+176:     flash(f'Workout "{workout.name}" completed! Great job!', 'success')
+177:     return redirect(url_for('client.dashboard'))
+178: 
+179: @client_bp.route('/history')
+180: def history():
+181:     profile = current_user.client_profile
+182:     completions = profile.completions.order_by(WorkoutCompletion.completed_at.desc()).all() if profile else []
+183:     return render_template('client/history.html', completions=completions)
+184: 
+185: @client_bp.route('/select-package/<int:package_id>', methods=['GET', 'POST'])
+186: def select_package(package_id):
+187:     package = CoachingPackage.query.get_or_404(package_id)
+188: 
+189:     if request.method == 'POST':
+190:         # Handle payment flow. If the package has a payment_link, redirect to dummy payment page.
+191:         if package.payment_link:
+192:             # Store pending package ID in session and go to dummy payment page.
+193:             session['pending_package_id'] = package.id
+194:             return redirect(url_for('client.dummy_payment', package_id=package.id))
+195:         # No payment link – assign immediately.
+196:         profile = current_user.client_profile
+197:         if not profile:
+198:             profile = ClientProfile(user_id=current_user.id)
+199:             db.session.add(profile)
+200:         profile.coach_id = package.coach_id
+201:         profile.active_package_id = package.id
+202:         db.session.commit()
+203:         flash(f'Successfully enrolled in {package.name}!', 'success')
+204:         return redirect(url_for('client.dashboard'))
+205: 
+206:     return render_template('client/select_package.html', package=package)
+207: 
+208: @client_bp.route('/progress')
+209: @login_required
+210: def progress():
+211:     import os
+212:     from datetime import datetime, date
+213:     from app.models.progress import BodyweightLog, ProgressPhoto, FormCheckSubmission
+214:     from app.models.workout import Exercise
+215:     
+216:     profile = current_user.client_profile
+217:     if not profile:
+218:         flash('Please complete your profile first.', 'warning')
+219:         return redirect(url_for('client.dashboard'))
+220:         
+221:     weight_logs = profile.bodyweight_logs.order_by(BodyweightLog.date.asc(), BodyweightLog.created_at.asc()).all()
+222:     latest_weight = weight_logs[-1] if weight_logs else None
+223:     
+224:     chart_labels = [w.date.strftime('%b %d') for w in weight_logs]
+225:     chart_data = [w.weight for w in weight_logs]
+226:     
+227:     # Reverse order for the history table display
+228:     weight_logs_desc = list(reversed(weight_logs))
+229:     
+230:     photos = profile.progress_photos.order_by(ProgressPhoto.date.desc()).all()
+231:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+232:     
+233:     # Exercises for form-check dropdown
+234:     coach_id = profile.coach_id if profile else None
+235:     if coach_id:
+236:         exercises = Exercise.query.filter((Exercise.coach_id == coach_id) | (Exercise.coach_id == None)).all()
+237:     else:
+238:         exercises = Exercise.query.filter(Exercise.coach_id == None).all()
+239:         
+240:     today_str = date.today().isoformat()
+241:     
+242:     return render_template('client/progress.html',
+243:                            weight_logs=weight_logs_desc,
+244:                            latest_weight=latest_weight,
+245:                            chart_labels=chart_labels,
+246:                            chart_data=chart_data,
+247:                            photos=photos,
+248:                            form_checks=form_checks,
+249:                            exercises=exercises,
+250:                            today_str=today_str)
+251: 
+252: @client_bp.route('/progress/weight', methods=['POST'])
+253: @login_required
+254: def log_weight():
+255:     from datetime import datetime, date
+256:     from app.models.progress import BodyweightLog
+257:     
+258:     profile = current_user.client_profile
+259:     if not profile:
+260:         return redirect(url_for('client.dashboard'))
+261:         
+262:     weight_val = request.form.get('weight', type=float)
+263:     unit = request.form.get('unit', 'lbs')
+264:     date_str = request.form.get('date')
+265:     notes = request.form.get('notes')
+266:     
+267:     if not weight_val:
+268:         flash('Please enter a valid weight.', 'danger')
+269:         return redirect(url_for('client.progress'))
+270:         
+271:     try:
+272:         log_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else date.today()
+273:     except ValueError:
+274:         log_date = date.today()
+275:         
+276:     log = BodyweightLog(
+277:         client_id=profile.id,
+278:         weight=weight_val,
+279:         unit=unit,
+280:         date=log_date,
+281:         notes=notes
+282:     )
+283:     db.session.add(log)
+284:     db.session.commit()
+285:     
+286:     flash('Bodyweight logged successfully!', 'success')
+287:     return redirect(url_for('client.progress'))
+288: 
+289: @client_bp.route('/progress/weight/<int:log_id>/delete', methods=['POST'])
+290: @login_required
+291: def delete_weight(log_id):
+292:     from app.models.progress import BodyweightLog
+293:     profile = current_user.client_profile
+294:     log = BodyweightLog.query.get_or_404(log_id)
+295:     if log.client_id != profile.id:
+296:         flash('Access denied.', 'danger')
+297:         return redirect(url_for('client.progress'))
+298:         
+299:     db.session.delete(log)
+300:     db.session.commit()
+301:     flash('Weight entry removed.', 'info')
+302:     return redirect(url_for('client.progress'))
+303: 
+304: @client_bp.route('/progress/photo', methods=['POST'])
+305: @login_required
+306: def upload_photo():
+307:     import os, uuid
+308:     from datetime import datetime, date
+309:     from werkzeug.utils import secure_filename
+310:     from flask import current_app
+311:     from app.models.progress import ProgressPhoto
+312:     
+313:     profile = current_user.client_profile
+314:     if not profile:
+315:         return redirect(url_for('client.dashboard'))
+316:         
+317:     if 'photo' not in request.files or request.files['photo'].filename == '':
+318:         flash('Please select an image file.', 'warning')
+319:         return redirect(url_for('client.progress'))
+320:         
+321:     pfile = request.files['photo']
+322:     ext = os.path.splitext(pfile.filename)[1].lower()
+323:     if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+324:         flash('Allowed photo formats: JPG, PNG, WEBP.', 'danger')
+325:         return redirect(url_for('client.progress'))
+326:         
+327:     filename = f"progress_{uuid.uuid4().hex[:10]}_{secure_filename(pfile.filename)}"
+328:     save_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'photos')
+329:     os.makedirs(save_dir, exist_ok=True)
+330:     pfile.save(os.path.join(save_dir, filename))
+331:     
+332:     category = request.form.get('category', 'front')
+333:     date_str = request.form.get('date')
+334:     notes = request.form.get('notes')
+335:     
+336:     try:
+337:         photo_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else date.today()
+338:     except ValueError:
+339:         photo_date = date.today()
+340:         
+341:     photo = ProgressPhoto(
+342:         client_id=profile.id,
+343:         photo_filename=filename,
+344:         category=category,
+345:         date=photo_date,
+346:         notes=notes
+347:     )
+348:     db.session.add(photo)
+349:     db.session.commit()
+350:     
+351:     flash('Progress photo uploaded successfully!', 'success')
+352:     return redirect(url_for('client.progress'))
+353: 
+354: @client_bp.route('/progress/form-check', methods=['POST'])
+355: @login_required
+356: def submit_form_check():
+357:     import os, uuid
+358:     from werkzeug.utils import secure_filename
+359:     from flask import current_app
+360:     from app.models.progress import FormCheckSubmission
+361:     
+362:     profile = current_user.client_profile
+363:     if not profile:
+364:         return redirect(url_for('client.dashboard'))
+365:         
+366:     if 'video' not in request.files or request.files['video'].filename == '':
+367:         flash('Please select a video file.', 'warning')
+368:         return redirect(url_for('client.progress'))
+369:         
+370:     vfile = request.files['video']
+371:     ext = os.path.splitext(vfile.filename)[1].lower()
+372:     if ext not in ['.mp4', '.mov', '.webm', '.avi', '.mkv']:
+373:         flash('Allowed video formats: MP4, MOV, WEBM.', 'danger')
+374:         return redirect(url_for('client.progress'))
+375:         
+376:     filename = f"formcheck_{uuid.uuid4().hex[:10]}_{secure_filename(vfile.filename)}"
+377:     save_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'videos')
+378:     os.makedirs(save_dir, exist_ok=True)
+379:     vfile.save(os.path.join(save_dir, filename))
+380:     
+381:     exercise_id = request.form.get('exercise_id', type=int) or None
+382:     notes = request.form.get('notes')
+383:     
+384:     submission = FormCheckSubmission(
+385:         client_id=profile.id,
+386:         exercise_id=exercise_id,
+387:         video_filename=filename,
+388:         client_notes=notes,
+389:         status='pending'
+390:     )
+391:     db.session.add(submission)
+392:     db.session.commit()
+393:     
+394:     # Notify coach
+395:     if profile.coach and profile.coach.user_id:
+396:         socketio.emit('notification', {
+397:             'msg': f'Client {profile.first_name or profile.user.email} submitted a form check video for review.'
+398:         }, room=f'user_{profile.coach.user_id}')
+399:         
+400:     flash('Form check video submitted! Your coach will review it soon.', 'success')
+401:     return redirect(url_for('client.progress'))
+402: 
+403: @client_bp.route('/book-session')
+404: @login_required
+405: def book_session():
+406:     from datetime import date, timedelta
+407:     from app.models.calendar import CoachScheduleConfig
+408:     
+409:     profile = current_user.client_profile
+410:     coach = profile.coach if profile else None
+411:     config = CoachScheduleConfig.query.filter_by(coach_id=profile.coach_id).first() if profile and profile.coach_id else None
+412:     
+413:     min_date = date.today().isoformat()
+414:     window_days = config.booking_window_days if config else 14
+415:     max_date = (date.today() + timedelta(days=window_days)).isoformat()
+416:     
+417:     return render_template('client/book_session.html',
+418:                            coach=coach,
+419:                            config=config,
+420:                            min_date=min_date,
+421:                            max_date=max_date)
+422: 
+423: @client_bp.route('/api/available-slots')
+424: @login_required
+425: def get_available_slots():
+426:     from datetime import datetime, date, time, timedelta
+427:     from app.models.calendar import CoachAvailability, CoachScheduleConfig, Appointment
+428:     
+429:     profile = current_user.client_profile
+430:     if not profile or not profile.coach_id:
+431:         return jsonify({'slots': []})
+432:         
+433:     date_str = request.args.get('date')
+434:     if not date_str:
+435:         return jsonify({'slots': []})
+436:         
+437:     try:
+438:         selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+439:     except ValueError:
+440:         return jsonify({'slots': []})
+441:         
+442:     # Past dates have no slots
+443:     if selected_date < date.today():
+444:         return jsonify({'slots': []})
+445:         
+446:     day_idx = selected_date.weekday()  # 0=Monday ... 6=Sunday
+447:     coach_id = profile.coach_id
+448:     
+449:     av = CoachAvailability.query.filter_by(coach_id=coach_id, day_of_week=day_idx, is_active=True).first()
+450:     if not av:
+451:         return jsonify({'slots': []})
+452:         
+453:     config = CoachScheduleConfig.query.filter_by(coach_id=coach_id).first()
+454:     slot_duration = config.slot_duration if config else 30
+455:     
+456:     # Existing booked appointments on that date
+457:     booked = Appointment.query.filter(
+458:         Appointment.coach_id == coach_id,
+459:         Appointment.date == selected_date,
+460:         Appointment.status == 'scheduled'
+461:     ).all()
+462:     
+463:     booked_slots = set((a.start_time.strftime('%H:%M'), a.end_time.strftime('%H:%M')) for a in booked)
+464:     
+465:     slots = []
+466:     # Build timeline from av.start_time to av.end_time
+467:     cur_dt = datetime.combine(selected_date, av.start_time)
+468:     end_dt = datetime.combine(selected_date, av.end_time)
+469:     now_dt = datetime.now()
+470:     
+471:     while cur_dt + timedelta(minutes=slot_duration) <= end_dt:
+472:         slot_end_dt = cur_dt + timedelta(minutes=slot_duration)
+473:         start_time_str = cur_dt.time().strftime('%H:%M')
+474:         end_time_str = slot_end_dt.time().strftime('%H:%M')
+475:         
+476:         # Check if slot is in the future and not booked
+477:         is_future = True
+478:         if selected_date == date.today():
+479:             is_future = cur_dt > now_dt + timedelta(minutes=15)
+480:             
+481:         if is_future and (start_time_str, end_time_str) not in booked_slots:
+482:             slots.append({
+483:                 'start_time': start_time_str,
+484:                 'end_time': end_time_str,
+485:                 'formatted_start': cur_dt.strftime('%I:%M %p'),
+486:                 'formatted_end': slot_end_dt.strftime('%I:%M %p')
+487:             })
+488:             
+489:         cur_dt += timedelta(minutes=slot_duration)
+490:         
+491:     return jsonify({'slots': slots})
+492: 
+493: @client_bp.route('/book-session', methods=['POST'])
+494: @login_required
+495: def book_session_submit():
+496:     from datetime import datetime, date, time
+497:     from app.models.calendar import CoachScheduleConfig, Appointment
+498:     
+499:     profile = current_user.client_profile
+500:     if not profile or not profile.coach_id:
+501:         flash('No coach assigned.', 'danger')
+502:         return redirect(url_for('client.dashboard'))
+503:         
+504:     date_str = request.form.get('date')
+505:     start_str = request.form.get('start_time')
+506:     end_str = request.form.get('end_time')
+507:     notes = request.form.get('client_notes')
+508:     
+509:     if not date_str or not start_str or not end_str:
+510:         flash('Please select both a date and an available time slot.', 'warning')
+511:         return redirect(url_for('client.book_session'))
+512:         
+513:     try:
+514:         appt_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+515:         st = datetime.strptime(start_str, '%H:%M').time()
+516:         et = datetime.strptime(end_str, '%H:%M').time()
+517:     except ValueError:
+518:         flash('Invalid date or time format.', 'danger')
+519:         return redirect(url_for('client.book_session'))
+520:         
+521:     # Prevent double booking
+522:     existing = Appointment.query.filter_by(
+523:         coach_id=profile.coach_id,
+524:         date=appt_date,
+525:         start_time=st,
+526:         status='scheduled'
+527:     ).first()
+528:     
+529:     if existing:
+530:         flash('That time slot was just booked by another client. Please choose another slot.', 'warning')
+531:         return redirect(url_for('client.book_session'))
+532:         
+533:     config = CoachScheduleConfig.query.filter_by(coach_id=profile.coach_id).first()
+534:     platform = config.meeting_platform if config else 'in_app'
+535:     meeting_url = config.google_meet_url if (platform == 'google_meet' and config and config.google_meet_url) else url_for('client.voice_call')
+536:     
+537:     appt = Appointment(
+538:         coach_id=profile.coach_id,
+539:         client_id=profile.id,
+540:         date=appt_date,
+541:         start_time=st,
+542:         end_time=et,
+543:         title='1-on-1 Coaching Session',
+544:         client_notes=notes,
+545:         meeting_platform=platform,
+546:         meeting_url=meeting_url,
+547:         status='scheduled'
+548:     )
+549:     db.session.add(appt)
+550:     db.session.commit()
+551:     
+552:     # Notify coach via Socket.IO
+553:     if profile.coach and profile.coach.user_id:
+554:         socketio.emit('notification', {
+555:             'msg': f'Client {profile.first_name or profile.user.email} booked a session on {appt_date.strftime("%b %d")} at {st.strftime("%I:%M %p")}.'
+556:         }, room=f'user_{profile.coach.user_id}')
+557:         
+558:     flash('Coaching session booked successfully!', 'success')
+559:     return redirect(url_for('client.appointments'))
+560: 
+561: @client_bp.route('/appointments')
+562: @login_required
+563: def appointments():
+564:     from datetime import date
+565:     from app.models.calendar import Appointment
+566:     
+567:     profile = current_user.client_profile
+568:     if not profile:
+569:         return redirect(url_for('client.dashboard'))
+570:         
+571:     today = date.today()
+572:     upcoming = Appointment.query.filter(
+573:         Appointment.client_id == profile.id,
+574:         Appointment.date >= today,
+575:         Appointment.status == 'scheduled'
+576:     ).order_by(Appointment.date.asc(), Appointment.start_time.asc()).all()
+577:     
+578:     past = Appointment.query.filter(
+579:         Appointment.client_id == profile.id,
+580:         (Appointment.date < today) | (Appointment.status != 'scheduled')
+581:     ).order_by(Appointment.date.desc(), Appointment.start_time.desc()).all()
+582:     
+583:     return render_template('client/appointments.html',
+584:                            upcoming_appointments=upcoming,
+585:                            past_appointments=past)
+586: 
+587: @client_bp.route('/appointment/<int:appointment_id>/cancel', methods=['POST'])
+588: @login_required
+589: def cancel_appointment(appointment_id):
+590:     from app.models.calendar import Appointment
+591:     
+592:     profile = current_user.client_profile
+593:     appt = Appointment.query.get_or_404(appointment_id)
+594:     if appt.client_id != profile.id:
+595:         flash('Access denied.', 'danger')
+596:         return redirect(url_for('client.appointments'))
+597:         
+598:     appt.status = 'cancelled'
+599:     db.session.commit()
+600:     
+601:     # Notify coach
+602:     if profile.coach and profile.coach.user_id:
+603:         socketio.emit('notification', {
+604:             'msg': f'Client {profile.first_name or profile.user.email} cancelled their session on {appt.date.strftime("%b %d")}.'
+605:         }, room=f'user_{profile.coach.user_id}')
+606:         
+607:     flash('Appointment cancelled.', 'info')
+608:     return redirect(url_for('client.appointments'))
+609: 
+The above content shows the entire, complete file contents of the requested file.

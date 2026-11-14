@@ -1,0 +1,41 @@
+Created At: 2026-10-02T22:32:20+01:00
+Completed At: 2026-10-02T22:32:20+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1287
+Total Bytes: 52207
+Showing lines 118 to 150
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+118:     from app.models.progress import FormCheckSubmission
+119:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+120:     return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+121: 
+122: @client_bp.route('/dashboard')
+123: def dashboard():
+124:     profile = current_user.client_profile
+125:     today_workout = None
+126:     active_program = None
+127: 
+128:     if profile:
+129:         cp = profile.client_programs.filter_by(is_active=True).first()
+130:         if cp:
+131:             active_program = cp.program
+132:             # Find today's workout — simple heuristic: find first uncompleted workout in order
+133:             completed_ids = [c.workout_id for c in profile.completions.all()]
+134:             for phase in cp.program.phases.order_by('order').all():
+135:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+136:                     if w.id not in completed_ids:
+137:                         today_workout = w
+138:                         break
+139:                 if today_workout:
+140:                     break
+141: 
+142:     upcoming_appointments = []
+143:     if profile:
+144:         from app.models.calendar import Appointment
+145:         from datetime import date as date_cls
+146:         upcoming_appointments = Appointment.query.filter(
+147:             Appointment.client_id == profile.id,
+148:             Appointment.date >= date_cls.today(),
+149:             Appointment.status == 'scheduled'
+150:         ).order_by(Appointment.date.asc(), Appointment.start_time.asc()).limit(3).all()
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

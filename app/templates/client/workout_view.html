@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+
+{% block title %}{{ workout.name }} - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto pb-24">
+    <!-- Top Nav -->
+    <div class="mb-4 flex items-center justify-between">
+        <a href="{{ url_for('client.dashboard') }}" class="inline-flex items-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-black transition">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            Back to Dashboard
+        </a>
+        <span class="text-xs font-semibold px-2.5 py-1 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-full">
+            Week {{ workout.week_number }} &bull; Day {{ workout.day_number }}
+        </span>
+    </div>
+
+    <!-- Header Card -->
+    <div class="bg-black dark:bg-white text-white dark:text-black rounded-2xl p-6 sm:p-8 shadow-xl mb-6">
+        <h1 class="text-3xl sm:text-4xl font-black tracking-tight mb-2">{{ workout.name }}</h1>
+        {% if workout.notes %}
+        <p class="text-gray-300 text-sm sm:text-base leading-relaxed">{{ workout.notes }}</p>
+        {% endif %}
+        <div class="mt-4 flex flex-wrap gap-4 text-xs sm:text-sm text-gray-400 dark:text-gray-500">
+            <span class="flex items-center">
+                <svg class="w-4 h-4 mr-1 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                {{ workout.workout_exercises.count() }} Exercises
+            </span>
+            <span class="flex items-center">
+                <svg class="w-4 h-4 mr-1 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Active Logging
+            </span>
+        </div>
+    </div>
+
+    {% if already_completed %}
+    <!-- Completed Banner -->
+    <div class="bg-green-50 border-2 border-green-300 rounded-2xl p-6 mb-8 text-center shadow-sm dark:shadow-gray-900/50">
+        <div class="w-12 h-12 bg-green-500 text-white dark:text-black rounded-full flex items-center justify-center mx-auto mb-3 shadow">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <h3 class="text-xl font-bold text-green-900">Workout Completed!</h3>
+        <p class="text-green-700 text-sm mt-1">Completed on {{ already_completed.completed_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+        {% if already_completed.perceived_effort %}
+        <div class="inline-block mt-3 bg-white dark:bg-black px-4 py-1.5 rounded-full border border-green-200 text-sm font-semibold text-green-800 shadow-sm dark:shadow-gray-900/50">
+            Exertion: {{ already_completed.perceived_effort }}/10 RPE
+        </div>
+        {% endif %}
+        {% if already_completed.client_notes %}
+        <p class="text-gray-700 dark:text-gray-300 text-sm italic mt-3 bg-white/70 p-3 rounded-lg max-w-md mx-auto">"{{ already_completed.client_notes }}"</p>
+        {% endif %}
+    </div>
+
+    <!-- Coach Feedback Banner (if available) -->
+    {% if already_completed.coach_feedback %}
+    <div class="bg-blue-50 border-2 border-blue-300 rounded-2xl p-6 mb-8 shadow-sm dark:shadow-gray-900/50">
+        <div class="flex items-start space-x-3">
+            <div class="w-10 h-10 bg-blue-600 text-white dark:text-black rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0 shadow">
+                💬
+            </div>
+            <div class="flex-1">
+                <h4 class="font-bold text-blue-900 text-lg">Coach Feedback</h4>
+                <p class="text-xs text-blue-600 mb-2">Reviewed {{ already_completed.reviewed_at.strftime('%b %d, %Y') if already_completed.reviewed_at else '' }}</p>
+                <div class="text-gray-800 dark:text-gray-200 text-sm leading-relaxed bg-white dark:bg-black p-4 rounded-xl border border-blue-200 shadow-sm dark:shadow-gray-900/50">
+                    {{ already_completed.coach_feedback }}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Video Review (if client uploaded video) -->
+    {% if already_completed.video_filename %}
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 mb-8 shadow-sm dark:shadow-gray-900/50">
+        <h3 class="font-bold text-lg mb-3 flex items-center">
+            <span class="mr-2">📹</span> Uploaded Form Check Video
+        </h3>
+        <div class="rounded-xl overflow-hidden bg-black dark:bg-white max-w-md mx-auto aspect-video">
+            <video controls playsinline class="w-full h-full object-contain">
+                <source src="{{ url_for('static', filename='uploads/videos/' + already_completed.video_filename) }}" type="video/mp4">
+                Your browser does not support playing this video.
+            </video>
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+    <!-- Exercise List -->
+    <form id="workoutLogForm" method="POST" action="{{ url_for('client.complete_workout', workout_id=workout.id) }}" enctype="multipart/form-data">
+        <div class="space-y-6 mb-8">
+            {% for we in workout.workout_exercises.order_by('order').all() %}
+            {% set ec = exercise_completions.get(we.id) if already_completed else None %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-5 sm:p-6 shadow-sm dark:shadow-gray-900/50 hover:shadow-md transition duration-150" data-exercise-card="{{ we.id }}">
+                <!-- Exercise Header -->
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Exercise {{ loop.index }}</span>
+                        <h3 class="text-xl font-black text-gray-900 dark:text-gray-100">{{ we.exercise.name }}</h3>
+                        {% if we.exercise.muscle_group %}
+                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ we.exercise.muscle_group }}</p>
+                        {% endif %}
+                    </div>
+                    {% if we.exercise.difficulty %}
+                    <span class="text-xs px-3 py-1 rounded-full font-bold
+                        {% if we.exercise.difficulty == 'Beginner' %}bg-green-100 text-green-700
+                        {% elif we.exercise.difficulty == 'Intermediate' %}bg-yellow-100 text-yellow-700
+                        {% else %}bg-red-100 text-red-700{% endif %}">
+                        {{ we.exercise.difficulty }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Prescribed Target Badges -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                    <div class="bg-gray-50 dark:bg-gray-950 rounded-xl p-2.5 text-center border border-gray-100 dark:border-gray-800">
+                        <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Sets</span>
+                        <p class="text-lg font-black text-gray-800 dark:text-gray-200">{{ we.sets or '-' }}</p>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-950 rounded-xl p-2.5 text-center border border-gray-100 dark:border-gray-800">
+                        <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Reps</span>
+                        <p class="text-lg font-black text-gray-800 dark:text-gray-200">{{ we.reps or '-' }}</p>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-950 rounded-xl p-2.5 text-center border border-gray-100 dark:border-gray-800">
+                        <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase">Weight</span>
+                        <p class="text-lg font-black text-gray-800 dark:text-gray-200">{{ we.weight or 'Bodyweight' }}</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-xl p-2.5 text-center border border-blue-100 cursor-pointer hover:bg-blue-100 transition" onclick="startRestTimer({{ (we.rest|int) if we.rest and we.rest|int > 0 else 60 }})">
+                        <span class="text-xs font-semibold text-blue-500 uppercase">Rest</span>
+                        <p class="text-lg font-black text-blue-700">{{ we.rest or '60s' }} ⏱</p>
+                    </div>
+                </div>
+
+                {% if we.exercise.instructions %}
+                <details class="text-xs text-gray-600 dark:text-gray-400 mb-3 bg-gray-50 dark:bg-gray-950 rounded-lg p-2.5 border border-gray-100 dark:border-gray-800">
+                    <summary class="font-semibold cursor-pointer text-gray-700 dark:text-gray-300">Instructions & Technique</summary>
+                    <p class="mt-2 leading-relaxed">{{ we.exercise.instructions }}</p>
+                </details>
+                {% endif %}
+
+                {% if we.notes %}
+                <div class="text-xs bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg p-3 mb-4 flex items-start space-x-2">
+                    <span class="text-base">💡</span>
+                    <div><strong>Coach Note:</strong> {{ we.notes }}</div>
+                </div>
+                {% endif %}
+
+                {% if we.exercise.video_url %}
+                <div class="mb-4 rounded-2xl bg-neutral-900 text-white p-3.5 border border-neutral-800 shadow-sm">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-gray-200 flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                            Exercise Video Demonstration
+                        </span>
+                        <a href="{{ we.exercise.video_url }}" target="_blank" class="text-[11px] font-bold text-amber-400 hover:underline">Open in YouTube ↗</a>
+                    </div>
+                    
+                    <div class="rounded-xl overflow-hidden aspect-video bg-black">
+                        <iframe class="w-full h-full" src="{{ we.exercise.video_url|replace('watch?v=', 'embed/')|replace('youtu.be/', 'www.youtube.com/embed/') }}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Set-by-Set Logging Table -->
+                <div class="border-t border-gray-100 dark:border-gray-800 pt-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Live Set Logger</h4>
+                        {% if not already_completed %}
+                        <button type="button" onclick="addSetRow({{ we.id }}, '{{ we.reps or '10' }}', '{{ we.weight or '' }}')" class="text-xs font-bold text-blue-600 hover:text-blue-800">
+                            + Add Set
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm" id="setsTable_{{ we.id }}">
+                            <thead>
+                                <tr class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase border-b border-gray-100 dark:border-gray-800">
+                                    <th class="py-2 w-12">Set</th>
+                                    <th class="py-2">Weight</th>
+                                    <th class="py-2">Reps</th>
+                                    <th class="py-2 w-20 text-center">Done</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                {% set num_sets = (we.sets if we.sets and we.sets > 0 else 3) %}
+                                {% for s in range(1, num_sets + 1) %}
+                                <tr class="set-row hover:bg-gray-50 dark:hover:bg-gray-900 transition" data-set-num="{{ s }}">
+                                    <td class="py-2.5 font-bold text-gray-600 dark:text-gray-400">{{ s }}</td>
+                                    <td class="py-2.5">
+                                        <input type="text" class="w-24 sm:w-32 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1 text-sm font-semibold focus:bg-white focus:border-black focus:ring-0 transition set-weight" 
+                                               placeholder="{{ we.weight or 'lbs' }}" 
+                                               value="{% if ec and ec.actual_weight %}{{ ec.actual_weight }}{% endif %}"
+                                               {% if already_completed %}disabled{% endif %}>
+                                    </td>
+                                    <td class="py-2.5">
+                                        <input type="text" class="w-20 sm:w-28 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1 text-sm font-semibold focus:bg-white focus:border-black focus:ring-0 transition set-reps" 
+                                               placeholder="{{ we.reps or '10' }}" 
+                                               value="{% if ec and ec.actual_reps %}{{ ec.actual_reps }}{% endif %}"
+                                               {% if already_completed %}disabled{% endif %}>
+                                    </td>
+                                    <td class="py-2.5 text-center">
+                                        {% if already_completed %}
+                                        <span class="text-green-600 font-bold">✓</span>
+                                        {% else %}
+                                        <button type="button" onclick="completeSet(this, {{ (we.rest|int) if we.rest and we.rest|int > 0 else 60 }})" class="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-700 hover:border-black hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center font-bold text-gray-500 dark:text-gray-400 transition mx-auto set-check-btn">
+                                            ✓
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Hidden input to store JSON of set-by-set data -->
+                    <input type="hidden" name="we_{{ we.id }}_set_details" id="setDetails_{{ we.id }}">
+                    <input type="hidden" name="we_{{ we.id }}_sets" id="actualSets_{{ we.id }}" value="{{ num_sets }}">
+                    <input type="hidden" name="we_{{ we.id }}_reps" id="actualReps_{{ we.id }}" value="{{ we.reps }}">
+                    <input type="hidden" name="we_{{ we.id }}_weight" id="actualWeight_{{ we.id }}" value="{{ we.weight }}">
+
+                    <!-- Exercise Notes -->
+                    <div class="mt-3">
+                        <input type="text" name="we_{{ we.id }}_notes" placeholder="Exercise notes (e.g. felt strong, felt tight on rep 8)..." 
+                               class="w-full text-xs bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg px-3 py-2 focus:bg-white focus:border-gray-400 transition"
+                               value="{% if ec and ec.notes %}{{ ec.notes }}{% endif %}"
+                               {% if already_completed %}disabled{% endif %}>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if not already_completed %}
+        <!-- Complete Workout & Form Check Video Upload Card -->
+        <div class="bg-white dark:bg-black border-2 border-gray-900 rounded-2xl p-6 sm:p-8 shadow-xl">
+            <h2 class="text-2xl font-black text-gray-900 dark:text-gray-100 mb-2">Finish Workout</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Review your effort and attach an optional form-check video for your coach.</p>
+
+            <!-- Form-Check Video Upload -->
+            <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-950 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl">
+                <label class="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-1 flex items-center">
+                    <span class="mr-2">📹</span> Upload Form Check Video (Optional)
+                </label>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Record a set and upload it so your coach can critique your form and technique (MP4, WebM, MOV max 16MB).</p>
+                <input type="file" name="form_check_video" accept="video/*" class="block w-full text-xs text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800 cursor-pointer">
+            </div>
+
+            <!-- RPE Selector -->
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-2 flex items-center justify-between">
+                    <span>How hard was this workout? (RPE 1-10)</span>
+                    <span id="rpeLabel" class="text-xs font-semibold text-gray-500 dark:text-gray-400">Rate 1 (Very Easy) to 10 (Max Effort)</span>
+                </label>
+                <div class="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+                    {% for i in range(1, 11) %}
+                    <label class="block">
+                        <input type="radio" name="perceived_effort" value="{{ i }}" class="sr-only peer" {% if i == 7 %}checked{% endif %}>
+                        <span class="block text-center py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 text-sm font-bold cursor-pointer peer-checked:bg-black peer-checked:text-white hover:border-gray-400 transition shadow-sm dark:shadow-gray-900/50">
+                            {{ i }}
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Workout Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-gray-800 dark:text-gray-200 mb-1">Workout Notes & Reflections (Optional)</label>
+                <textarea name="notes" rows="3" placeholder="How did the workout feel? Any personal records or areas you struggled with?" class="w-full border border-gray-200 dark:border-gray-800 rounded-xl p-3 text-sm focus:border-black focus:ring-0 transition"></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" onclick="prepareWorkoutSubmission()" class="w-full btn-primary-red py-4 rounded-xl shadow-lg transition duration-150 text-lg flex items-center justify-center space-x-2">
+                <span>✓ Complete & Submit Workout</span>
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Floating Rest Timer Widget -->
+<div id="restTimerWidget" class="hidden fixed bottom-6 right-6 z-40 bg-gray-900 text-white dark:text-black p-4 rounded-2xl shadow-2xl border border-gray-700 w-72 animate-bounce-short">
+    <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">⏱ Rest Timer</span>
+        <button type="button" onclick="closeRestTimer()" class="text-gray-400 dark:text-gray-500 hover:text-white text-sm font-bold">&times;</button>
+    </div>
+    <div class="text-center py-2">
+        <div id="timerDisplay" class="text-4xl font-black tracking-tight text-white dark:text-black">01:00</div>
+        <div id="timerProgress" class="w-full bg-gray-800 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div id="timerProgressBar" class="bg-green-400 h-full w-full transition-all duration-1000"></div>
+        </div>
+    </div>
+    <div class="flex space-x-2 mt-3 text-xs font-bold">
+        <button type="button" onclick="adjustRestTimer(-15)" class="flex-1 bg-gray-800 hover:bg-gray-700 py-1.5 rounded-lg transition">-15s</button>
+        <button type="button" id="pauseResumeBtn" onclick="togglePauseTimer()" class="flex-1 bg-blue-600 hover:bg-blue-700 py-1.5 rounded-lg transition">Pause</button>
+        <button type="button" onclick="adjustRestTimer(15)" class="flex-1 bg-gray-800 hover:bg-gray-700 py-1.5 rounded-lg transition">+15s</button>
+        <button type="button" onclick="closeRestTimer()" class="flex-1 bg-red-600/80 hover:bg-red-600 py-1.5 rounded-lg transition">Skip</button>
+    </div>
+</div>
+
+<!-- Audio Chime for Timer -->
+<audio id="timerBeepAudio" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
+<script>
+    // Rest Timer Logic
+    let timerInterval = null;
+    let totalRestSeconds = 60;
+    let remainingSeconds = 60;
+    let isTimerPaused = false;
+    const timerWidget = document.getElementById('restTimerWidget');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timerProgressBar = document.getElementById('timerProgressBar');
+    const pauseResumeBtn = document.getElementById('pauseResumeBtn');
+    const beepAudio = document.getElementById('timerBeepAudio');
+
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function startRestTimer(seconds) {
+        clearInterval(timerInterval);
+        totalRestSeconds = seconds > 0 ? seconds : 60;
+        remainingSeconds = totalRestSeconds;
+        isTimerPaused = false;
+        pauseResumeBtn.textContent = "Pause";
+        timerWidget.classList.remove('hidden');
+
+        updateTimerDisplay();
+
+        timerInterval = setInterval(() => {
+            if (!isTimerPaused) {
+                remainingSeconds--;
+                updateTimerDisplay();
+                if (remainingSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerDisplay.textContent = "Time's up!";
+                    timerDisplay.classList.add('text-green-400');
+                    try {
+                        beepAudio.currentTime = 0;
+                        beepAudio.play().catch(e => console.log('Audio blocked'));
+                    } catch(e) {}
+                    setTimeout(() => {
+                        closeRestTimer();
+                    }, 2500);
+                }
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        timerDisplay.textContent = formatTime(remainingSeconds);
+        const percent = Math.max(0, (remainingSeconds / totalRestSeconds) * 100);
+        timerProgressBar.style.width = percent + '%';
+        if (remainingSeconds <= 5) {
+            timerProgressBar.className = "bg-red-500 h-full transition-all duration-1000";
+        } else {
+            timerProgressBar.className = "bg-green-400 h-full transition-all duration-1000";
+        }
+    }
+
+    function togglePauseTimer() {
+        isTimerPaused = !isTimerPaused;
+        pauseResumeBtn.textContent = isTimerPaused ? "Resume" : "Pause";
+    }
+
+    function adjustRestTimer(delta) {
+        remainingSeconds = Math.max(5, remainingSeconds + delta);
+        totalRestSeconds = Math.max(totalRestSeconds, remainingSeconds);
+        updateTimerDisplay();
+    }
+
+    function closeRestTimer() {
+        clearInterval(timerInterval);
+        timerWidget.classList.add('hidden');
+        timerDisplay.classList.remove('text-green-400');
+    }
+
+    // Set Completion & Add Set Logic
+    function completeSet(btn, restSeconds) {
+        const row = btn.closest('tr');
+        const isCompleted = btn.classList.contains('bg-green-500');
+
+        if (!isCompleted) {
+            btn.classList.remove('border-gray-300', 'text-gray-500');
+            btn.classList.add('bg-green-500', 'border-green-500', 'text-white');
+            row.classList.add('bg-green-50/60');
+            startRestTimer(restSeconds);
+        } else {
+            btn.classList.remove('bg-green-500', 'border-green-500', 'text-white');
+            btn.classList.add('border-gray-300', 'text-gray-500');
+            row.classList.remove('bg-green-50/60');
+        }
+    }
+
+    function addSetRow(weId, defaultReps, defaultWeight) {
+        const table = document.getElementById(`setsTable_${weId}`).getElementsByTagName('tbody')[0];
+        const currentCount = table.rows.length;
+        const newSetNum = currentCount + 1;
+
+        const newRow = table.insertRow();
+        newRow.className = "set-row hover:bg-gray-50 transition";
+        newRow.setAttribute('data-set-num', newSetNum);
+
+        newRow.innerHTML = `
+            <td class="py-2.5 font-bold text-gray-600 dark:text-gray-400">${newSetNum}</td>
+            <td class="py-2.5">
+                <input type="text" class="w-24 sm:w-32 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1 text-sm font-semibold focus:bg-white focus:border-black focus:ring-0 transition set-weight" 
+                       placeholder="${defaultWeight || 'lbs'}" value="${defaultWeight || ''}">
+            </td>
+            <td class="py-2.5">
+                <input type="text" class="w-20 sm:w-28 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1 text-sm font-semibold focus:bg-white focus:border-black focus:ring-0 transition set-reps" 
+                       placeholder="${defaultReps || '10'}" value="${defaultReps || ''}">
+            </td>
+            <td class="py-2.5 text-center">
+                <button type="button" onclick="completeSet(this, 60)" class="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-700 hover:border-black hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center font-bold text-gray-500 dark:text-gray-400 transition mx-auto set-check-btn">
+                    ✓
+                </button>
+            </td>
+        `;
+
+        document.getElementById(`actualSets_${weId}`).value = newSetNum;
+    }
+
+    function prepareWorkoutSubmission() {
+        // Collect set-by-set values into JSON
+        document.querySelectorAll('[data-exercise-card]').forEach(card => {
+            const weId = card.getAttribute('data-exercise-card');
+            const rows = card.querySelectorAll('.set-row');
+            const setList = [];
+            let lastWeight = '';
+            let lastReps = '';
+
+            rows.forEach(row => {
+                const setNum = row.getAttribute('data-set-num');
+                const weight = row.querySelector('.set-weight').value || '';
+                const reps = row.querySelector('.set-reps').value || '';
+                if (weight) lastWeight = weight;
+                if (reps) lastReps = reps;
+
+                setList.push({
+                    set: setNum,
+                    weight: weight,
+                    reps: reps
+                });
+            });
+
+            const hiddenDetails = document.getElementById(`setDetails_${weId}`);
+            if (hiddenDetails) {
+                hiddenDetails.value = JSON.stringify(setList);
+            }
+            if (lastWeight) {
+                const hw = document.getElementById(`actualWeight_${weId}`);
+                if (hw) hw.value = lastWeight;
+            }
+            if (lastReps) {
+                const hr = document.getElementById(`actualReps_${weId}`);
+                if (hr) hr.value = lastReps;
+            }
+        });
+    }
+</script>
+{% endblock %}

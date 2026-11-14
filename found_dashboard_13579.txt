@@ -1,0 +1,29 @@
+cd C:\Users\Kentaro\.gemini\antigravity\scratch\kentaro; .\venv\Scripts\python.exe -c "
+import json
+
+transcript_path = r'C:\Users\Kentaro\.gemini\antigravity\brain\a66d4733-9898-4866-9f68-3a50cd41daec\.system_generated\logs\transcript_full.jsonl'
+with open(transcript_path, 'r', encoding='utf-8') as f:
+    for idx, line in enumerate(f):
+        if 'def dashboard():' in line and 'client_bp' in line:
+            print('Found on line', idx)
+            obj = json.loads(line)
+            # Find the text
+            def find_text(o):
+                if isinstance(o, str):
+                    if 'def dashboard():' in o and 'client_bp' in o:
+                        return o
+                elif isinstance(o, dict):
+                    for v in o.values():
+                        res = find_text(v)
+                        if res: return res
+                elif isinstance(o, list):
+                    for v in o:
+                        res = find_text(v)
+                        if res: return res
+                return None
+            txt = find_text(obj)
+            if txt:
+                print('Found text snippet len:', len(txt))
+                with open(f'found_dashboard_{idx}.txt', 'w', encoding='utf-8') as out:
+                    out.write(txt)
+"

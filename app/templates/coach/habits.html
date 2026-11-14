@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Habits{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Client Habits</h1>
+    </div>
+
+    <!-- Assign Habit Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 mb-8">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Assign New Habit</h2>
+        <form method="POST" action="{{ url_for('coach.habits') }}" class="flex flex-col md:flex-row gap-4 items-end">
+            <input type="hidden" name="action" value="add">
+            
+            <div class="flex-1 w-full">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Client</label>
+                <select name="client_id" required class="w-full rounded-2xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white py-3 px-4 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white transition-colors">
+                    <option value="" disabled selected>Select a client...</option>
+                    {% for client in clients %}
+                    <option value="{{ client.id }}">{{ client.full_name or client.first_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex-1 w-full">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Habit Name</label>
+                <input type="text" name="name" required placeholder="e.g. Drink 2L Water" class="w-full rounded-2xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white py-3 px-4 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white transition-colors">
+            </div>
+
+            <div class="w-full md:w-32">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Icon</label>
+                <select name="icon" class="w-full rounded-2xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white py-3 px-4 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white transition-colors text-center text-xl">
+                    <option value="✅">✅</option>
+                    <option value="💧">💧</option>
+                    <option value="🏃">🏃</option>
+                    <option value="🥗">🥗</option>
+                    <option value="😴">😴</option>
+                    <option value="📖">📖</option>
+                </select>
+            </div>
+
+            <button type="submit" class="w-full md:w-auto bg-black dark:bg-white text-white dark:text-black font-semibold py-3 px-8 rounded-2xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors">
+                Assign
+            </button>
+        </form>
+    </div>
+
+    <!-- Habits List -->
+    <div class="space-y-8">
+        {% set ns = namespace(grouped={}) %}
+        {% for habit in habits %}
+            {% set client_name = habit.client.full_name or habit.client.first_name %}
+            {% if client_name not in ns.grouped %}
+                {% set _ = ns.grouped.update({client_name: []}) %}
+            {% endif %}
+            {% set _ = ns.grouped[client_name].append(habit) %}
+        {% endfor %}
+
+        {% if ns.grouped %}
+            {% for client_name, client_habits in ns.grouped.items() %}
+            <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div class="bg-gray-50 dark:bg-gray-900/50 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white">{{ client_name }}</h3>
+                </div>
+                <ul class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for habit in client_habits %}
+                    <li class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <div class="flex items-center gap-4">
+                            <span class="text-2xl">{{ habit.icon }}</span>
+                            <span class="font-medium text-gray-900 dark:text-white">{{ habit.name }}</span>
+                            <span class="text-sm text-gray-500 dark:text-gray-400">Assigned {{ habit.created_at.strftime('%b %d') if habit.created_at else '' }}</span>
+                        </div>
+                        <form method="POST" action="{{ url_for('coach.habits') }}" class="m-0" onsubmit="return confirm('Remove this habit?');">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="habit_id" value="{{ habit.id }}">
+                            <button type="submit" class="text-red-500 hover:text-red-700 font-medium text-sm p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                Remove
+                            </button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+                <div class="text-4xl mb-4">🌱</div>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">No Habits Assigned</h3>
+                <p class="text-gray-500 dark:text-gray-400">Start by assigning a daily habit to a client above.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

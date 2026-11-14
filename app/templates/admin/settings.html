@@ -1,0 +1,370 @@
+{% extends "admin/layout.html" %}
+{% block title %}Platform Settings &amp; Branding - Admin Control Center{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-8 pb-12 max-w-4xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
+        <div>
+            <a href="{{ url_for('admin.dashboard') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white mb-2 transition">
+                &larr; Back to Control Center
+            </a>
+            <h1 class="text-3xl font-black text-gray-900 dark:text-gray-100 tracking-tight flex items-center gap-3">
+                <span>System Configuration</span>
+                {% if is_superadmin %}
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                    👑 Super Admin
+                </span>
+                {% else %}
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                     Admin
+                </span>
+                {% endif %}
+            </h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Manage platform branding, operational parameters, and site-wide announcement broadcasts.
+            </p>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-800 pb-3" id="settingsTabs">
+        <button type="button" onclick="switchSettingsTab('announcement')" id="tab-btn-announcement"
+                class="settings-tab-btn px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 bg-red-500/10 text-red-500 dark:bg-red-500/20 border border-red-500/30">
+            <span>📢</span>
+            <span>Announcement Banner</span>
+        </button>
+
+        <button type="button" onclick="switchSettingsTab('branding')" id="tab-btn-branding"
+                class="settings-tab-btn px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-900">
+            <span>🎨</span>
+            <span>Platform Branding</span>
+            {% if not is_superadmin %}
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400">Locked</span>
+            {% endif %}
+        </button>
+
+        <button type="button" onclick="switchSettingsTab('general')" id="tab-btn-general"
+                class="settings-tab-btn px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-900">
+            <span>⚙️</span>
+            <span>Platform Operations &amp; Maintenance</span>
+            {% if not is_superadmin %}
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400">Locked</span>
+            {% endif %}
+        </button>
+        <button type="button" onclick="switchSettingsTab('admin_profile')" id="tab-btn-admin_profile"
+                class="settings-tab-btn px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-900">
+            <span>👤</span>
+            <span>Support Display Name</span>
+        </button>
+    </div>
+
+    <!-- TAB 4: Admin Profile & Display Name -->
+    <div id="tab-content-admin_profile" class="settings-tab-pane space-y-6 hidden">
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">👤</span>
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">Professional Admin Display Name</h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Set your official administrator display name used in all client and coach support ticket interactions.</p>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('admin.update_admin_display_name') }}" class="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-900 max-w-lg">
+                <div>
+                    <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Display Name</label>
+                    <input type="text" name="display_name" value="{{ current_user.display_name or '' }}" required placeholder="e.g. John Davis"
+                           class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500">
+                    <p class="text-[11px] text-gray-400 mt-1.5">
+                        This name will dynamically appear to clients and coaches when you accept their tickets (e.g. <em>"Your ticket has been accepted by {{ current_user.admin_display_name }}."</em>).
+                    </p>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-xs text-gray-500">
+                    <p>Current active display name: <strong class="text-black dark:text-white">{{ current_user.admin_display_name }}</strong></p>
+                    <p class="text-[11px] mt-0.5">Account email: {{ current_user.email }}</p>
+                </div>
+
+                <button type="submit" class="px-6 py-3 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-black text-xs hover:opacity-90 transition">
+                    Save Display Name
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TAB 1: Announcement Banner -->
+    <div id="tab-content-announcement" class="settings-tab-pane space-y-6">
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">📢</span>
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">Global Announcement Banner</h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Broadcast a real-time message bar across the top of all pages platform-wide.</p>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('admin.settings') }}" class="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-900">
+                <input type="hidden" name="section" value="announcement">
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Announcement Message Text</label>
+                    <textarea name="announcement_text" rows="3" placeholder="e.g. 🎉 Kentaro 2.0 release: New workout streak tracking and custom coaching packages are live!"
+                              class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500 leading-relaxed">{{ announcement }}</textarea>
+                </div>
+
+                <div class="flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800">
+                    <div>
+                        <h4 class="font-bold text-xs text-gray-900 dark:text-gray-100">Enable Announcement Banner</h4>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">Activate to show this message bar immediately to all platform visitors</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="announcement_active" value="1" {% if announcement_active %}checked{% endif %} class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-red-600"></div>
+                    </label>
+                </div>
+
+                <button type="submit" class="w-full py-3.5 px-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition">
+                    <span>💾</span> Save Announcement Settings
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TAB 2: Platform Branding (Super Admin Only) -->
+    <div id="tab-content-branding" class="settings-tab-pane hidden space-y-6">
+        {% if not is_superadmin %}
+        <div class="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-start gap-3">
+            <span class="text-xl">🔒</span>
+            <div class="text-xs space-y-1">
+                <p class="font-bold text-sm">Super Admin Privilege Required</p>
+                <p class="text-gray-400">Only designated Super Administrators are authorized to alter the platform name, logo, favicon, and brand colors.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">🎨</span>
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">Brand Identity &amp; Visuals</h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Customize the application name, tagline, primary color theme, logo, and favicon.</p>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('admin.settings') }}" enctype="multipart/form-data" class="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-900">
+                <input type="hidden" name="section" value="branding">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Application Name</label>
+                        <input type="text" name="app_name" value="{{ branding.app_name }}" required
+                               {% if not is_superadmin %}disabled{% endif %}
+                               class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Primary Brand Color</label>
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="primaryColorPicker" value="{{ branding.primary_color }}"
+                                   onchange="document.getElementById('primaryColorText').value = this.value"
+                                   {% if not is_superadmin %}disabled{% endif %}
+                                   class="w-12 h-11 p-1 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 cursor-pointer disabled:opacity-50">
+                            <input type="text" name="primary_color" id="primaryColorText" value="{{ branding.primary_color }}"
+                                   onchange="document.getElementById('primaryColorPicker').value = this.value"
+                                   {% if not is_superadmin %}disabled{% endif %}
+                                   class="flex-1 px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs font-mono text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Platform Tagline</label>
+                    <input type="text" name="app_tagline" value="{{ branding.app_tagline }}"
+                           {% if not is_superadmin %}disabled{% endif %}
+                           placeholder="Calisthenics &amp; Strength Coaching Platform"
+                           class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100 dark:border-gray-900">
+                    <!-- Logo Upload -->
+                    <div class="space-y-3">
+                        <label class="block text-xs font-bold text-gray-900 dark:text-gray-100">Platform Brand Logo</label>
+                        <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 flex items-center justify-center overflow-hidden shrink-0">
+                                {% if branding.logo_url %}
+                                <img src="{{ branding.logo_url }}" alt="Logo" class="max-h-full max-w-full object-contain">
+                                {% else %}
+                                <span class="text-xs font-black text-gray-400">K</span>
+                                {% endif %}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.svg,.webp"
+                                       {% if not is_superadmin %}disabled{% endif %}
+                                       class="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-gray-200 dark:file:bg-gray-800 file:text-gray-700 dark:file:text-gray-300 hover:file:bg-gray-300 cursor-pointer disabled:opacity-50">
+                                <p class="text-[10px] text-gray-400 mt-1">Recommended: Transparent PNG or SVG (max 2MB)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Favicon Upload -->
+                    <div class="space-y-3">
+                        <label class="block text-xs font-bold text-gray-900 dark:text-gray-100">Browser Favicon</label>
+                        <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center gap-4">
+                            <div class="w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 flex items-center justify-center overflow-hidden shrink-0">
+                                {% if branding.favicon_url %}
+                                <img src="{{ branding.favicon_url }}" alt="Favicon" class="w-8 h-8 object-contain">
+                                {% else %}
+                                <span class="text-base">⚡</span>
+                                {% endif %}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <input type="file" name="favicon_file" accept=".ico,.png,.svg"
+                                       {% if not is_superadmin %}disabled{% endif %}
+                                       class="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-gray-200 dark:file:bg-gray-800 file:text-gray-700 dark:file:text-gray-300 hover:file:bg-gray-300 cursor-pointer disabled:opacity-50">
+                                <p class="text-[10px] text-gray-400 mt-1">Recommended: 32x32 ICO or PNG</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if is_superadmin %}
+                <button type="submit" class="w-full py-3.5 px-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition">
+                    <span>💾</span> Save Platform Branding
+                </button>
+                {% else %}
+                <button type="button" disabled class="w-full py-3.5 px-4 rounded-2xl bg-gray-300 dark:bg-gray-800 text-gray-500 font-bold text-xs cursor-not-allowed">
+                    🔒 Super Admin Access Required to Save Branding
+                </button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- TAB 3: Platform Operations & Maintenance (Super Admin Only) -->
+    <div id="tab-content-general" class="settings-tab-pane hidden space-y-6">
+        {% if not is_superadmin %}
+        <div class="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-start gap-3">
+            <span class="text-xl">🔒</span>
+            <div class="text-xs space-y-1">
+                <p class="font-bold text-sm">Super Admin Privilege Required</p>
+                <p class="text-gray-400">Only designated Super Administrators are authorized to toggle maintenance mode or change support routing channels.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">⚙️</span>
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">Operational Contacts &amp; Maintenance Mode</h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Control public contact endpoints and platform maintenance availability.</p>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('admin.settings') }}" class="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-900">
+                <input type="hidden" name="section" value="general">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Support Email Address</label>
+                        <input type="email" name="support_email" value="{{ branding.support_email }}" required
+                               {% if not is_superadmin %}disabled{% endif %}
+                               placeholder="support@kentaro.app"
+                               class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Support Helpline Phone (Optional)</label>
+                        <input type="tel" name="support_phone" value="{{ branding.support_phone }}"
+                               {% if not is_superadmin %}disabled{% endif %}
+                               placeholder="+1 (555) 019-2834"
+                               class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-2">Platform Summary Description</label>
+                    <textarea name="platform_description" rows="2"
+                              {% if not is_superadmin %}disabled{% endif %}
+                              placeholder="Describe your coaching ecosystem for search metadata and footer descriptions..."
+                              class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 leading-relaxed">{{ branding.platform_description }}</textarea>
+                </div>
+
+                <!-- Maintenance Mode Card -->
+                <div class="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/20 dark:border-amber-500/30 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🛠️</span>
+                            <div>
+                                <h4 class="font-bold text-xs text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                                    <span>Platform Maintenance Mode</span>
+                                    {% if branding.maintenance_mode %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-white">Active</span>
+                                    {% endif %}
+                                </h4>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400">When enabled, non-admin visitors will be shown the maintenance page.</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="maintenance_mode" value="1" {% if branding.maintenance_mode %}checked{% endif %}
+                                   {% if not is_superadmin %}disabled{% endif %} class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-500"></div>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-900 dark:text-gray-100 mb-1.5">Maintenance Notice Displayed to Users</label>
+                        <textarea name="maintenance_message" rows="2"
+                                  {% if not is_superadmin %}disabled{% endif %}
+                                  placeholder="Kentaro is currently undergoing scheduled platform upgrades and maintenance. Please check back shortly."
+                                  class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50">{{ branding.maintenance_message }}</textarea>
+                    </div>
+                </div>
+
+                {% if is_superadmin %}
+                <button type="submit" class="w-full py-3.5 px-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition">
+                    <span>💾</span> Save Platform Operations
+                </button>
+                {% else %}
+                <button type="button" disabled class="w-full py-3.5 px-4 rounded-2xl bg-gray-300 dark:bg-gray-800 text-gray-500 font-bold text-xs cursor-not-allowed">
+                    🔒 Super Admin Access Required to Save Operational Settings
+                </button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function switchSettingsTab(tabKey) {
+    var panes = document.querySelectorAll('.settings-tab-pane');
+    panes.forEach(function(pane) { pane.classList.add('hidden'); });
+
+    var activePane = document.getElementById('tab-content-' + tabKey);
+    if (activePane) activePane.classList.remove('hidden');
+
+    var buttons = document.querySelectorAll('.settings-tab-btn');
+    buttons.forEach(function(btn) {
+        btn.classList.remove('bg-red-500/10', 'text-red-500', 'dark:bg-red-500/20', 'border', 'border-red-500/30');
+        btn.classList.add('text-gray-600', 'hover:text-gray-900', 'dark:text-gray-400', 'dark:hover:text-white', 'hover:bg-gray-100', 'dark:hover:bg-gray-900');
+    });
+
+    var activeBtn = document.getElementById('tab-btn-' + tabKey);
+    if (activeBtn) {
+        activeBtn.classList.add('bg-red-500/10', 'text-red-500', 'dark:bg-red-500/20', 'border', 'border-red-500/30');
+        activeBtn.classList.remove('text-gray-600', 'hover:text-gray-900', 'dark:text-gray-400', 'dark:hover:text-white', 'hover:bg-gray-100', 'dark:hover:bg-gray-900');
+    }
+
+    try { window.location.hash = tabKey; } catch(e) {}
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var hash = (window.location.hash || '').replace('#', '');
+    if (hash && ['announcement', 'branding', 'general'].indexOf(hash) !== -1) {
+        switchSettingsTab(hash);
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Weekly Check-In - Kentaro{% endblock %}
+
+{% block content %}
+<div class="space-y-6 pb-10 max-w-4xl mx-auto">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+                Weekly Check-In
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Share how you're feeling to help your coach adjust your plan.
+            </p>
+        </div>
+        <a href="{{ url_for('client.dashboard') }}" class="text-sm font-semibold text-gray-500 hover:text-black dark:hover:text-white transition">
+            &larr; Dashboard
+        </a>
+    </div>
+
+    {% if already_this_week %}
+    <div class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+        <span class="text-lg">⚠️</span>
+        <p class="text-sm text-amber-800 dark:text-amber-200">
+            You've already submitted a check-in this week. Submitting another will add a new entry.
+        </p>
+    </div>
+    {% endif %}
+
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-6 md:p-8 shadow-sm">
+        <form method="POST" action="{{ url_for('client.check_in') }}" class="space-y-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Energy Slider -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">Energy Level</label>
+                        <span id="energy-val" class="font-bold text-lg text-gray-900 dark:text-gray-100">5</span>
+                    </div>
+                    <input type="range" name="energy" min="1" max="10" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-800 accent-black dark:accent-white" oninput="document.getElementById('energy-val').innerText = this.value">
+                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>Exhausted</span>
+                        <span>Energised</span>
+                    </div>
+                </div>
+
+                <!-- Mood Slider -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">Mood / Stress</label>
+                        <span id="mood-val" class="font-bold text-lg text-gray-900 dark:text-gray-100">5</span>
+                    </div>
+                    <input type="range" name="mood" min="1" max="10" value="5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-800 accent-black dark:accent-white" oninput="document.getElementById('mood-val').innerText = this.value">
+                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>Stressed</span>
+                        <span>Great</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Sleep -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Avg Sleep (hours)</label>
+                    <input type="number" step="0.5" name="sleep_hours" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition" placeholder="e.g. 7.5">
+                </div>
+
+                <!-- Weight -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Current Weight (Optional)</label>
+                    <div class="flex gap-2">
+                        <input type="number" step="0.1" name="weight" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition" placeholder="e.g. 75.5">
+                        <select name="weight_unit" class="px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition">
+                            <option value="kg">kg</option>
+                            <option value="lbs">lbs</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Weekly Notes / Feedback</label>
+                <textarea name="notes" rows="4" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition" placeholder="How did this week go? Any challenges or wins?"></textarea>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button type="submit" class="px-6 py-3 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-sm hover:opacity-80 transition shadow-sm">
+                    Submit Check-In
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Recent Check-ins -->
+    {% if recent %}
+    <div class="mt-10">
+        <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Past Check-Ins</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {% for checkin in recent %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-gray-500">Week {{ checkin.week_number }}</span>
+                        <span class="text-xs text-gray-400">{{ checkin.created_at.strftime('%b %d') }}</span>
+                    </div>
+                    <div class="text-xs font-semibold mb-1 text-gray-800 dark:text-gray-200">
+                        Energy: {{ checkin.energy }}/10 &bull; Mood: {{ checkin.mood }}/10
+                    </div>
+                    {% if checkin.sleep_hours %}
+                    <div class="text-xs text-gray-500 mb-1">Sleep: {{ checkin.sleep_hours }}h</div>
+                    {% endif %}
+                    {% if checkin.weight %}
+                    <div class="text-xs text-gray-500">Weight: {{ checkin.weight }} {{ checkin.weight_unit }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

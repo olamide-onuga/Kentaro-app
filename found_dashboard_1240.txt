@@ -1,0 +1,137 @@
+Created At: 2026-08-31T09:11:24+01:00
+Completed At: 2026-08-31T09:11:24+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 129
+Total Bytes: 5228
+Showing lines 1 to 129
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+2: from flask_login import login_required, current_user
+3: from datetime import date
+4: from app.extensions import db
+5: from app.models.user import ClientProfile
+6: from app.models.coaching import CoachingPackage
+7: from app.models.workout import Workout, WorkoutExercise
+8: from app.models.progress import ClientProgram, WorkoutCompletion
+9: from app import socketio
+10: 
+11: client_bp = Blueprint('client', __name__, url_prefix='/client')
+12: 
+13: @client_bp.before_request
+14: @login_required
+15: def require_client():
+16:     if not current_user.is_client:
+17:         flash('You do not have permission to access this page.', 'danger')
+18:         return redirect(url_for('main.index'))
+19: 
+20: @client_bp.route('/chat')
+21: @login_required
+22: def chat():
+23:     coach_id = current_user.client_profile.coach_id if current_user.client_profile else None
+24:     if not coach_id:
+25:         flash('No coach assigned.', 'danger')
+26:         return redirect(url_for('client.dashboard'))
+27:     return render_template('client/chat.html', partner_id=coach_id)
+28: 
+29: @client_bp.route('/voice-call')
+30: @login_required
+31: def voice_call():
+32:     coach_id = current_user.client_profile.coach_id if current_user.client_profile else None
+33:     if not coach_id:
+34:         flash('No coach assigned.', 'danger')
+35:         return redirect(url_for('client.dashboard'))
+36:     return render_template('client/voice_call.html', partner_id=coach_id)
+37: 
+38: @client_bp.route('/dashboard')
+39: def dashboard():
+40:     profile = current_user.client_profile
+41:     today_workout = None
+42:     active_program = None
+43: 
+44:     if profile:
+45:         cp = profile.client_programs.filter_by(is_active=True).first()
+46:         if cp:
+47:             active_program = cp.program
+48:             # Find today's workout — simple heuristic: find first uncompleted workout in order
+49:             completed_ids = [c.workout_id for c in profile.completions.all()]
+50:             for phase in cp.program.phases.order_by('order').all():
+51:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+52:                     if w.id not in completed_ids:
+53:                         today_workout = w
+54:                         break
+55:                 if today_workout:
+56:                     break
+57: 
+58:     return render_template('client/dashboard.html',
+59:                            profile=profile,
+60:                            today_workout=today_workout,
+61:                            active_program=active_program)
+62: 
+63: @client_bp.route('/my-program')
+64: def my_program():
+65:     profile = current_user.client_profile
+66:     cp = profile.client_programs.filter_by(is_active=True).first() if profile else None
+67:     completed_ids = set(c.workout_id for c in profile.completions.all()) if profile else set()
+68:     return render_template('client/my_program.html', cp=cp, completed_ids=completed_ids)
+69: 
+70: @client_bp.route('/workout/<int:workout_id>')
+71: def workout_view(workout_id):
+72:     profile = current_user.client_profile
+73:     workout = Workout.query.get_or_404(workout_id)
+74:     already_completed = WorkoutCompletion.query.filter_by(
+75:         client_id=profile.id, workout_id=workout_id
+76:     ).first() if profile else None
+77:     return render_template('client/workout_view.html',
+78:                            workout=workout,
+79:                            already_completed=already_completed)
+80: 
+81: @client_bp.route('/workout/<int:workout_id>/complete', methods=['POST'])
+82: def complete_workout(workout_id):
+83:     profile = current_user.client_profile
+84:     if not profile:
+85:         flash('Profile not found.', 'danger')
+86:         return redirect(url_for('client.dashboard'))
+87: 
+88:     # Prevent duplicate completions
+89:     existing = WorkoutCompletion.query.filter_by(client_id=profile.id, workout_id=workout_id).first()
+90:     if not existing:
+91:         completion = WorkoutCompletion(
+92:             client_id=profile.id,
+93:             workout_id=workout_id,
+94:             client_notes=request.form.get('notes'),
+95:             perceived_effort=request.form.get('perceived_effort') or None
+96:         )
+97:         db.session.add(completion)
+98:         db.session.commit()
+99:         socketio.emit('notification', {'msg': f'Client {profile.user.email} completed workout {workout.name}.'}, room=f'user_{profile.coach_id}')
+100:     else:
+101:         flash('You already completed this workout.', 'info')
+102: 
+103:     return redirect(url_for('client.dashboard'))
+104: 
+105: @client_bp.route('/history')
+106: def history():
+107:     profile = current_user.client_profile
+108:     completions = profile.completions.order_by(WorkoutCompletion.completed_at.desc()).all() if profile else []
+109:     return render_template('client/history.html', completions=completions)
+110: 
+111: @client_bp.route('/select-package/<int:package_id>', methods=['GET', 'POST'])
+112: def select_package(package_id):
+113:     package = CoachingPackage.query.get_or_404(package_id)
+114: 
+115:     if request.method == 'POST':
+116:         profile = current_user.client_profile
+117:         if not profile:
+118:             profile = ClientProfile(user_id=current_user.id)
+119:             db.session.add(profile)
+120: 
+121:         profile.coach_id = package.coach_id
+122:         profile.active_package_id = package.id
+123:         db.session.commit()
+124: 
+125:         flash(f'Successfully enrolled in {package.name}!', 'success')
+126:         return redirect(url_for('client.dashboard'))
+127: 
+128:     return render_template('client/select_package.html', package=package)
+129: 
+The above content shows the entire, complete file contents of the requested file.

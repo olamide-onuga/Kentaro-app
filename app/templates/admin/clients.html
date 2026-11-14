@@ -1,0 +1,253 @@
+{% extends "admin/layout.html" %}
+{% block title %}Athletes &amp; Clients - Admin Control Center{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/60">
+                    Platform Athletes
+                </span>
+                <span class="text-xs text-gray-400 font-mono">Client Roster</span>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                Athletes &amp; Clients 🏋️
+            </h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Inspect registered athletes, reassign or unlink coaching relationships, and track engagement.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="px-3.5 py-1.5 rounded-2xl text-xs font-extrabold btn-secondary shadow-xs">
+                {{ total_clients }} Athlete{% if total_clients != 1 %}s{% endif %}
+            </span>
+            {% if unassigned_clients > 0 %}
+            <span class="px-3.5 py-1.5 rounded-2xl text-xs font-extrabold bg-amber-500 text-white shadow-sm">
+                {{ unassigned_clients }} Unassigned
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Search & Coach Filters -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm">
+        <form method="GET" action="{{ url_for('admin.clients') }}" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- Search -->
+            <div class="sm:col-span-2">
+                <input type="text" name="search" value="{{ search }}" placeholder="Search athlete by name or email..."
+                       class="w-full px-4 py-2.5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs font-mono text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+            </div>
+
+            <!-- Coach Filter Dropdown -->
+            <div class="flex items-center gap-2">
+                <select name="coach_id" class="w-full px-4 py-2.5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none">
+                    <option value="">All Coaches</option>
+                    <option value="-1" {% if coach_id == -1 %}selected{% endif %}>Unassigned Athletes Only</option>
+                    {% for c in coaches %}
+                    <option value="{{ c.id }}" {% if coach_id == c.id %}selected{% endif %}>
+                        Coach {{ c.first_name }} {{ c.last_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit" class="px-6 py-2.5 rounded-2xl btn-primary-red font-bold text-xs shadow-xs transition shrink-0">
+                    Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Clients Table -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase tracking-widest font-extrabold border-b border-gray-100 dark:border-gray-800">
+                    <tr>
+                        <th class="px-6 py-4">Athlete</th>
+                        <th class="px-6 py-4">Assigned Coach</th>
+                        <th class="px-6 py-4">Active Contract</th>
+                        <th class="px-6 py-4">Joined Date</th>
+                        <th class="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-900">
+                    {% for cl in clients %}
+                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-900/50 transition">
+                        <!-- Athlete Name & Email -->
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-2xl bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center font-black text-xs text-gray-800 dark:text-gray-200 shrink-0">
+                                    {{ cl.first_name[0] if cl.first_name else 'A' }}
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="font-bold text-gray-900 dark:text-gray-100 truncate">
+                                        <a href="{{ url_for('admin.client_detail', client_id=cl.id) }}" class="hover:underline hover:text-red-600 transition">
+                                            {{ cl.full_name }}
+                                        </a>
+                                    </div>
+                                    <div class="text-[11px] text-gray-400 font-mono truncate">
+                                        {{ cl.user.email if cl.user else 'No Email' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Assigned Coach -->
+                        <td class="px-6 py-4">
+                            {% if cl.coach %}
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-blue-600 dark:text-blue-400">
+                                    Coach {{ cl.coach.first_name }} {{ cl.coach.last_name }}
+                                </span>
+                                <a href="{{ url_for('admin.coach_detail', coach_id=cl.coach.id) }}" class="text-[10px] text-gray-400 hover:text-black dark:hover:text-white" title="Inspect Coach">
+                                    ↗
+                                </a>
+                            </div>
+                            {% else %}
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+                                Unassigned
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Contract Status -->
+                        <td class="px-6 py-4">
+                            {% set active_c = cl.contracts.filter_by(status='active').first() %}
+                            {% if active_c %}
+                            <span class="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Active ({{ active_c.package.name if active_c.package else 'Custom' }})
+                            </span>
+                            {% else %}
+                            <span class="text-gray-400 font-mono">No active contract</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Joined Date -->
+                        <td class="px-6 py-4 text-gray-500 dark:text-gray-400 font-mono text-[11px]">
+                            {{ cl.created_at.strftime('%b %d, %Y') if cl.created_at else 'N/A' }}
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="px-6 py-4 text-right">
+                            <div class="inline-flex items-center gap-2">
+                                <a href="{{ url_for('admin.client_detail', client_id=cl.id) }}"
+                                   class="px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-gray-800 font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                                    Inspect
+                                </a>
+
+                                {% if cl.coach %}
+                                <form method="POST" action="{{ url_for('admin.unlink_client_coach', client_id=cl.id) }}" class="inline"
+                                      onsubmit="return confirm('Unlink athlete {{ cl.full_name }} from coach {{ cl.coach.first_name }}?');">
+                                    <button type="submit" class="px-2.5 py-1.5 rounded-xl border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-950/40 transition">
+                                        Unlink Coach
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                <button onclick="openAssignCoachModal({{ cl.id }}, '{{ cl.full_name }}', {{ cl.coach_id or 'null' }})"
+                                        class="px-2.5 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 transition">
+                                    Assign Coach
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-400">
+                            No athletes matched your search criteria.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        {% if pagination.pages > 1 %}
+        <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/60 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
+            <div class="text-gray-500 font-mono">
+                Page {{ pagination.page }} of {{ pagination.pages }}
+            </div>
+            <div class="flex items-center gap-1.5">
+                {% if pagination.has_prev %}
+                <a href="{{ url_for('admin.clients', page=pagination.prev_num, search=search, coach_id=coach_id) }}"
+                   class="px-3 py-1.5 rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                    &larr; Prev
+                </a>
+                {% endif %}
+
+                {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if p %}
+                        {% if p == pagination.page %}
+                        <span class="px-3 py-1.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-extrabold shadow-sm">
+                            {{ p }}
+                        </span>
+                        {% else %}
+                        <a href="{{ url_for('admin.clients', page=p, search=search, coach_id=coach_id) }}"
+                           class="px-3 py-1.5 rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                            {{ p }}
+                        </a>
+                        {% endif %}
+                    {% else %}
+                    <span class="px-1 text-gray-400">...</span>
+                    {% endif %}
+                {% endfor %}
+
+                {% if pagination.has_next %}
+                <a href="{{ url_for('admin.clients', page=pagination.next_num, search=search, coach_id=coach_id) }}"
+                   class="px-3 py-1.5 rounded-xl bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                    Next &rarr;
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Modal: Assign Coach -->
+<div id="assignCoachModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-extrabold text-base text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <span>🏆</span> Assign Coach to Athlete
+            </h3>
+            <button onclick="closeAssignCoachModal()" class="p-1 rounded-xl text-gray-400 hover:text-black dark:hover:text-white">✕</button>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4 font-mono truncate" id="assignCoachAthleteName"></p>
+        <form id="assignCoachForm" method="POST" action="" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Choose Coach</label>
+                <select name="coach_id" id="assignCoachSelect" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none">
+                    <option value="" disabled selected>Select a coach...</option>
+                    {% for c in coaches %}
+                    <option value="{{ c.id }}">Coach {{ c.first_name }} {{ c.last_name }} ({{ c.specialization or 'Fitness' }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" onclick="closeAssignCoachModal()" class="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400">Cancel</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs shadow-md">Assign Coach</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openAssignCoachModal(clientId, athleteName, currentCoachId) {
+    document.getElementById('assignCoachAthleteName').textContent = 'Athlete: ' + athleteName;
+    document.getElementById('assignCoachForm').action = '/admin/clients/' + clientId + '/assign-coach';
+    if (currentCoachId) {
+        document.getElementById('assignCoachSelect').value = currentCoachId;
+    }
+    document.getElementById('assignCoachModal').classList.remove('hidden');
+}
+function closeAssignCoachModal() {
+    document.getElementById('assignCoachModal').classList.add('hidden');
+}
+</script>
+{% endblock %}

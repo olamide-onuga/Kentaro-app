@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+    <!-- Header navigation -->
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                    Athlete Portal
+                </span>
+                <span class="text-gray-300 dark:text-gray-700">/</span>
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Profile
+                </span>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+                Athlete Profile
+            </h1>
+            <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Set up your personal details, fitness goals, and preferences for your coach.
+            </p>
+        </div>
+
+        <a
+            href="{{ url_for('client.dashboard') }}"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+        >
+            <span>←</span> Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Profile Form Card -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-6 md:p-8 shadow-sm">
+
+        <!-- Status Summary -->
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-6 mb-6 border-b border-gray-100 dark:border-gray-800">
+            <div class="flex items-center gap-4">
+                {% if profile.profile_photo %}
+                <img src="{{ profile.profile_photo }}" alt="Avatar" class="w-16 h-16 rounded-2xl object-cover border-2 border-black dark:border-white shadow-sm">
+                {% else %}
+                <div class="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center font-extrabold text-xl text-black dark:text-white">
+                    {{ profile.first_name[0] if profile and profile.first_name else 'A' }}
+                </div>
+                {% endif %}
+                <div>
+                    <h2 class="text-base font-bold text-gray-900 dark:text-gray-100">
+                        {{ profile.full_name }}
+                    </h2>
+                    <p class="text-xs text-gray-400">
+                        {{ current_user.email }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                {% if profile.is_complete %}
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300">
+                    <span>✓</span> Profile Complete
+                </span>
+                {% else %}
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                    <span>⚠️</span> Complete Your Setup
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('client.profile') }}" enctype="multipart/form-data" class="space-y-6">
+
+            <!-- Profile Photo Upload -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                    Profile Photo
+                </label>
+                <input
+                    type="file"
+                    name="profile_photo"
+                    accept="image/*"
+                    class="text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-black file:text-white dark:file:bg-white dark:file:text-black hover:file:opacity-80 transition cursor-pointer"
+                >
+                <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Upload an image file (JPG, PNG).</p>
+            </div>
+
+            <!-- Name Fields -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                        First Name <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        name="first_name"
+                        value="{{ profile.first_name or '' }}"
+                        required
+                        placeholder="e.g. Alex"
+                        class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                    >
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                        Last Name <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        name="last_name"
+                        value="{{ profile.last_name or '' }}"
+                        required
+                        placeholder="e.g. Taylor"
+                        class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                    >
+                </div>
+            </div>
+
+            <!-- Contact & Timezone -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                        Phone Number <span class="text-gray-400 font-normal lowercase">(optional)</span>
+                    </label>
+                    <input
+                        type="tel"
+                        name="phone"
+                        value="{{ profile.phone or '' }}"
+                        placeholder="+1 (555) 000-0000"
+                        class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                    >
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                        Timezones <span class="text-gray-400 font-normal lowercase">(search or select)</span>
+                    </label>
+                    <div class="relative">
+                        <input
+                            type="text"
+                            name="timezone"
+                            id="clientTimezoneInput"
+                            list="allTimezonesList"
+                            value="{{ profile.timezone or 'UTC' }}"
+                            placeholder="Type to search timezones (e.g. America/New_York, London, Tokyo...)"
+                            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                        >
+                        <datalist id="allTimezonesList">
+                            <option value="UTC">UTC (Universal Coordinated Time)</option>
+                            {% for tz in all_timezones %}
+                            <option value="{{ tz }}">{{ tz }}</option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Start typing city or continent to quickly filter world timezones.</p>
+                </div>
+            </div>
+
+            <!-- Fitness Goals -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                    Fitness Goals
+                </label>
+                <textarea
+                    name="fitness_goals"
+                    rows="3"
+                    placeholder="e.g. Build lean muscle, improve cardiovascular endurance, master bodyweight pull-ups, lose 5kg."
+                    class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                >{{ profile.fitness_goals or '' }}</textarea>
+                <p class="text-xs text-gray-400 mt-1">This helps your coach tailor workouts specifically to your targets.</p>
+            </div>
+
+            <!-- Bio / Health / Limitations -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                    Bio & Health Background
+                </label>
+                <textarea
+                    name="bio"
+                    rows="3"
+                    placeholder="e.g. Training for 2 years. Minor lower-back sensitivity. Available to train 4 days a week."
+                    class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                >{{ profile.bio or '' }}</textarea>
+            </div>
+
+            <!-- Save Buttons -->
+            <div class="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-4">
+                <a
+                    href="{{ url_for('client.dashboard') }}"
+                    class="px-5 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+                >
+                    Cancel
+                </a>
+
+                <button
+                    type="submit"
+                    class="px-6 py-2.5 rounded-xl btn-primary-red font-bold text-sm shadow-xs transition"
+                >
+                    Save Profile
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+{% endblock %}

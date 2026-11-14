@@ -1,0 +1,132 @@
+Created At: 2026-10-07T18:17:49+01:00
+Completed At: 2026-10-07T18:17:49+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1587
+Total Bytes: 63529
+Showing lines 207 to 330
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+207: @client_bp.route('/dashboard')
+208: @login_required
+209: def dashboard():
+210:     profile = current_user.client_profile
+211:     if not profile:
+212:         profile = ClientProfile(user_id=current_user.id)
+213:         db.session.add(profile)
+214:         db.session.commit()
+215:     
+216:     today_workout = None
+217:     active_program = None
+218:     progress = None
+219: 
+220:     if profile and profile.coach_id:
+221:         cp = profile.client_programs.filter_by(is_active=True).first()
+222:         if cp:
+223:             active_program = cp.program
+224:             # Find today's workout — simple heuristic: find first uncompleted workout in order
+225:             completed_ids = [c.workout_id for c in profile.completions.all()]
+226:             # Compute total workouts in active program
+227:             total_workouts = 0
+228:             if active_program:
+229:                 for phase in active_program.phases:
+230:                     total_workouts += phase.workouts.count()
+231:             # progress dict passed to template
+232:             progress = {
+233:                 'completed': len(completed_ids),
+234:                 'total': total_workouts,
+235:             }
+236:             for phase in cp.program.phases.order_by('order').all():
+237:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+238:                     if w.id not in completed_ids:
+239:                         today_workout = w
+240:                         break
+241:                 if today_workout:
+242:                     break
+243: 
+244:     upcoming_appointments = []
+245:     if profile:
+246:         from app.models.calendar import Appointment
+247:         from datetime import date as date_cls
+248:         upcoming_appointments = Appointment.query.filter(
+249:             Appointment.client_id == profile.id,
+250:             Appointment.date >= date_cls.today(),
+251:             Appointment.status == 'scheduled'
+252:         ).order_by(Appointment.date.asc(), Appointment.start_time.asc()).limit(3).all()
+253: 
+254:     # Calculate days remaining on active contract
+255:     days_remaining = None
+256:     active_contract = None
+257:     if profile:
+258:         from app.models.coaching import ClientContract
+259:         from datetime import datetime as dt_cls
+260:         active_contract = ClientContract.query.filter_by(
+261:             client_id=profile.id, status='active'
+262:         ).order_by(ClientContract.created_at.desc()).first()
+263:         if active_contract and active_contract.end_date:
+264:             delta = active_contract.end_date - dt_cls.utcnow()
+265:             days_remaining = max(0, delta.days)
+266:         elif active_contract and active_contract.start_date and profile.active_package:
+267:             weeks = profile.active_package.duration_weeks or 4
+268:             end_est = active_contract.start_date + __import__('datetime').timedelta(weeks=weeks)
+269:             delta = end_est - dt_cls.utcnow()
+270:             days_remaining = max(0, delta.days)
+271: 
+272:     pending_offers = []
+273:     negotiation_threads = []
+274:     if profile:
+275:         from app.models.features import CustomOffer
+276:         from app.models.user import ChatMessage, User
+277:         from sqlalchemy import or_
+278:         pending_offers = CustomOffer.query.filter_by(client_id=profile.id, status='pending').order_by(CustomOffer.created_at.desc()).all()
+279: 
+280:         # For coachless clients, check if any coaches have messaged them for negotiations
+281:         if not profile.coach_id:
+282:             msg_uids = db.session.query(ChatMessage.sender_id).filter(
+283:                 ChatMessage.receiver_id == current_user.id
+284:             ).union(
+285:                 db.session.query(ChatMessage.receiver_id).filter(
+286:                     ChatMessage.sender_id == current_user.id
+287:                 )
+288:             ).all()
+289:             for (uid,) in msg_uids:
+290:                 if uid != current_user.id:
+291:                     u = User.query.get(uid)
+292:                     if u and u.coach_profile:
+293:                         last_m = ChatMessage.query.filter(
+294:                             or_(
+295:                                 ((ChatMessage.sender_id == current_user.id) & (ChatMessage.receiver_id == uid)),
+296:                                 ((ChatMessage.sender_id == uid) & (ChatMessage.receiver_id == current_user.id))
+297:                             )
+298:                         ).order_by(ChatMessage.timestamp.desc()).first()
+299:                         off = CustomOffer.query.filter_by(
+300:                             coach_id=u.coach_profile.id,
+301:                             client_id=profile.id,
+302:                             status='pending'
+303:                         ).order_by(CustomOffer.created_at.desc()).first()
+304:                         negotiation_threads.append({
+305:                             'coach': u.coach_profile,
+306:                             'user': u,
+307:                             'last_msg': last_m,
+308:                             'offer': off
+309:                         })
+310: 
+311:     workout_streak = _get_workout_streak(profile) if (profile and profile.coach_id) else 0
+312:     # Ensure progress is defined (None if no program)
+313:     progress = progress if 'progress' in locals() else None
+314:     return render_template('client/dashboard.html',
+315:                            profile=profile,
+316:                            today_workout=today_workout,
+317:                            active_program=active_program,
+318:                            upcoming_appointments=upcoming_appointments,
+319:                            days_remaining=days_remaining,
+320:                            active_contract=active_contract,
+321:                            workout_streak=workout_streak,
+322:                            progress=progress,
+323:                            pending_offers=pending_offers,
+324:                            negotiation_threads=negotiation_threads)
+325: 
+326: @client_bp.route('/my-program')
+327: @login_required
+328: def my_program():
+329:     profile = current_user.client_profile
+330:     if not profile or not profile.coach_id:
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

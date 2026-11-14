@@ -1,0 +1,139 @@
+Created At: 2026-09-26T19:55:52+01:00
+Completed At: 2026-09-26T19:55:53+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1205
+Total Bytes: 48707
+Showing lines 715 to 845
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+715:     from app.models.calendar import CoachAvailability, CoachScheduleConfig, Appointment
+716:     
+717:     profile = current_user.client_profile
+718:     if not profile or not profile.coach_id:
+719:         return jsonify({'slots': []})
+720:         
+721:     date_str = request.args.get('date')
+722:     if not date_str:
+723:         return jsonify({'slots': []})
+724:         
+725:     try:
+726:         selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+727:     except ValueError:
+728:         return jsonify({'slots': []})
+729:         
+730:     # Past dates have no slots
+731:     if selected_date < date.today():
+732:         return jsonify({'slots': []})
+733:         
+734:     day_idx = selected_date.weekday()  # 0=Monday ... 6=Sunday
+735:     coach_id = profile.coach_id
+736:     
+737:     av = CoachAvailability.query.filter_by(coach_id=coach_id, day_of_week=day_idx, is_active=True).first()
+738:     if not av:
+739:         return jsonify({'slots': []})
+740:         
+741:     config = CoachScheduleConfig.query.filter_by(coach_id=coach_id).first()
+742:     slot_duration = config.slot_duration if config else 30
+743:     
+744:     # Existing booked appointments on that date
+745:     booked = Appointment.query.filter(
+746:         Appointment.coach_id == coach_id,
+747:         Appointment.date == selected_date,
+748:         Appointment.status == 'scheduled'
+749:     ).all()
+750:     
+751:     booked_slots = set((a.start_time.strftime('%H:%M'), a.end_time.strftime('%H:%M')) for a in booked)
+752:     
+753:     slots = []
+754:     # Build timeline from av.start_time to av.end_time
+755:     cur_dt = datetime.combine(selected_date, av.start_time)
+756:     end_dt = datetime.combine(selected_date, av.end_time)
+757:     now_dt = datetime.now()
+758:     
+759:     while cur_dt + timedelta(minutes=slot_duration) <= end_dt:
+760:         slot_end_dt = cur_dt + timedelta(minutes=slot_duration)
+761:         start_time_str = cur_dt.time().strftime('%H:%M')
+762:         end_time_str = slot_end_dt.time().strftime('%H:%M')
+763:         
+764:         # Check if slot is in the future and not booked
+765:         is_future = True
+766:         if selected_date == date.today():
+767:             is_future = cur_dt > now_dt + timedelta(minutes=15)
+768:             
+769:         if is_future and (start_time_str, end_time_str) not in booked_slots:
+770:             slots.append({
+771:                 'start_time': start_time_str,
+772:                 'end_time': end_time_str,
+773:                 'formatted_start': cur_dt.strftime('%I:%M %p'),
+774:                 'formatted_end': slot_end_dt.strftime('%I:%M %p')
+775:             })
+776:             
+777:         cur_dt += timedelta(minutes=slot_duration)
+778:         
+779:     return jsonify({'slots': slots})
+780: 
+781: @client_bp.route('/book-session', methods=['POST'])
+782: @login_required
+783: def book_session_submit():
+784:     from datetime import datetime, date, time
+785:     from app.models.calendar import CoachScheduleConfig, Appointment
+786:     
+787:     profile = current_user.client_profile
+788:     if not profile or not profile.coach_id:
+789:         flash('No coach assigned.', 'danger')
+790:         return redirect(url_for('client.dashboard'))
+791:         
+792:     date_str = request.form.get('date')
+793:     start_str = request.form.get('start_time')
+794:     end_str = request.form.get('end_time')
+795:     notes = request.form.get('client_notes')
+796:     
+797:     if not date_str or not start_str or not end_str:
+798:         flash('Please select both a date and an available time slot.', 'warning')
+799:         return redirect(url_for('client.book_session'))
+800:         
+801:     try:
+802:         appt_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+803:         st = datetime.strptime(start_str, '%H:%M').time()
+804:         et = datetime.strptime(end_str, '%H:%M').time()
+805:     except ValueError:
+806:         flash('Invalid date or time format.', 'danger')
+807:         return redirect(url_for('client.book_session'))
+808:         
+809:     # Prevent double booking
+810:     existing = Appointment.query.filter_by(
+811:         coach_id=profile.coach_id,
+812:         date=appt_date,
+813:         start_time=st,
+814:         status='scheduled'
+815:     ).first()
+816:     
+817:     if existing:
+818:         flash('That time slot was just booked by another client. Please choose another slot.', 'warning')
+819:         return redirect(url_for('client.book_session'))
+820:         
+821:     config = CoachScheduleConfig.query.filter_by(coach_id=profile.coach_id).first()
+822:     platform = config.meeting_platform if config else 'in_app'
+823:     meeting_url = config.google_meet_url if (platform == 'google_meet' and config and config.google_meet_url) else url_for('client.voice_call')
+824:     
+825:     appt = Appointment(
+826:         coach_id=profile.coach_id,
+827:         client_id=profile.id,
+828:         date=appt_date,
+829:         start_time=st,
+830:         end_time=et,
+831:         title='1-on-1 Coaching Session',
+832:         client_notes=notes,
+833:         meeting_platform=platform,
+834:         meeting_url=meeting_url,
+835:         status='scheduled'
+836:     )
+837:     db.session.add(appt)
+838:     db.session.commit()
+839:     
+840:     # Notify coach via Socket.IO
+841:     if profile.coach and profile.coach.user_id:
+842:         socketio.emit('notification', {
+843:             'msg': f'Client {profile.first_name or profile.user.email} booked a session on {appt_date.strftime("%b %d")} at {st.strftime("%I:%M %p")}.'
+844:         }, room=f'user_{profile.coach.user_id}')
+845:         
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

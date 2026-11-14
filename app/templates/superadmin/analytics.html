@@ -1,0 +1,49 @@
+{% extends "superadmin/layout.html" %}
+
+{% block title %}Platform Analytics - Kentaro Super Admin{% endblock %}
+
+{% block superadmin_content %}
+<div class="space-y-6">
+
+    <div>
+        <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100">Platform Analytics &amp; Metrics</h1>
+        <p class="text-xs text-gray-500 mt-1">Live database performance indicators, user retention, and coaching engagement.</p>
+    </div>
+
+    <!-- Analytics Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-wider text-gray-400">Total Users</span>
+            <div class="text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">{{ stats.total_users }}</div>
+            <div class="text-[11px] text-gray-500 mt-1">{{ stats.total_coaches }} Coaches &middot; {{ stats.total_clients }} Clients</div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-wider text-gray-400">Active Coaching Programs</span>
+            <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{{ stats.active_contracts }}</div>
+            <div class="text-[11px] text-gray-500 mt-1">Out of {{ stats.total_contracts }} total contracts</div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-wider text-gray-400">Total Support Tickets</span>
+            <div class="text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">{{ stats.total_tickets }}</div>
+            <div class="text-[11px] text-gray-500 mt-1">{{ stats.resolved_tickets }} resolved</div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-wider text-gray-400">Ticket Resolution Rate</span>
+            <div class="text-3xl font-black text-blue-600 dark:text-blue-400 mt-1">{{ stats.resolution_rate }}%</div>
+            <div class="text-[11px] text-gray-500 mt-1">Platform satisfaction efficiency</div>
+        </div>
+    </div>
+
+    <!-- Health Status Card -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xs space-y-3">
+        <h3 class="text-sm font-black text-gray-900 dark:text-gray-100">System Health &amp; Operational Integrity</h3>
+        <p class="text-xs text-gray-500 leading-relaxed">
+            All services operational. Real-time Socket.IO presence active. SQLite database healthy. Automated expiring contract checks scheduled.
+        </p>
+    </div>
+
+</div>
+{% endblock %}

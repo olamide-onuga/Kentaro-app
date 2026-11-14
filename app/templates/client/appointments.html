@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}My Appointments - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto pb-16">
+    <!-- Header -->
+    <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-gray-900 dark:text-gray-100">Coaching Appointments</h1>
+            <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Manage your 1-on-1 calls, check-ins, and scheduled reviews with your coach.</p>
+        </div>
+        <a href="{{ url_for('client.book_session') }}" class="inline-flex items-center text-sm font-bold bg-black dark:bg-white hover:bg-gray-800 text-white dark:text-black px-5 py-2.5 rounded-xl shadow transition">
+            + Book New Session
+        </a>
+    </div>
+
+    <!-- Upcoming Sessions -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm dark:shadow-gray-900/50 mb-8">
+        <h2 class="text-xl font-black text-gray-900 dark:text-gray-100 mb-2">Upcoming Sessions</h2>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-6">Join your video room when the scheduled time arrives.</p>
+
+        {% if upcoming_appointments %}
+        <div class="space-y-4">
+            {% for appt in upcoming_appointments %}
+            <div class="border-2 border-black/10 hover:border-black rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition bg-white dark:bg-black shadow-sm dark:shadow-gray-900/50">
+                <div class="flex items-start space-x-4">
+                    <div class="w-14 h-14 bg-black dark:bg-white text-white dark:text-black rounded-xl flex flex-col items-center justify-center flex-shrink-0">
+                        <span class="text-[10px] font-bold uppercase">{{ appt.date.strftime('%b') }}</span>
+                        <span class="text-xl font-black leading-none">{{ appt.date.strftime('%d') }}</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h3 class="font-black text-base text-gray-900 dark:text-gray-100">{{ appt.title }}</h3>
+                            <span class="text-xs bg-green-100 text-green-800 px-2.5 py-0.5 rounded-full font-bold">Confirmed</span>
+                            <span class="text-[11px] bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md font-semibold uppercase">
+                                {{ 'In-App Video' if appt.meeting_platform == 'in_app' else 'Google Meet' }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            ⏰ {{ appt.start_time.strftime('%I:%M %p') }} - {{ appt.end_time.strftime('%I:%M %p') }} &bull;
+                            Coach: <strong>{{ appt.coach.first_name }} {{ appt.coach.last_name }}</strong>
+                        </p>
+                        {% if appt.client_notes %}
+                        <p class="text-xs text-gray-700 dark:text-gray-300 mt-2 bg-gray-50 dark:bg-gray-950 p-2.5 rounded-lg italic">
+                            Your Notes: "{{ appt.client_notes }}"
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3 self-end md:self-center">
+                    {% if appt.meeting_platform == 'in_app' %}
+                    <a href="{{ url_for('client.voice_call') }}" class="bg-green-600 hover:bg-green-700 text-white dark:text-black text-xs font-bold px-5 py-2.5 rounded-xl transition shadow flex items-center">
+                        Join Video Call
+                    </a>
+                    {% elif appt.meeting_url %}
+                    <a href="{{ appt.meeting_url }}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white dark:text-black text-xs font-bold px-5 py-2.5 rounded-xl transition shadow flex items-center">
+                        ↗ Join Google Meet
+                    </a>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('client.cancel_appointment', appointment_id=appt.id) }}" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
+                        <button type="submit" class="text-xs font-bold text-red-500 hover:text-red-700 px-2 py-1">
+                            Cancel
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-10 bg-gray-50 dark:bg-gray-950 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
+            <p class="text-sm text-gray-400 dark:text-gray-500 mb-3">You don't have any sessions scheduled right now.</p>
+            <a href="{{ url_for('client.book_session') }}" class="text-xs font-bold bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-lg hover:bg-gray-800 transition">
+                Book a Session with Coach &rarr;
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Past Sessions -->
+    {% if past_appointments %}
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm dark:shadow-gray-900/50">
+        <h2 class="text-lg font-black text-gray-900 dark:text-gray-100 mb-4">Past Sessions History</h2>
+        <div class="space-y-3">
+            {% for appt in past_appointments %}
+            <div class="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex items-center justify-between opacity-80">
+                <div>
+                    <span class="text-xs font-bold text-gray-500 dark:text-gray-400">{{ appt.date.strftime('%B %d, %Y') }} &bull; {{ appt.start_time.strftime('%I:%M %p') }}</span>
+                    <h4 class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ appt.title }} with Coach {{ appt.coach.first_name }}</h4>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full font-bold
+                    {% if appt.status == 'completed' %}bg-green-100 text-green-800
+                    {% elif appt.status == 'cancelled' %}bg-red-100 text-red-800
+                    {% else %}bg-gray-200 text-gray-700{% endif %}">
+                    {{ appt.status|capitalize }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

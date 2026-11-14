@@ -1,0 +1,96 @@
+{% extends "superadmin/layout.html" %}
+
+{% block title %}Support Oversight - Kentaro Super Admin{% endblock %}
+
+{% block superadmin_content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100">Support System Oversight</h1>
+            <p class="text-xs text-gray-500 mt-1">Platform-wide support ticket triage, admin reassignment, and audit transcripts.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{{ url_for('superadmin.support', status='pending') }}"
+               class="px-3 py-1.5 rounded-xl text-xs font-bold transition {% if current_status == 'pending' %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300{% endif %}">
+                Pending Triage
+            </a>
+            <a href="{{ url_for('superadmin.support', status='all') }}"
+               class="px-3 py-1.5 rounded-xl text-xs font-bold transition {% if current_status == 'all' %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300{% endif %}">
+                All Tickets
+            </a>
+        </div>
+    </div>
+
+    <!-- Tickets Table -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xs">
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+                <thead class="text-[10px] uppercase font-black tracking-wider text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                    <tr>
+                        <th class="py-3 px-3">Ticket</th>
+                        <th class="py-3 px-3">Creator</th>
+                        <th class="py-3 px-3">Priority</th>
+                        <th class="py-3 px-3">Status</th>
+                        <th class="py-3 px-3">Assigned Admin</th>
+                        <th class="py-3 px-3">Opened</th>
+                        <th class="py-3 px-3 text-right">Reassign</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60 font-medium">
+                    {% if tickets %}
+                    {% for t in tickets %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40 transition">
+                        <td class="py-3.5 px-3">
+                            <a href="{{ url_for('admin.ticket_detail', ticket_ref=t.ticket_ref) }}" class="font-black text-gray-900 dark:text-gray-100 hover:underline block">
+                                #{{ t.ticket_ref }} &middot; {{ t.subject }}
+                            </a>
+                            <div class="text-[11px] text-gray-400 truncate max-w-xs">{{ t.category }}</div>
+                        </td>
+                        <td class="py-3.5 px-3">
+                            <div class="font-bold text-gray-900 dark:text-gray-100">{{ t.user.display_name if t.user else 'User' }}</div>
+                            <div class="text-[11px] text-gray-400 font-mono">{{ t.user.email if t.user else '' }}</div>
+                        </td>
+                        <td class="py-3.5 px-3">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase {% if t.priority == 'urgent' %}bg-red-500/20 text-red-600{% elif t.priority == 'high' %}bg-amber-500/20 text-amber-600{% else %}bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300{% endif %}">
+                                {{ t.priority }}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-3">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase {% if t.status == 'pending' %}bg-amber-500/20 text-amber-600{% elif t.status == 'in_progress' %}bg-blue-500/20 text-blue-600{% elif t.status == 'resolved' or t.status == 'closed' %}bg-emerald-500/20 text-emerald-600{% else %}bg-gray-200 text-gray-700{% endif %}">
+                                {{ t.status }}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-3 font-semibold text-gray-800 dark:text-gray-200">
+                            {{ t.assigned_admin_name or 'Unassigned' }}
+                        </td>
+                        <td class="py-3.5 px-3 text-gray-400 font-mono text-[11px]">
+                            {{ t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else '' }}
+                        </td>
+                        <td class="py-3.5 px-3 text-right">
+                            <form method="POST" action="{{ url_for('superadmin.support_reassign', ticket_ref=t.ticket_ref) }}" class="inline-flex items-center gap-1.5">
+                                <select name="admin_id" class="px-2 py-1 text-[11px] rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+                                    <option value="">-- Reassign --</option>
+                                    {% for adm in admins %}
+                                    <option value="{{ adm.id }}" {% if t.assigned_admin_id == adm.id %}selected{% endif %}>{{ adm.admin_display_name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="px-2.5 py-1 rounded-lg bg-black dark:bg-white text-white dark:text-black font-bold text-[11px] hover:opacity-85 transition">
+                                    Assign
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-gray-400">No support tickets found for this filter.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

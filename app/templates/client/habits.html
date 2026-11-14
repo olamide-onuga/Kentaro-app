@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Habit Tracker - Kentaro{% endblock %}
+
+{% block content %}
+<div class="space-y-6 pb-10 max-w-4xl mx-auto">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+                Daily Habits
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Check off your habits for {{ today.strftime('%A, %b %d') }}.
+            </p>
+        </div>
+        <a href="{{ url_for('client.dashboard') }}" class="text-sm font-semibold text-gray-500 hover:text-black dark:hover:text-white transition">
+            &larr; Dashboard
+        </a>
+    </div>
+
+    {% if habits %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+        {% for habit in habits %}
+        {% set is_completed = (today_logs.get(habit.id) and today_logs.get(habit.id).completed) %}
+        {% set streak = streaks.get(habit.id, 0) %}
+        
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm transition-colors {% if is_completed %}border-green-500 dark:border-green-600 bg-green-50/50 dark:bg-green-950/20{% endif %}" id="card-{{ habit.id }}">
+            <div class="flex justify-between items-start mb-3">
+                <div class="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center text-2xl">
+                    {{ habit.icon or '✅' }}
+                </div>
+                <!-- Custom Checkbox -->
+                <label class="cursor-pointer">
+                    <input type="checkbox" class="sr-only habit-checkbox" data-habit-id="{{ habit.id }}" {% if is_completed %}checked{% endif %}>
+                    <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors
+                        {% if is_completed %}
+                            border-green-500 bg-green-500 text-white
+                        {% else %}
+                            border-gray-300 dark:border-gray-600 text-transparent hover:border-gray-400
+                        {% endif %}">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                    </div>
+                </label>
+            </div>
+            
+            <h3 class="font-bold text-gray-900 dark:text-gray-100 mb-1">{{ habit.name }}</h3>
+            {% if habit.description %}
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">{{ habit.description }}</p>
+            {% endif %}
+            
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 text-xs font-semibold">
+                Streak: {{ streak }} days
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white dark:bg-black border border-dashed border-gray-200 dark:border-gray-800 rounded-3xl p-10 text-center max-w-lg mx-auto">
+        <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-neutral-800 flex items-center justify-center mx-auto mb-3 text-gray-400">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">No habits assigned yet</h2>
+        <p class="text-sm text-gray-500 mt-2">
+            Your coach hasn't assigned any daily habits to your profile. Check back later or message them.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const checkboxes = document.querySelectorAll('.habit-checkbox');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', async (e) => {
+            const habitId = e.target.dataset.habitId;
+            const completed = e.target.checked ? '1' : '0';
+            
+            // Visual optimistic update
+            const card = document.getElementById(`card-${habitId}`);
+            const checkIcon = e.target.nextElementSibling;
+            
+            if (e.target.checked) {
+                card.classList.add('border-green-500', 'bg-green-50/50', 'dark:border-green-600', 'dark:bg-green-950/20');
+                checkIcon.classList.remove('border-gray-300', 'dark:border-gray-600', 'text-transparent');
+                checkIcon.classList.add('border-green-500', 'bg-green-500', 'text-white');
+            } else {
+                card.classList.remove('border-green-500', 'bg-green-50/50', 'dark:border-green-600', 'dark:bg-green-950/20');
+                checkIcon.classList.add('border-gray-300', 'dark:border-gray-600', 'text-transparent');
+                checkIcon.classList.remove('border-green-500', 'bg-green-500', 'text-white');
+            }
+
+            // POST to server
+            try {
+                const fd = new FormData();
+                fd.append('habit_id', habitId);
+                fd.append('completed', completed);
+                await fetch("{{ url_for('client.habits') }}", {
+                    method: 'POST',
+                    body: fd
+                });
+            } catch (err) {
+                console.error(err);
+                // In a real app, revert UI on error
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

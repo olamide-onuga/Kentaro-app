@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto bg-white dark:bg-black p-8 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/50">
+    <h2 class="text-2xl font-bold mb-6">Coach Profile Setup</h2>
+    
+    <form method="POST" action="{{ url_for('coach.onboarding') }}" enctype="multipart/form-data">
+        <div class="mb-6 flex items-center gap-4 border-b border-gray-100 dark:border-gray-800 pb-6">
+            {% if profile.profile_photo %}
+            <img src="{{ profile.profile_photo }}" alt="Avatar" class="w-20 h-20 rounded-2xl object-cover border-2 border-black dark:border-white shadow-sm">
+            {% else %}
+            <div class="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-extrabold text-2xl text-gray-700 dark:text-gray-300">
+                {{ profile.first_name[0] if profile.first_name else 'C' }}
+            </div>
+            {% endif %}
+            <div class="flex-1">
+                <label class="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">Profile Photo</label>
+                <input type="file" name="profile_photo" accept="image/*" class="text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-black file:text-white dark:file:bg-white dark:file:text-black hover:file:opacity-80 transition cursor-pointer">
+                <p class="text-[11px] text-gray-400 mt-1">Upload a clean headshot (JPG, PNG).</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First Name</label>
+                <input class="w-full border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:shadow-gray-900/50 p-2 border focus:border-black focus:ring-black" type="text" name="first_name" value="{{ profile.first_name or '' }}" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label>
+                <input class="w-full border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:shadow-gray-900/50 p-2 border focus:border-black focus:ring-black" type="text" name="last_name" value="{{ profile.last_name or '' }}" required>
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bio</label>
+                <textarea class="w-full border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:shadow-gray-900/50 p-2 border focus:border-black focus:ring-black" name="bio" rows="4" required>{{ profile.bio or '' }}</textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Specialization</label>
+                <input class="w-full border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:shadow-gray-900/50 p-2 border focus:border-black focus:ring-black" type="text" name="specialization" value="{{ profile.specialization or '' }}" placeholder="e.g. Powerlifting, Calisthenics" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Years of Experience</label>
+                <input class="w-full border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:shadow-gray-900/50 p-2 border focus:border-black focus:ring-black" type="number" name="experience_years" value="{{ profile.experience_years or '' }}">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Location / Country <span class="text-xs text-gray-400 font-normal lowercase">(search or select)</span>
+                </label>
+                <input class="w-full border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:shadow-gray-900/50 p-2 border focus:border-black focus:ring-black bg-white dark:bg-black text-black dark:text-white" type="text" name="location" list="countryList" value="{{ profile.location or '' }}" placeholder="Search country (e.g. United States, United Kingdom...)">
+                <datalist id="countryList">
+                    {% for country in all_countries %}
+                    <option value="{{ country }}">{{ country }}</option>
+                    {% endfor %}
+                </datalist>
+                <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Select from list or type custom city/country.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Timezones <span class="text-xs text-gray-400 font-normal lowercase">(search or select)</span>
+                </label>
+                <input
+                    type="text"
+                    name="timezone"
+                    id="coachTimezoneInput"
+                    list="coachTimezoneList"
+                    value="{{ profile.timezone or 'UTC' }}"
+                    placeholder="Search timezones (e.g. America/New_York, London...)"
+                    class="w-full border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:shadow-gray-900/50 p-2 border bg-white dark:bg-black text-black dark:text-white focus:border-black dark:focus:border-white focus:ring-black"
+                >
+                <datalist id="coachTimezoneList">
+                    <option value="UTC">UTC (Universal Coordinated Time)</option>
+                    {% for tz in all_timezones %}
+                    <option value="{{ tz }}">{{ tz }}</option>
+                    {% endfor %}
+                </datalist>
+                <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Start typing city or continent to filter world timezones.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Currency</label>
+                <select name="currency" class="w-full border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:shadow-gray-900/50 p-2 border focus:border-black focus:ring-black">
+                    <option value="USD" {% if profile.currency == 'USD' %}selected{% endif %}>USD ($)</option>
+                    <option value="EUR" {% if profile.currency == 'EUR' %}selected{% endif %}>EUR (€)</option>
+                    <option value="GBP" {% if profile.currency == 'GBP' %}selected{% endif %}>GBP (£)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Instagram URL</label>
+                <input class="w-full border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:shadow-gray-900/50 p-2 border focus:border-black focus:ring-black" type="url" name="instagram_url" value="{{ profile.instagram_url or '' }}">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">
+                    Paystack Payment Link <span class="text-xs text-gray-500 font-normal">(Optional — required when creating packages)</span>
+                </label>
+                <input class="w-full border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:shadow-gray-900/50 p-2.5 border focus:border-black focus:ring-black bg-white dark:bg-black text-black dark:text-white"
+                       type="url" name="payment_link" value="{{ profile.payment_link or '' }}"
+                       placeholder="https://paystack.com/pay/your-handle or https://paystack.shop/...">
+                <p class="text-[12px] text-gray-500 dark:text-gray-400 mt-1">
+                    Enter your Paystack payment page link. You can add or update this later when creating packages.
+                </p>
+            </div>
+        </div>
+        
+        <div class="flex justify-end">
+            <a href="{{ url_for('coach.dashboard') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 px-4 py-2 mr-2">Cancel</a>
+            <button type="submit" class="btn-primary-red font-bold py-2 px-6 rounded-xl shadow-xs transition">Save Profile</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+Created At: 2026-10-07T13:16:13+01:00
+Completed At: 2026-10-07T13:16:14+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1543
+Total Bytes: 61244
+Showing lines 205 to 240
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+205:     return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+206: 
+207: @client_bp.route('/dashboard')
+208: @login_required
+209: def dashboard():
+210:     profile = current_user.client_profile
+211:     if not profile:
+212:         profile = ClientProfile(user_id=current_user.id)
+213:         db.session.add(profile)
+214:         db.session.commit()
+215:     
+216:     today_workout = None
+217:     active_program = None
+218:     progress = None
+219: 
+220:     if profile:
+221:         cp = profile.client_programs.filter_by(is_active=True).first()
+222:         if cp:
+223:             active_program = cp.program
+224:                         # Find today's workout — simple heuristic: find first uncompleted workout in order
+225:             completed_ids = [c.workout_id for c in profile.completions.all()]
+226:             # Compute total workouts in active program
+227:             total_workouts = 0
+228:             if active_program:
+229:                 for phase in active_program.phases:
+230:                     total_workouts += phase.workouts.count()
+231:             # progress dict passed to template
+232:             progress = {
+233:                 'completed': len(completed_ids),
+234:                 'total': total_workouts,
+235:             }
+236:             for phase in cp.program.phases.order_by('order').all():
+237:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+238:                     if w.id not in completed_ids:
+239:                         today_workout = w
+240:                         break
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Active Schedule & Appointments - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto pb-16 space-y-8">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                    Coach Portal
+                </span>
+                <span class="text-gray-300 dark:text-gray-700">/</span>
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Active Schedule
+                </span>
+            </div>
+
+            <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-gray-900 dark:text-gray-100">
+                Active Schedule & Bookings
+            </h1>
+            <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">
+                Manage upcoming 1-on-1 coaching sessions, client consultations, and session history.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a
+                href="{{ url_for('coach.setup_schedule') }}"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-sm font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition shadow-sm"
+            >
+                <span>⚙️</span> Setup Schedule & Hours
+            </a>
+            <a
+                href="{{ url_for('coach.dashboard') }}"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
+            >
+                <span>←</span> Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Availability & Meeting Summary Banner -->
+    <div class="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-lg">
+                📆
+            </div>
+            <div>
+                <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                    Current Platform: {{ 'In-App WebRTC Video Call' if not config or config.meeting_platform == 'in_app' else 'Google Meet' }}
+                </h2>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Duration: {{ config.slot_duration if config else 30 }} mins &bull; Booking window: {{ config.booking_window_days if config else 14 }} days in advance
+                </p>
+            </div>
+        </div>
+
+        <a
+            href="{{ url_for('coach.setup_schedule') }}"
+            class="text-xs font-bold text-black dark:text-white hover:underline self-start md:self-center"
+        >
+            Edit Availability & Preferences &rarr;
+        </a>
+    </div>
+
+    <!-- Scheduled Appointments Section -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h2 class="text-xl font-black text-gray-900 dark:text-gray-100">
+                    Upcoming Appointments
+                </h2>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {{ upcoming_appointments|length }} session{{ 's' if upcoming_appointments|length != 1 else '' }} scheduled
+                </p>
+            </div>
+        </div>
+
+        {% if upcoming_appointments or past_appointments %}
+        <div class="space-y-4">
+            {% for appt in upcoming_appointments %}
+            <div class="border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition bg-white dark:bg-black shadow-sm">
+                <div class="flex items-start space-x-4">
+                    <div class="w-14 h-14 bg-black dark:bg-white text-white dark:text-black rounded-xl flex flex-col items-center justify-center flex-shrink-0">
+                        <span class="text-[10px] font-bold uppercase">{{ appt.date.strftime('%b') }}</span>
+                        <span class="text-xl font-black leading-none">{{ appt.date.strftime('%d') }}</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h3 class="font-black text-base text-gray-900 dark:text-gray-100">{{ appt.title }}</h3>
+                            <span class="text-xs bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300 px-2.5 py-0.5 rounded-full font-bold">Upcoming</span>
+                            <span class="text-[11px] bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-md font-semibold uppercase">
+                                {{ 'In-App Video' if appt.meeting_platform == 'in_app' else 'Google Meet' }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            ⏰ {{ appt.start_time.strftime('%I:%M %p') }} - {{ appt.end_time.strftime('%I:%M %p') }} &bull;
+                            Client: <strong>{{ appt.client.first_name }} {{ appt.client.last_name }}</strong> ({{ appt.client.user.email }})
+                        </p>
+                        {% if appt.client_notes %}
+                        <p class="text-xs text-gray-700 dark:text-gray-300 mt-2 bg-gray-50 dark:bg-gray-950 p-2.5 rounded-lg italic border border-gray-100 dark:border-gray-800">
+                            "{{ appt.client_notes }}"
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2.5 self-end md:self-center">
+                    {% if appt.meeting_platform == 'in_app' %}
+                    <a href="{{ url_for('coach.coach_voice_call', client_id=appt.client_id) }}" class="bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 text-xs font-bold px-4 py-2 rounded-xl transition shadow flex items-center gap-1.5">
+                        📹 Start Call
+                    </a>
+                    {% elif appt.meeting_url %}
+                    <a href="{{ appt.meeting_url }}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow flex items-center gap-1.5">
+                        ↗ Open Google Meet
+                    </a>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('coach.update_appointment_status', appointment_id=appt.id) }}">
+                        <input type="hidden" name="status" value="completed">
+                        <button type="submit" class="bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-bold px-3 py-2 rounded-xl transition">
+                            ✓ Complete
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ url_for('coach.update_appointment_status', appointment_id=appt.id) }}" onsubmit="return confirm('Cancel this appointment?');">
+                        <input type="hidden" name="status" value="cancelled">
+                        <button type="submit" class="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-2 transition">
+                            Cancel
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-10 text-gray-400 dark:text-gray-500 text-sm border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
+                No upcoming appointments scheduled.
+            </div>
+            {% endfor %}
+
+            <!-- Past Appointments Accordion -->
+            {% if past_appointments %}
+            <details class="mt-8 border-t border-gray-100 dark:border-gray-800 pt-5">
+                <summary class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider cursor-pointer hover:text-black dark:hover:text-white transition">
+                    View Past & Cancelled Sessions ({{ past_appointments|length }})
+                </summary>
+                <div class="space-y-3 mt-4">
+                    {% for appt in past_appointments %}
+                    <div class="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex items-center justify-between opacity-80">
+                        <div>
+                            <span class="text-xs font-bold text-gray-500 dark:text-gray-400">{{ appt.date.strftime('%B %d, %Y') }} &bull; {{ appt.start_time.strftime('%I:%M %p') }}</span>
+                            <h4 class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ appt.title }} with {{ appt.client.first_name }} {{ appt.client.last_name }}</h4>
+                        </div>
+                        <span class="text-xs px-2.5 py-1 rounded-full font-bold
+                            {% if appt.status == 'completed' %}bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300
+                            {% elif appt.status == 'cancelled' %}bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300
+                            {% else %}bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300{% endif %}">
+                            {{ appt.status|capitalize }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="text-center py-16 text-gray-400 dark:text-gray-500 text-sm border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
+            <div class="text-3xl mb-2">📅</div>
+            <p class="font-semibold text-gray-700 dark:text-gray-300">No appointments booked yet.</p>
+            <p class="text-xs mt-1">Once clients book calls through their portal, they will automatically appear here!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

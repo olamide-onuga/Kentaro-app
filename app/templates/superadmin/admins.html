@@ -1,0 +1,313 @@
+{% extends "superadmin/layout.html" %}
+
+{% block title %}Administrator Management - Kentaro Super Admin{% endblock %}
+
+{% block superadmin_content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100">Administrator Management</h1>
+            <p class="text-xs text-gray-500 mt-1">
+                Oversee platform administrators, configure role permissions, and control administrative access.
+            </p>
+        </div>
+        <button type="button" onclick="document.getElementById('createAdminModal').classList.remove('hidden')"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-black text-xs shadow hover:opacity-85 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            <span>Create Administrator</span>
+        </button>
+    </div>
+
+    <!-- Security & Protection Notice -->
+    <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-3">
+        <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div class="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+            <strong class="font-black">Role Hierarchy Enforced:</strong> Normal administrators can only perform daily platform management tasks within their assigned permissions. Normal admins can never promote themselves or others to Super Admin, nor edit Super Admin profiles. The primary Super Admin account is protected at the database level.
+        </div>
+    </div>
+
+    <!-- Administrators Table -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xs">
+        <h3 class="text-sm font-black text-gray-900 dark:text-gray-100 mb-4">Platform Administrators</h3>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+                <thead class="text-[10px] uppercase font-black tracking-wider text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                    <tr>
+                        <th class="py-3 px-3">Administrator</th>
+                        <th class="py-3 px-3">Role &amp; Authority</th>
+                        <th class="py-3 px-3">Status</th>
+                        <th class="py-3 px-3">Assigned Permissions</th>
+                        <th class="py-3 px-3">Created</th>
+                        <th class="py-3 px-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60 font-medium">
+                    {% for a in admins %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40 transition">
+                        <!-- Admin Profile -->
+                        <td class="py-3.5 px-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-xl {% if a.is_superadmin %}bg-amber-400 text-black{% else %}bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200{% endif %} flex items-center justify-center font-black text-xs">
+                                    {{ a.admin_display_name[0]|upper }}
+                                </div>
+                                <div>
+                                    <div class="font-black text-gray-900 dark:text-gray-100">
+                                        {{ a.admin_display_name }}
+                                        {% if a.is_primary_superadmin %}
+                                        <span class="ml-1 text-[9px] font-black uppercase text-amber-600 bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 rounded">Primary</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-[11px] text-gray-400 font-mono">{{ a.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Role -->
+                        <td class="py-3.5 px-3 whitespace-nowrap">
+                            {% if a.is_superadmin %}
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400/20 text-amber-600 dark:text-amber-400 border border-amber-400/30">
+                                Super Admin
+                            </span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                                Normal Admin
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Status -->
+                        <td class="py-3.5 px-3 whitespace-nowrap">
+                            {% if (a.admin_status or 'active') == 'active' and a.is_active %}
+                            <span class="inline-flex items-center gap-1.5 text-emerald-600 font-bold text-[11px]">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                Active
+                            </span>
+                            {% elif (a.admin_status or '') == 'suspended' %}
+                            <span class="inline-flex items-center gap-1.5 text-amber-600 font-bold text-[11px]">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                Suspended
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1.5 text-red-600 font-bold text-[11px]">
+                                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                Inactive
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Permissions summary -->
+                        <td class="py-3.5 px-3 max-w-xs">
+                            {% if a.is_superadmin %}
+                            <span class="text-xs text-amber-600 dark:text-amber-400 font-bold">Supreme Access (All Permissions)</span>
+                            {% else %}
+                            <div class="flex flex-wrap gap-1">
+                                {% set perms = a.get_permissions_dict() %}
+                                {% for k, v in perms.items() %}
+                                {% if v %}
+                                <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                    {{ k.replace('manage_', '').replace('view_', '') }}
+                                </span>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </td>
+
+                        <!-- Created date -->
+                        <td class="py-3.5 px-3 whitespace-nowrap text-gray-400 font-mono text-[11px]">
+                            {{ a.created_at.strftime('%Y-%m-%d') if a.created_at else '' }}
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="py-3.5 px-3 text-right whitespace-nowrap">
+                            {% if not a.is_primary_superadmin %}
+                            <button type="button" onclick="openEditAdminModal({{ a.id }}, '{{ a.admin_display_name|replace("'","\\'") }}', '{{ a.email }}', '{{ (a.admin_status or 'active') }}', {{ a.get_permissions_dict()|tojson }})"
+                                    class="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black text-gray-700 dark:text-gray-300 font-bold text-xs transition">
+                                Edit &amp; Permissions
+                            </button>
+                            {% else %}
+                            <span class="text-xs text-gray-400 italic">Locked</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Create Admin Modal -->
+<div id="createAdminModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="font-black text-base text-gray-900 dark:text-gray-100">Create Normal Administrator</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Assign display name, temporary credentials and permissions.</p>
+            </div>
+            <button onclick="document.getElementById('createAdminModal').classList.add('hidden')" class="text-gray-400 hover:text-black dark:hover:text-white text-xl font-bold">&times;</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('superadmin.admin_create') }}" class="space-y-4">
+            <div>
+                <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Display Name</label>
+                <input type="text" name="display_name" required placeholder="e.g. Operations Manager"
+                       class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Email Address</label>
+                <input type="email" name="email" required placeholder="admin@kentaro.app"
+                       class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Temporary Password</label>
+                <input type="password" name="password" required placeholder="Minimum 8 characters"
+                       class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+            </div>
+
+            <div class="pt-2">
+                <label class="block text-[11px] font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-2">Granular Role Permissions</label>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" name="perm_manage_coaches" checked class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">Manage Coaches</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" name="perm_manage_clients" checked class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">Manage Clients</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" name="perm_manage_support" checked class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">Support Tickets</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" name="perm_manage_marketplace" checked class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">Marketplace Moderation</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" name="perm_view_financials" class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">View Financials</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" name="perm_manage_content" checked class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">Manage Content</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="document.getElementById('createAdminModal').classList.add('hidden')"
+                        class="flex-1 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 transition">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="flex-1 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-black text-xs hover:opacity-85 transition">
+                    Create Administrator
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Admin Modal -->
+<div id="editAdminModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="font-black text-base text-gray-900 dark:text-gray-100">Edit Administrator</h3>
+                <p id="editAdminEmail" class="text-xs text-gray-500 font-mono mt-0.5"></p>
+            </div>
+            <button onclick="document.getElementById('editAdminModal').classList.add('hidden')" class="text-gray-400 hover:text-black dark:hover:text-white text-xl font-bold">&times;</button>
+        </div>
+
+        <form id="editAdminForm" method="POST" action="" class="space-y-4">
+            <div>
+                <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Display Name</label>
+                <input type="text" id="editDisplayName" name="display_name" required
+                       class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Status Access</label>
+                <select id="editAdminStatus" name="admin_status"
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                    <option value="active">Active (Granted Access)</option>
+                    <option value="suspended">Suspended (Temporarily Paused)</option>
+                    <option value="deactivated">Deactivated (Completely Revoked)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Reset Password (Optional)</label>
+                <input type="password" name="password" placeholder="Leave blank to preserve existing password"
+                       class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+            </div>
+
+            <div class="pt-2">
+                <label class="block text-[11px] font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-2">Permissions</label>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" id="edit_perm_coaches" name="perm_manage_coaches" class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">Manage Coaches</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" id="edit_perm_clients" name="perm_manage_clients" class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">Manage Clients</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" id="edit_perm_support" name="perm_manage_support" class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">Support Tickets</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" id="edit_perm_marketplace" name="perm_manage_marketplace" class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">Marketplace Moderation</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" id="edit_perm_financials" name="perm_view_financials" class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">View Financials</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-2 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer">
+                        <input type="checkbox" id="edit_perm_content" name="perm_manage_content" class="rounded text-black focus:ring-black">
+                        <span class="font-semibold text-gray-700 dark:text-gray-300">Manage Content</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="document.getElementById('editAdminModal').classList.add('hidden')"
+                        class="flex-1 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 transition">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="flex-1 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-black text-xs hover:opacity-85 transition">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditAdminModal(id, displayName, email, status, perms) {
+    document.getElementById('editAdminEmail').textContent = email;
+    document.getElementById('editDisplayName').value = displayName;
+    document.getElementById('editAdminStatus').value = status || 'active';
+    document.getElementById('editAdminForm').action = '/superadmin/admins/' + id + '/edit';
+
+    document.getElementById('edit_perm_coaches').checked = !!perms.manage_coaches;
+    document.getElementById('edit_perm_clients').checked = !!perms.manage_clients;
+    document.getElementById('edit_perm_support').checked = !!perms.manage_support;
+    document.getElementById('edit_perm_marketplace').checked = !!perms.manage_marketplace;
+    document.getElementById('edit_perm_financials').checked = !!perms.view_financials;
+    document.getElementById('edit_perm_content').checked = !!perms.manage_content;
+
+    document.getElementById('editAdminModal').classList.remove('hidden');
+}
+</script>
+{% endblock %}

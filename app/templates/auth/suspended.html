@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Account Suspended - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto space-y-6 pt-6 pb-12">
+
+    <div class="bg-white dark:bg-gray-950 border border-red-200 dark:border-red-900/60 rounded-3xl p-8 shadow-xl space-y-6">
+        
+        <div class="flex items-center gap-4 border-b border-gray-100 dark:border-gray-900 pb-6">
+            <div class="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-950/60 flex items-center justify-center text-red-600 dark:text-red-400 text-2xl font-bold flex-shrink-0">
+                🔒
+            </div>
+            <div>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900">
+                    Account Status
+                </span>
+                <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight mt-1">
+                    Your Account is Suspended
+                </h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Account Email: <strong class="text-gray-800 dark:text-gray-200">{{ user.email }}</strong>
+                </p>
+            </div>
+        </div>
+
+        <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+            Access to your Kentaro account has been suspended by system administrators. You cannot log in or access platform features while your account is suspended.
+        </p>
+
+        {% if existing_appeal %}
+        <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Submitted Appeal</span>
+                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider
+                      {% if existing_appeal.status == 'pending' %}bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300
+                      {% elif existing_appeal.status == 'approved' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300
+                      {% else %}bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300{% endif %}">
+                    {{ existing_appeal.status|capitalize }}
+                </span>
+            </div>
+            <p class="text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-black p-3 rounded-xl border border-gray-100 dark:border-gray-800 italic">
+                "{{ existing_appeal.reason }}"
+            </p>
+            <span class="text-[10px] text-gray-400 block">
+                Submitted on {{ existing_appeal.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+            </span>
+            {% if existing_appeal.admin_notes %}
+            <div class="text-xs text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 p-3 rounded-xl border border-blue-200 dark:border-blue-900 mt-2">
+                <strong>Admin Decision Note:</strong> {{ existing_appeal.admin_notes }}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if not existing_appeal or existing_appeal.status == 'rejected' %}
+        <div class="space-y-4 pt-2">
+            <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                <span>📝</span> Submit an Appeal
+            </h3>
+            <form method="POST" action="{{ url_for('auth.suspended') }}" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        Explain why your account should be reactivated:
+                    </label>
+                    <textarea name="reason" rows="4" required placeholder="Please provide detailed context or information for the administration team..."
+                              class="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-black dark:focus:border-white transition"></textarea>
+                </div>
+                <button type="submit" class="w-full py-3 px-4 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs hover:opacity-90 transition shadow-md">
+                    Submit Appeal to Administrator &rarr;
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="pt-4 border-t border-gray-100 dark:border-gray-900 flex justify-between text-xs">
+            <a href="{{ url_for('auth.login') }}" class="text-gray-500 hover:text-black dark:hover:text-white transition font-semibold">
+                &larr; Return to Login
+            </a>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

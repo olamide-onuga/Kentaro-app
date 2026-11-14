@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Client Check-ins{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Client Check-ins</h1>
+        
+        <!-- Filter -->
+        <div class="flex overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 hide-scrollbar w-full md:w-auto space-x-2">
+            <a href="{{ url_for('coach.check_ins') }}" 
+               class="whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors {% if not selected_client %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700{% endif %}">
+                All Clients
+            </a>
+            {% for client in clients %}
+            <a href="{{ url_for('coach.check_ins', client_id=client.id) }}" 
+               class="whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors {% if selected_client and selected_client.id == client.id %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700{% endif %}">
+                {{ client.full_name or client.first_name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if check_ins %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% for ci in check_ins %}
+            <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
+                <div class="p-6 flex-1">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="font-bold text-lg text-gray-900 dark:text-white">{{ ci.client.full_name or ci.client.first_name }}</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ ci.created_at.strftime('%A, %b %d %Y') }}</p>
+                        </div>
+                        {% if ci.weight %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white">
+                            {{ ci.weight }} kg
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 mb-6">
+                        <div class="text-center p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/50">
+                            <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Energy</div>
+                            <div class="text-xl font-bold text-gray-900 dark:text-white">{{ ci.energy_level }}/5</div>
+                        </div>
+                        <div class="text-center p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/50">
+                            <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Sleep</div>
+                            <div class="text-xl font-bold text-gray-900 dark:text-white">{{ ci.sleep_quality }}/5</div>
+                        </div>
+                        <div class="text-center p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/50">
+                            <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Mood</div>
+                            <div class="text-xl font-bold text-gray-900 dark:text-white">{{ ci.mood_score }}/5</div>
+                        </div>
+                    </div>
+
+                    {% if ci.notes %}
+                    <div class="mb-4">
+                        <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Client Notes</h4>
+                        <p class="text-gray-700 dark:text-gray-300 text-sm italic border-l-4 border-gray-200 dark:border-gray-600 pl-3">"{{ ci.notes }}"</p>
+                    </div>
+                    {% endif %}
+
+                    {% if ci.coach_reply %}
+                    <div class="mt-4 p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+                        <h4 class="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2">Your Reply</h4>
+                        <p class="text-gray-800 dark:text-gray-200 text-sm">{{ ci.coach_reply }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if not ci.coach_reply %}
+                <div class="bg-gray-50 dark:bg-gray-900/50 p-4 border-t border-gray-100 dark:border-gray-700">
+                    <form method="POST" action="{{ url_for('coach.reply_checkin', checkin_id=ci.id) }}" class="flex gap-2">
+                        <input type="text" name="reply" required placeholder="Write a quick reply..." class="flex-1 rounded-2xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white py-2 px-4 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white text-sm transition-colors">
+                        <button type="submit" class="bg-black dark:bg-white text-white dark:text-black font-semibold py-2 px-4 rounded-2xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors text-sm whitespace-nowrap">
+                            Send
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+            <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-neutral-900 flex items-center justify-center mx-auto mb-4 text-gray-400">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">No Check-ins Found</h3>
+            <p class="text-gray-500 dark:text-gray-400">
+                {% if selected_client %}
+                {{ selected_client.full_name or selected_client.first_name }} hasn't submitted any check-ins yet.
+                {% else %}
+                Your clients haven't submitted any check-ins yet.
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

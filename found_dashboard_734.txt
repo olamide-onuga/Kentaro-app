@@ -1,0 +1,23 @@
+Created At: 2026-08-30T23:32:42+01:00
+Completed At: 2026-08-30T23:32:42+01:00
+The following changes were made by the replace_file_content tool to: C:\Users\Kentaro\.gemini\antigravity\scratch\kentaro\app\routes\client.py. If relevant, proactively run terminal commands to execute this code for the USER. Don't ask for permission.
+[diff_block_start]
+@@ -17,6 +17,15 @@
+         flash('You do not have permission to access this page.', 'danger')
+         return redirect(url_for('main.index'))
+ 
++@client_bp.route('/voice-call')
++@login_required
++def voice_call():
++    coach_id = current_user.client_profile.coach_id if current_user.client_profile else None
++    if not coach_id:
++        flash('No coach assigned.', 'danger')
++        return redirect(url_for('client.dashboard'))
++    return render_template('client/voice_call.html', partner_id=coach_id)
++
+ @client_bp.route('/dashboard')
+ def dashboard():
+     profile = current_user.client_profile
+[diff_block_end]
+
+Please note that the above snippet only shows the MODIFIED lines from the last change. It shows up to 3 lines of unchanged lines before and after the modified lines. The actual file contents may have many more lines not shown.

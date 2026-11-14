@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6 pb-12">
+    <!-- Admin Top Bar / Mobile Nav Toggle -->
+    <div class="lg:hidden bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse"></span>
+            <span class="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-gray-100">Admin Control</span>
+        </div>
+        <button type="button" onclick="document.getElementById('adminSidebarNav').classList.toggle('hidden')"
+                class="px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-900 text-xs font-bold text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 transition flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <span>Navigation Menu</span>
+        </button>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-8 items-start">
+        <!-- Sidebar Navigation -->
+        <aside id="adminSidebarNav" class="hidden lg:block w-full lg:w-64 shrink-0 transition-all">
+            <div class="sticky top-20 space-y-4">
+                <!-- Admin Card Header -->
+                <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60 flex items-center justify-center font-black text-sm">
+                            
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h2 class="text-sm font-extrabold text-gray-900 dark:text-gray-100 tracking-tight truncate">
+                                Admin Portal
+                            </h2>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 font-mono truncate">
+                                {{ current_user.email }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Links -->
+                <nav class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-3 shadow-sm space-y-1">
+                    {% if current_user.is_superadmin %}
+                    <div class="p-1 mb-2">
+                        <a href="{{ url_for('superadmin.dashboard') }}"
+                           class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-black bg-amber-400 text-black shadow-md hover:bg-amber-300 transition">
+                            <span class="flex items-center gap-2">
+                                <svg class="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 2l2.5 5.5L18 8.5l-4 4 1 5.5L10 15.5 5 18l1-5.5-4-4 5.5-1L10 2z" clip-rule="evenodd"/>
+                                </svg>
+                                <span>Super Admin Console</span>
+                            </span>
+                            <span>&rarr;</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                    <!-- Core Section -->
+                    <div class="px-3 pt-2 pb-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                        Overview &amp; People
+                    </div>
+
+                    <!-- Dashboard -->
+                    <a href="{{ url_for('admin.dashboard') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.dashboard' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">📊</span>
+                            <span>Dashboard</span>
+                        </span>
+                    </a>
+
+                    <!-- Users -->
+                    <a href="{{ url_for('admin.users') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint in ['admin.users', 'admin.user_detail'] %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">👥</span>
+                            <span>User Accounts</span>
+                        </span>
+                    </a>
+
+                    <!-- Coaches -->
+                    <a href="{{ url_for('admin.coaches') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint in ['admin.coaches', 'admin.coach_detail'] %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">🏆</span>
+                            <span>Coaches</span>
+                        </span>
+                        {% if admin_pending_coaches and admin_pending_coaches > 0 %}
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">
+                            {{ admin_pending_coaches }}
+                        </span>
+                        {% endif %}
+                    </a>
+
+                    <!-- Clients -->
+                    <a href="{{ url_for('admin.clients') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint in ['admin.clients', 'admin.client_detail'] %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">🏋️</span>
+                            <span>Clients / Athletes</span>
+                        </span>
+                    </a>
+
+                    <!-- Appointments / Calendar -->
+                    <a href="{{ url_for('admin.appointments') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.appointments' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">📅</span>
+                            <span>Appointments</span>
+                        </span>
+                    </a>
+
+                    <!-- Operations Section -->
+                    <div class="px-3 pt-3 pb-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                        Subscriptions &amp; Commerce
+                    </div>
+
+                    <!-- Subscriptions -->
+                    <a href="{{ url_for('admin.subscriptions') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.subscriptions' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">📋</span>
+                            <span>Subscriptions</span>
+                        </span>
+                    </a>
+
+                    <!-- Plans -->
+                    <a href="{{ url_for('admin.plans') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint in ['admin.plans', 'admin.create_plan', 'admin.edit_plan'] %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">💎</span>
+                            <span>Subscription Plans</span>
+                        </span>
+                    </a>
+
+                    <!-- Contracts Audit -->
+                    <a href="{{ url_for('admin.contracts') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.contracts' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">📜</span>
+                            <span>Contracts Audit</span>
+                        </span>
+                    </a>
+
+                    <!-- Monitoring Section -->
+                    <div class="px-3 pt-3 pb-1 text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                        Support &amp; Insights
+                    </div>
+
+                    <!-- Bug Reports -->
+                    <a href="{{ url_for('admin.reports') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.reports' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">🚨</span>
+                            <span>Bug Reports</span>
+                        </span>
+                        {% if admin_pending_reports and admin_pending_reports > 0 %}
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-600 text-white shadow-sm">
+                            {{ admin_pending_reports }}
+                        </span>
+                        {% endif %}
+                    </a>
+
+                    <!-- Appeals -->
+                    <a href="{{ url_for('admin.appeals') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.appeals' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">⚖️</span>
+                            <span>Account Appeals</span>
+                        </span>
+                    </a>
+
+                    <!-- Support Tickets -->
+                    <a href="{{ url_for('admin.support_tickets') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint in ['admin.support_tickets', 'admin.ticket_detail'] %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">🎫</span>
+                            <span>Support Tickets</span>
+                        </span>
+                        {% if admin_pending_tickets and admin_pending_tickets > 0 %}
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white animate-pulse">
+                            {{ admin_pending_tickets }}
+                        </span>
+                        {% endif %}
+                    </a>
+
+                    <!-- Support Reports -->
+                    <a href="{{ url_for('admin.support_reports') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint in ['admin.support_reports', 'admin.support_report_detail'] %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">📊</span>
+                            <span>Support Reports</span>
+                        </span>
+                    </a>
+
+                    <!-- Chat Support (Live DM) -->
+                    <a href="{{ url_for('admin.support_chat') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.support_chat' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">💬</span>
+                            <span>Support Chat (Live DM)</span>
+                        </span>
+                    </a>
+
+                    <!-- Analytics -->
+                    <a href="{{ url_for('admin.analytics') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.analytics' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">📈</span>
+                            <span>Analytics &amp; BI</span>
+                        </span>
+                    </a>
+
+                    <!-- Activity Log -->
+                    <a href="{{ url_for('admin.activity') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.activity' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">📝</span>
+                            <span>Activity Log</span>
+                        </span>
+                    </a>
+
+                    <!-- Media Uploads -->
+                    <a href="{{ url_for('admin.videos') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.videos' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">🎬</span>
+                            <span>Media Uploads</span>
+                        </span>
+                    </a>
+
+                    <!-- Settings -->
+                    <a href="{{ url_for('admin.settings') }}"
+                       class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition {% if request.endpoint == 'admin.settings' %}bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 font-bold border border-red-200/60 dark:border-red-900/60{% else %}text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900{% endif %}">
+                        <span class="flex items-center gap-2.5">
+                            <span class="text-base">⚙️</span>
+                            <span>Settings</span>
+                        </span>
+                    </a>
+                </nav>
+
+                <!-- Footer Quick Links -->
+                <div class="bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800 rounded-3xl p-4 text-xs space-y-2">
+                    <div class="flex items-center justify-between text-gray-500 dark:text-gray-400">
+                        <span>Direct DM</span>
+                        <a href="{{ url_for('admin.send_anonymous_dm') }}" class="font-bold text-gray-800 dark:text-gray-200 hover:underline">Compose &rarr;</a>
+                    </div>
+                    <div class="flex items-center justify-between text-gray-500 dark:text-gray-400">
+                        <span>Send Email</span>
+                        <a href="{{ url_for('admin.compose_email') }}" class="font-bold text-gray-800 dark:text-gray-200 hover:underline">Mail &rarr;</a>
+                    </div>
+                    <div class="pt-2 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                        <a href="{{ url_for('main.index') }}" class="text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white font-medium text-[11px]">
+                            &larr; Front Site
+                        </a>
+                        <a href="{{ url_for('auth.logout') }}" class="text-red-600 dark:text-red-400 font-bold text-[11px] hover:underline">
+                            Log Out
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Admin Content -->
+        <main class="flex-1 min-w-0">
+            {% block admin_content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% endblock %}

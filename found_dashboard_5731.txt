@@ -1,0 +1,99 @@
+Created At: 2026-09-22T23:27:09+01:00
+Completed At: 2026-09-22T23:27:09+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 840
+Total Bytes: 33431
+Showing lines 50 to 140
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+50:     return render_template('client/profile.html', profile=client_profile)
+51: 
+52: @client_bp.route('/voice-call')
+53: @login_required
+54: def voice_call():
+55:     profile = current_user.client_profile
+56:     if not profile or not profile.coach:
+57:         flash('No coach assigned.', 'danger')
+58:         return redirect(url_for('client.dashboard'))
+59:     partner_id = profile.coach.user_id
+60:     partner_name = f"Coach {profile.coach.first_name if profile.coach.first_name else 'Coach'}"
+61:     from app.models.progress import FormCheckSubmission
+62:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+63:     return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+64: 
+65: @client_bp.route('/dashboard')
+66: def dashboard():
+67:     profile = current_user.client_profile
+68:     today_workout = None
+69:     active_program = None
+70: 
+71:     if profile:
+72:         cp = profile.client_programs.filter_by(is_active=True).first()
+73:         if cp:
+74:             active_program = cp.program
+75:             # Find today's workout — simple heuristic: find first uncompleted workout in order
+76:             completed_ids = [c.workout_id for c in profile.completions.all()]
+77:             for phase in cp.program.phases.order_by('order').all():
+78:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+79:                     if w.id not in completed_ids:
+80:                         today_workout = w
+81:                         break
+82:                 if today_workout:
+83:                     break
+84: 
+85:     upcoming_appointments = []
+86:     if profile:
+87:         from app.models.calendar import Appointment
+88:         from datetime import date
+89:         upcoming_appointments = Appointment.query.filter(
+90:             Appointment.client_id == profile.id,
+91:             Appointment.date >= date.today(),
+92:             Appointment.status == 'scheduled'
+93:         ).order_by(Appointment.date.asc(), Appointment.start_time.asc()).limit(3).all()
+94: 
+95:     return render_template('client/dashboard.html',
+96:                            profile=profile,
+97:                            today_workout=today_workout,
+98:                            active_program=active_program,
+99:                            upcoming_appointments=upcoming_appointments)
+100: 
+101: @client_bp.route('/my-program')
+102: def my_program():
+103:     profile = current_user.client_profile
+104:     cp = profile.client_programs.filter_by(is_active=True).first() if profile else None
+105:     completed_ids = set(c.workout_id for c in profile.completions.all()) if profile else set()
+106:     return render_template('client/my_program.html', cp=cp, completed_ids=completed_ids)
+107: 
+108: @client_bp.route('/workout/<int:workout_id>')
+109: def workout_view(workout_id):
+110:     profile = current_user.client_profile
+111:     workout = Workout.query.get_or_404(workout_id)
+112:     already_completed = WorkoutCompletion.query.filter_by(
+113:         client_id=profile.id, workout_id=workout_id
+114:     ).first() if profile else None
+115:     
+116:     exercise_completions = {}
+117:     if already_completed:
+118:         for ec in already_completed.exercise_completions.all():
+119:             exercise_completions[ec.workout_exercise_id] = ec
+120:             
+121:     return render_template('client/workout_view.html',
+122:                            workout=workout,
+123:                            already_completed=already_completed,
+124:                            exercise_completions=exercise_completions)
+125: 
+126: @client_bp.route('/workout/<int:workout_id>/complete', methods=['POST'])
+127: def complete_workout(workout_id):
+128:     import json
+129:     import uuid
+130:     from werkzeug.utils import secure_filename
+131:     from app.models.progress import ExerciseCompletion
+132:     
+133:     profile = current_user.client_profile
+134:     if not profile:
+135:         flash('Profile not found.', 'danger')
+136:         return redirect(url_for('client.dashboard'))
+137: 
+138:     workout = Workout.query.get_or_404(workout_id)
+139:     existing = WorkoutCompletion.query.filter_by(client_id=profile.id, workout_id=workout_id).first()
+140:     if existing:
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

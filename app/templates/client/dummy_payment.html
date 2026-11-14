@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Checkout - {{ package.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-black py-10 px-4">
+  <div class="max-w-lg mx-auto">
+
+    <a href="{{ url_for('client.select_package', package_id=package.id) }}"
+       class="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white mb-8 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Back to Package
+    </a>
+
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-xl">
+
+      <!-- Header stripe -->
+      <div class="bg-black dark:bg-white px-8 py-7">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">Paystack Secure Checkout</p>
+        <h1 class="text-2xl font-black text-white dark:text-black leading-tight">{{ package.name }}</h1>
+        <p class="text-sm text-gray-300 dark:text-gray-600 mt-1">
+          with Coach {{ package.coach.first_name }} {{ package.coach.last_name or '' }}
+        </p>
+      </div>
+
+      <div class="px-8 py-6 space-y-6">
+
+        <!-- Price summary -->
+        <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-900 rounded-2xl px-5 py-4">
+          <div>
+            <span class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Total Due</span>
+            <div class="text-3xl font-black text-black dark:text-white mt-0.5">
+              {{ currency }} {{ "%.2f"|format(package.price) }}
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-gray-500 dark:text-gray-400">Duration</span>
+            <div class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ package.duration_weeks }} weeks</div>
+          </div>
+        </div>
+
+        <!-- PAYSTACK PAYMENT ACTION -->
+        <div class="space-y-4">
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            All payments are processed securely through <strong class="text-black dark:text-white">Paystack</strong> with bank transfer, debit/credit cards, and USSD support.
+          </p>
+
+          <!-- Primary Paystack Checkout Button -->
+          <button type="button" onclick="payWithPaystack()"
+                  class="flex items-center justify-center gap-3 w-full bg-[#00a884] hover:bg-[#029072] text-white font-extrabold py-4 rounded-2xl text-base shadow-lg transition-all active:scale-[0.99] cursor-pointer">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            Pay {{ currency }} {{ "%.2f"|format(package.price) }} with Paystack
+          </button>
+
+          <!-- Paystack Hosted Page Direct Redirect Link -->
+          <a href="{{ url_for('client.paystack_initialize', payment_type='package', target_id=package.id) }}"
+             class="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-gray-300 dark:border-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+            <span>Pay on Paystack Hosted Page &rarr;</span>
+          </a>
+
+          {% if payment_url and 'example.com' not in payment_url %}
+          <div class="pt-2">
+            <a href="{{ payment_url }}" target="_blank" rel="noopener noreferrer"
+               class="text-xs text-gray-500 hover:text-black dark:hover:text-white underline block text-center">
+              Or use Coach's Direct Payment Link &rarr;
+            </a>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="flex items-center justify-center gap-2 text-xs text-gray-400 dark:text-gray-600 pt-3 border-t border-gray-100 dark:border-gray-800">
+          <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>
+          Secured by Paystack &middot; 256-Bit SSL Encrypted
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+function payWithPaystack() {
+  const publicKey = "{{ paystack_public_key }}";
+  const callbackUrl = "{{ url_for('client.paystack_callback', type='package', id=package.id, _external=True) }}";
+  const ref = "{{ payment_reference }}";
+
+  if (!publicKey) {
+    // If no public key is configured in env, fallback directly to hosted initialize or test confirmation
+    window.location.href = "{{ url_for('client.paystack_initialize', payment_type='package', target_id=package.id) }}";
+    return;
+  }
+
+  let handler = PaystackPop.setup({
+    key: publicKey,
+    email: "{{ current_user.email }}",
+    amount: {{ amount_in_kobo }},
+    currency: "{{ currency }}",
+    ref: ref,
+    metadata: {
+      package_id: {{ package.id }},
+      package_name: "{{ package.name }}",
+      client_email: "{{ current_user.email }}"
+    },
+    callback: function(response) {
+      const sep = callbackUrl.indexOf('?') !== -1 ? '&' : '?';
+      window.location.href = callbackUrl + sep + "reference=" + encodeURIComponent(response.reference);
+    },
+    onClose: function() {
+      console.log('Paystack popup closed.');
+    }
+  });
+  handler.openIframe();
+}
+</script>
+{% endblock %}

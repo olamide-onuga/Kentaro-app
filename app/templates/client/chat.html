@@ -1,0 +1,1421 @@
+{% extends "base.html" %}
+
+{% block title %}Messages - Kentaro{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Subtle chat wallpaper texture */
+  .chat-wallpaper {
+    background-color: #efeae2;
+    background-image: radial-gradient(#d1c7b7 0.75px, transparent 0.75px), radial-gradient(#d1c7b7 0.75px, #efeae2 0.75px);
+    background-size: 28px 28px;
+    background-position: 0 0, 14px 14px;
+  }
+  .dark .chat-wallpaper {
+    background-color: #0b141a;
+    background-image: radial-gradient(#182229 0.75px, transparent 0.75px), radial-gradient(#182229 0.75px, #0b141a 0.75px);
+    background-size: 28px 28px;
+    background-position: 0 0, 14px 14px;
+  }
+
+  #msgInput {
+    color: #111b21 !important;
+    background-color: #ffffff !important;
+    caret-color: #00a884;
+  }
+  .dark #msgInput {
+    color: #e9edef !important;
+    background-color: #2a3942 !important;
+    caret-color: #00a884;
+  }
+  #msgInput::placeholder {
+    color: #6b7280;
+  }
+  .dark #msgInput::placeholder {
+    color: #8696a0;
+  }
+
+  .chat-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .chat-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .chat-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+  }
+  .dark .chat-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-3 pb-8">
+
+    <!-- Top Breadcrumb & Actions Bar -->
+    <div class="flex items-center justify-between px-1">
+        <a href="{{ url_for('client.dashboard') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            <span>Back to Dashboard</span>
+        </a>
+        <div class="flex items-center gap-3">
+            <button type="button" onclick="openUserSearchModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl btn-primary-red text-white text-xs font-bold shadow-xs transition">
+                <span>+ Message User</span>
+            </button>
+            <a href="{{ url_for('client.marketplace') }}" class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
+                <span>Calisthenics Marketplace</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Chat Window (Split View: Sidebar + Active Chat) -->
+    <div class="bg-white dark:bg-[#111b21] border border-gray-200 dark:border-gray-800 rounded-3xl shadow-lg overflow-hidden h-[680px] sm:h-[720px] flex">
+
+        <!-- Left Sidebar: Conversations & Contacts List -->
+        <div id="chatSidebar" class="{% if partner_id %}hidden md:flex{% else %}flex{% endif %} w-full md:w-80 lg:w-96 border-r border-gray-200 dark:border-gray-800/80 flex-col h-full bg-[#f0f2f5] dark:bg-[#111b21] shrink-0">
+            
+            <!-- Sidebar Header -->
+            <div class="p-3.5 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-gray-200 dark:border-gray-800/80 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-full bg-amber-500 text-black font-extrabold text-sm flex items-center justify-center shadow-xs">
+                        {{ profile.first_name[0] if profile and profile.first_name else 'A' }}
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100">Messages &amp; Contacts</h2>
+                        <p class="text-[10px] text-gray-500 dark:text-gray-400">{{ contacts|length }} conversations</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button type="button" onclick="openUserSearchModal()" title="Start new conversation with any coach or athlete" class="p-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-800 transition text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <a href="{{ url_for('client.marketplace') }}" title="Find more coaches on marketplace" class="px-2.5 py-1 rounded-xl text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-neutral-800 transition text-xs font-bold">
+                        Scout
+                    </a>
+                </div>
+            </div>
+
+            <!-- Search Filter Bar -->
+            <div class="p-2.5 bg-white dark:bg-[#111b21] border-b border-gray-100 dark:border-gray-800/60">
+                <div class="relative">
+                    <svg class="w-3.5 h-3.5 absolute inset-y-0 left-0 pl-3 my-auto pointer-events-none text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="text" id="coachSearchInput" onkeyup="filterContacts()" placeholder="Search contacts..." 
+                           class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-gray-100 dark:bg-[#202c33] border-none text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#00a884]">
+                </div>
+            </div>
+
+                        <!-- Support Contact Button -->
+            {% if support_admin_id %}
+            <div class="px-3 py-2 bg-[#f0f2f5] dark:bg-[#111b21] border-b border-gray-100 dark:border-gray-800/60">
+                <button type="button" onclick="openStartSupportModal()"
+                   class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white dark:bg-[#202c33] border border-gray-200 dark:border-gray-700/60 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-[#2a3942] transition shadow-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm"></span>
+                        <span>Contact Kentaro Support</span>
+                    </div>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 font-extrabold uppercase">Desk</span>
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- Conversations List -->
+            <div id="coachListContainer" class="flex-1 overflow-y-auto p-2 space-y-1 chat-scroll">
+                {% for conv in contacts %}
+                {% set is_active = (partner_id == conv.user.id) %}
+                <a href="{{ url_for('client.chat', partner_id=conv.user.id) }}" 
+                   data-category="{{ conv.category|default('direct') }}" class="coach-item flex items-center gap-3 p-3 rounded-2xl transition {% if is_active %}bg-white dark:bg-[#2a3942] shadow-sm border-l-4 border-[#00a884]{% else %}hover:bg-gray-100/80 dark:hover:bg-[#202c33] text-gray-800 dark:text-gray-200{% endif %}">
+                    <div class="relative w-11 h-11 rounded-full {% if conv.is_my_coach %}bg-amber-500/20 text-amber-700 dark:text-amber-400{% elif conv.is_coach %}bg-blue-500/20 text-blue-700 dark:text-blue-400{% else %}bg-neutral-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300{% endif %} font-extrabold text-sm flex items-center justify-center shrink-0">
+                        {{ conv.avatar }}
+                        <span data-user-status-dot="{{ conv.user.id }}" class="w-3 h-3 rounded-full {% if conv.user.online %}bg-[#25d366]{% else %}bg-gray-400{% endif %} ring-2 ring-white dark:ring-[#111b21] absolute bottom-0 right-0"></span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <p class="coach-name text-xs font-bold text-gray-900 dark:text-gray-100 truncate">{{ conv.name }}</p>
+                            {% if conv.is_support %}
+                            <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">Admin</span>
+                            {% elif conv.is_my_coach %}
+                            <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">My Coach</span>
+                            {% elif conv.pending_offer %}
+                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">Offer</span>
+                            {% elif conv.is_coach %}
+                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400">Marketplace</span>
+                            {% else %}
+                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-500/10 text-gray-600 dark:text-gray-400">Athlete</span>
+                            {% endif %}
+                        </div>
+                        <div class="flex items-center justify-between mt-0.5">
+                            <p class="coach-preview text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                                {% if conv.last_msg and conv.last_msg.voice_url %}
+                                Voice message
+                                {% elif conv.last_msg %}
+                                {{ conv.last_msg.message }}
+                                {% else %}
+                                Start chatting...
+                                {% endif %}
+                            </p>
+                            {% if conv.last_msg and conv.last_msg.timestamp %}
+                            <span class="text-[10px] text-gray-400 shrink-0 ml-1">{{ conv.last_msg.timestamp.strftime('%H:%M') }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% else %}
+                <div class="p-6 text-center text-xs text-gray-400 space-y-2">
+                    <p class="font-semibold text-gray-600 dark:text-gray-300">No active chats yet</p>
+                    <p class="text-[11px] text-gray-400 max-w-[200px] mx-auto">
+                        Use "+ Message User" to start a chat with any coach or athlete, or post on the marketplace.
+                    </p>
+                    <button type="button" onclick="openUserSearchModal()" class="inline-block mt-2 px-4 py-2 rounded-xl bg-black dark:bg-white text-white dark:text-black font-extrabold text-xs shadow transition">
+                        Find Someone to Chat
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Bottom Action -->
+            <div class="p-3 border-t border-gray-200 dark:border-gray-800/80 bg-[#f0f2f5] dark:bg-[#202c33]">
+                <button type="button" onclick="openUserSearchModal()" class="w-full py-2 px-3 rounded-xl bg-white dark:bg-[#111b21] border border-gray-200 dark:border-gray-700/60 text-center block text-xs font-bold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-neutral-800 transition shadow-xs">
+                    Find &amp; Message Coaches &amp; Athletes
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Side: Active Chat Area -->
+        <div id="chatMain" class="{% if not partner_id %}hidden md:flex{% else %}flex{% endif %} flex-1 min-w-0 flex-col h-full bg-[#efeae2] dark:bg-[#0b141a] overflow-hidden">
+            {% if partner_id and (active_user or coach) %}
+            
+            {% if is_partner_admin %}
+                {% set partner_name = "Kentaro Support" %}
+                {% set partner_avatar = "" %}
+            {% elif coach %}
+                {% set partner_name = 'Coach ' + coach.first_name + ' ' + (coach.last_name or '') %}
+                {% set partner_avatar = coach.first_name[0] if coach.first_name else 'C' %}
+            {% elif active_user and active_user.client_profile and active_user.client_profile.first_name %}
+                {% set partner_name = active_user.client_profile.full_name %}
+                {% set partner_avatar = active_user.client_profile.first_name[0] %}
+            {% else %}
+                {% set partner_name = active_user.email.split('@')[0] if active_user and active_user.email else 'User' %}
+                {% set partner_avatar = partner_name[0].upper() if partner_name else '?' %}
+            {% endif %}
+
+            <!-- Chat Header -->
+            <div class="px-4 py-3 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-gray-200 dark:border-gray-800/80 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <!-- Always functional Back to Contacts button -->
+                    <a href="{{ url_for('client.chat', view='contacts') }}" onclick="showContactsView(); return false;" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#202c33] border border-gray-200 dark:border-gray-700/60 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition shadow-xs shrink-0" title="Back to contacts list">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        <span>Contacts</span>
+                    </a>
+                    <div class="relative w-10 h-10 rounded-full {% if coach %}bg-amber-500/20 text-amber-700 dark:text-amber-400{% else %}bg-neutral-200 dark:bg-neutral-800 text-gray-800 dark:text-gray-200{% endif %} font-extrabold text-sm flex items-center justify-center shrink-0 shadow-xs">
+                        {{ partner_avatar }}
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#25d366] ring-2 ring-white dark:ring-[#202c33] absolute bottom-0 right-0"></span>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                                {{ partner_name }}
+                            </h2>
+                            {% if is_partner_admin %}
+                            <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 shrink-0">Admin</span>
+                            {% elif profile.coach and coach and coach.id == profile.coach.id %}
+                            <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">My Coach</span>
+                            {% elif coach %}
+                            <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-500/20 text-blue-700 dark:text-blue-300 shrink-0">Marketplace Coach</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-neutral-200 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 shrink-0">Athlete</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-[11px] font-medium flex items-center gap-1.5 truncate">
+                            <span id="headerStatusDot" class="w-1.5 h-1.5 rounded-full {% if active_user and active_user.online %}bg-[#25d366]{% else %}bg-gray-400{% endif %} shrink-0 transition-colors"></span>
+                            <span id="headerStatusText" class="{% if active_user and active_user.online %}text-[#00a884] dark:text-[#25d366]{% else %}text-gray-500 dark:text-gray-400{% endif %}">{% if active_user and active_user.online %}online{% else %}offline{% endif %}</span>
+                            <span class="text-gray-400 dark:text-gray-600">•</span>
+                            <span class="truncate text-gray-500 dark:text-gray-400">{% if is_partner_admin %}Kentaro Platform Support{% elif coach %}{{ coach.specialization or 'Calisthenics Coach' }}{% else %}Kentaro Community{% endif %}</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    {% if profile.coach and coach and coach.id == profile.coach.id %}
+                    <a href="{{ url_for('client.voice_call') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#111b21] border border-gray-200 dark:border-gray-700/60 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition shadow-xs">
+                        <span class="hidden sm:inline">Call Coach</span>
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('client.marketplace') }}" class="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-800 transition" title="Go to marketplace">
+                        Marketplace
+                    </a>
+                </div>
+            </div>
+
+            <!-- Custom Budget Offer Banner (if pending) -->
+            {% if active_offer and coach %}
+            <div class="p-3.5 bg-emerald-50 dark:bg-emerald-950/50 border-b border-emerald-200 dark:border-emerald-900/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0">
+                <div class="flex items-start gap-2.5">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Custom Offer from Coach {{ coach.first_name }}</span>
+                            <span class="text-xs font-black text-emerald-800 dark:text-emerald-200">{{ active_offer.currency or 'USD' }} {{ active_offer.amount | money }}</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-gray-900 dark:text-white">{{ active_offer.title }} ({{ active_offer.duration_weeks }} weeks)</h4>
+                        {% if active_offer.description %}
+                        <p class="text-[11px] text-gray-600 dark:text-gray-300 mt-0.5">{{ active_offer.description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="shrink-0">
+                    <a href="{{ url_for('client.checkout_offer', offer_id=active_offer.id) }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#00a884] hover:bg-[#029072] text-white font-extrabold text-xs shadow-md transition">
+                        <span>Review &amp; Pay Offer</span> &rarr;
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Chat Message Feed -->
+            <div id="messages" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 chat-wallpaper chat-scroll">
+                
+                <!-- Privacy Notice -->
+                <div class="max-w-md mx-auto text-center bg-white/90 dark:bg-[#182229]/90 border border-gray-200/60 dark:border-gray-800/60 rounded-xl p-2.5 text-[11px] text-gray-600 dark:text-gray-300 shadow-xs">
+                    <span>Direct chat with {{ partner_name }}. Discuss training, technique cues, calisthenics skills, and workouts freely.</span>
+                </div>
+
+                <!-- Date Badge Separator -->
+                <div class="flex justify-center my-2">
+                    <span class="bg-white/80 dark:bg-[#182229] text-gray-500 dark:text-gray-400 text-[10px] font-bold px-3 py-1 rounded-lg shadow-xs uppercase tracking-wider">
+                        Conversation
+                    </span>
+                </div>
+
+                <!-- Pre-rendered Server Messages -->
+                {% if messages %}
+                {% for msg in messages %}
+                {% set is_self = (msg.sender_id == current_user.id) %}
+                <div class="flex w-full {{ 'justify-end' if is_self else 'justify-start' }} group" id="msg-row-{{ msg.id }}">
+                    <div class="relative max-w-[85%] sm:max-w-md px-3.5 py-2.5 rounded-2xl shadow-xs text-sm {{ 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-tr-xs' if is_self else 'bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] border border-gray-100 dark:border-gray-800/40 rounded-tl-xs' }}">
+                        
+                        <!-- Message context menu (hover) -->
+                        <div class="absolute {{ '-right-10' if is_self else '-left-10' }} top-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1 z-10" data-msg-menu="{{ msg.id }}">
+                            <button type="button" onclick="replyToMessage({{ msg.id }}, '{{ msg.message|replace("'","\\'")|truncate(60, True) }}')" title="Reply" class="w-7 h-7 rounded-full bg-white dark:bg-neutral-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-black dark:hover:text-white flex items-center justify-center shadow-xs transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                            </button>
+                            <button type="button" onclick="copyMessage('{{ msg.message|replace("'","\\'")|replace('\n',' ') }}')" title="Copy" class="w-7 h-7 rounded-full bg-white dark:bg-neutral-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-black dark:hover:text-white flex items-center justify-center shadow-xs transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                            </button>
+                            {% if is_self and not msg.is_deleted %}
+                            <button type="button" onclick="editMessage({{ msg.id }}, '{{ msg.message|replace("'","\\'")|replace('\n',' ') }}')" title="Edit" class="w-7 h-7 rounded-full bg-white dark:bg-neutral-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-blue-500 flex items-center justify-center shadow-xs transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </button>
+                            <button type="button" onclick="deleteMessage({{ msg.id }})" title="Delete" class="w-7 h-7 rounded-full bg-white dark:bg-neutral-800 border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-red-500 flex items-center justify-center shadow-xs transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% if msg.is_edited %}<span class="absolute -bottom-4 {{ 'right-1' if is_self else 'left-1' }} text-[9px] text-gray-400 italic">edited</span>{% endif %}
+
+                        {% if msg.reply_to %}
+                        <div class="mb-2 px-3 py-1.5 rounded-xl bg-black/5 dark:bg-white/10 border-l-3 border-[#00a884] text-xs">
+                            <span class="font-extrabold text-[10px] block text-[#00a884] dark:text-[#25d366]">
+                                {{ 'Kentaro Support' if msg.reply_to.is_anonymous else (msg.reply_to.sender.first_name or 'User') }}
+                            </span>
+                            <span class="truncate block text-[11px] opacity-80">{{ msg.reply_to.message }}</span>
+                        </div>
+                        {% endif %}
+
+                                                                        {% if msg.message_type == 'offer' or msg.offer_id or (msg.offer) %}
+                        <!-- Structured Custom Program Offer Card -->
+                        <div class="w-full min-w-[280px] sm:min-w-[340px] max-w-sm py-2 space-y-3 bg-white dark:bg-gray-900 rounded-2xl p-4 border border-emerald-500/40 shadow-md text-gray-900 dark:text-gray-100">
+                            <div class="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xl">🎯</span>
+                                    <div>
+                                        <span class="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Custom Program Offer</span>
+                                        <h4 class="text-sm font-black text-gray-900 dark:text-gray-100 leading-tight">
+                                            {{ msg.offer.title if msg.offer else 'Custom Coaching Program' }}
+                                        </h4>
+                                    </div>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider {% if msg.offer and msg.offer.status == 'paid' %}bg-emerald-500/20 text-emerald-700 dark:text-emerald-300{% elif msg.offer and msg.offer.status == 'declined' %}bg-red-500/20 text-red-600{% elif msg.offer and msg.offer.status == 'accepted' %}bg-amber-500/20 text-amber-700{% else %}bg-blue-500/20 text-blue-700 dark:text-blue-300{% endif %}">
+                                    {{ msg.offer.status|upper if msg.offer else 'OFFER' }}
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-xs py-1">
+                                <div class="bg-gray-50 dark:bg-gray-800/80 p-2.5 rounded-xl border border-gray-100 dark:border-gray-800">
+                                    <span class="text-[9px] font-bold uppercase text-gray-400">Agreed Price</span>
+                                    <p class="font-black text-sm text-gray-900 dark:text-gray-100 mt-0.5">
+                                        {{ msg.offer.currency if msg.offer else '$' }} {{ "%.2f"|format(msg.offer.amount) if (msg.offer and msg.offer.amount) else '' }}
+                                    </p>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-gray-800/80 p-2.5 rounded-xl border border-gray-100 dark:border-gray-800">
+                                    <span class="text-[9px] font-bold uppercase text-gray-400">Duration &amp; Split</span>
+                                    <p class="font-black text-sm text-gray-900 dark:text-gray-100 mt-0.5">
+                                        {{ msg.offer.duration_weeks if msg.offer else 4 }} Wks
+                                    </p>
+                                </div>
+                            </div>
+
+                            {% if msg.offer and msg.offer.description %}
+                            <p class="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
+                                {{ msg.offer.description }}
+                            </p>
+                            {% endif %}
+
+                            <div class="pt-1 flex items-center gap-2">
+                                <button type="button" onclick="openClientOfferPreviewModal({{ msg.offer.id if msg.offer else (msg.offer_id or 0) }})"
+                                        class="flex-1 py-2 px-3 rounded-xl bg-black dark:bg-white text-white dark:text-black font-black text-xs hover:opacity-90 transition text-center shadow-xs">
+                                    View Program Details
+                                </button>
+                                {% if msg.offer and msg.offer.status in ['sent', 'viewed', 'accepted'] %}
+                                <a href="{{ url_for('client.checkout_program_offer', offer_id=msg.offer.id) }}"
+                                   class="py-2 px-3 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white font-black text-xs shadow-xs transition">
+                                    Pay Now
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% elif msg.message_type == 'program' or msg.program_id or (msg.message and '🎯' in msg.message and 'Program' in msg.message) %}
+                        <div class="w-full min-w-[260px] sm:min-w-[320px] max-w-sm py-1 space-y-2">
+                            <div class="flex items-center justify-between pb-2 border-b border-black/10 dark:border-white/10">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-lg">🎯</span>
+                                    <div>
+                                        <span class="text-[10px] font-extrabold uppercase tracking-widest text-[#00a884] dark:text-[#25d366]">Coaching Program</span>
+                                        <h4 class="text-sm font-black text-gray-900 dark:text-gray-100 leading-tight">
+                                            {{ msg.program.name if msg.program else (msg.message.replace('🎯 Coaching Program: ', '').replace('🎯 Assigned Program: ', '').strip('"') if msg.message else 'Custom Workout Program') }}
+                                        </h4>
+                                    </div>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                                    Delivered
+                                </span>
+                            </div>
+                            {% if msg.program and msg.program.description %}
+                            <p class="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
+                                {{ msg.program.description }}
+                            </p>
+                            {% endif %}
+                            <div class="pt-1">
+                                <a href="{{ url_for('client.view_program', program_id=msg.program_id) if msg.program_id else url_for('client.my_program') }}" 
+                                   class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white font-extrabold text-xs shadow-sm transition">
+                                    <span>View &amp; Start Program</span>
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                                </a>
+                            </div>
+                        </div>
+                        {% elif msg.voice_url %}
+                        <div class="w-full min-w-[260px] sm:min-w-[300px] max-w-sm py-1">
+                            <div class="flex items-center gap-2 mb-1.5 opacity-80">
+                                <svg class="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                                <span class="text-[11px] font-bold uppercase tracking-wider">Voice Message</span>
+                            </div>
+                            <audio controls controlsList="nodownload noplaybackrate" preload="metadata" class="w-full h-9 rounded-lg" src="{{ msg.voice_url }}">
+                                Audio not supported
+                            </audio>
+                            {% if msg.message and msg.message != '[Voice Message]' and msg.message != '🎤 Voice Message' and msg.message != 'Voice Message' %}
+                            <p class="whitespace-pre-wrap break-words leading-relaxed text-[13px] mt-1.5">{{ msg.message }}</p>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <p class="whitespace-pre-wrap break-words leading-relaxed text-[13.5px]">{{ msg.message }}</p>
+                        {% endif %}
+                        <div class="flex items-center justify-end gap-1 mt-1 text-[10px] {{ 'text-gray-500 dark:text-gray-300' if is_self else 'text-gray-400' }}">
+                            <span>{{ msg.timestamp.strftime('%H:%M') if msg.timestamp else '' }}</span>
+                            {% if is_self and msg.is_read %}
+                            <span class="text-[#53bdeb] font-bold"><svg class="w-4 h-4 inline-block text-[#53bdeb]" viewBox="0 0 16 16" fill="currentColor"><path d="M12.354 4.354a.5.5 0 0 0-.708-.708L5 10.293 1.854 7.146a.5.5 0 1 0-.708.708l3.5 3.5a.5.5 0 0 0 .708 0l7-7zm-4 0a.5.5 0 0 0-.708-.708L2 9.293l.708.708 5.646-5.647z"/><path d="M15.354 4.354a.5.5 0 0 0-.708-.708L8 10.293l.708.708 6.646-6.647z"/></svg></span>
+                            {% elif is_self %}
+                            <span class="tick-single text-gray-400"><svg class="w-3.5 h-3.5 inline-block text-gray-400" viewBox="0 0 16 16" fill="currentColor"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg></span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div id="emptyState" class="py-8 text-center space-y-3 max-w-sm mx-auto">
+                    <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200">Start the conversation</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Say hello to {{ partner_name }} and share your training goals or questions.
+                    </p>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <!-- Quick Suggestions Chips -->
+            <div class="px-4 py-1.5 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-gray-200/80 dark:border-gray-800/60 flex items-center gap-2 overflow-x-auto text-xs whitespace-nowrap shrink-0">
+                <span class="text-[10px] font-bold uppercase text-gray-400">Quick:</span>
+                <button type="button" onclick="insertPrompt('How is my workout schedule looking this week?')" class="px-2.5 py-1 rounded-full bg-white dark:bg-[#2a3942] text-gray-700 dark:text-gray-300 hover:bg-gray-100 border border-gray-200 dark:border-gray-700 text-[11px] font-medium transition shadow-xs">
+                    Training Check
+                </button>
+                <button type="button" onclick="insertPrompt('I just uploaded a form check video for review.')" class="px-2.5 py-1 rounded-full bg-white dark:bg-[#2a3942] text-gray-700 dark:text-gray-300 hover:bg-gray-100 border border-gray-200 dark:border-gray-700 text-[11px] font-medium transition shadow-xs">
+                    Form Check
+                </button>
+                <button type="button" onclick="insertPrompt('Can we review nutrition targets for recovery?')" class="px-2.5 py-1 rounded-full bg-white dark:bg-[#2a3942] text-gray-700 dark:text-gray-300 hover:bg-gray-100 border border-gray-200 dark:border-gray-700 text-[11px] font-medium transition shadow-xs">
+                    Nutrition
+                </button>
+            </div>
+
+            <!-- Voice Recording Bar (shown during recording) -->
+            <div id="voiceRecordingBar" class="hidden px-4 py-2.5 border-t border-red-500/30 bg-red-50 dark:bg-red-950/40 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5 text-xs text-red-600 dark:text-red-400 font-bold">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
+                    <span>Recording Voice Message...</span>
+                    <span id="recordingTimer" class="font-mono text-sm">00:00</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="cancelVoiceRecording()" class="px-2.5 py-1 rounded-lg text-xs font-bold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition">Cancel</button>
+                    <button type="button" onclick="stopAndSendVoice()" class="px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition flex items-center gap-1.5 shadow-sm">
+                        <span>Send Voice</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Reply Preview Banner -->
+            <div id="replyPreviewBar" class="hidden px-4 py-2 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-[#00a884]/30 flex items-center gap-3">
+                <div class="w-1 h-10 bg-[#00a884] rounded-full shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[10px] font-black text-[#00a884] uppercase tracking-wider">Replying to</p>
+                    <p id="replyPreviewText" class="text-xs text-gray-600 dark:text-gray-300 truncate"></p>
+                </div>
+                <button type="button" onclick="cancelReply()" class="text-gray-400 hover:text-black dark:hover:text-white p-1 rounded-full transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+                <input type="hidden" id="replyToId" value="">
+            </div>
+
+            <!-- Message Input Footer -->
+            <div class="p-2 sm:p-3 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-gray-200 dark:border-gray-800/80 shrink-0">
+                <form id="chatForm" onsubmit="handleSend(event)" class="flex items-end gap-2">
+                    <!-- SVG Voice Recording Button -->
+                    <button type="button" id="recordVoiceBtn" class="p-2.5 rounded-full text-gray-600 hover:text-black dark:text-gray-300 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-neutral-800 transition shrink-0" title="Record voice message" onclick="toggleVoiceRecording()">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                        </svg>
+                    </button>
+
+                    <!-- Auto-Growing Textarea with Fixed Color -->
+                    <div class="flex-1 relative">
+                        <textarea
+                            id="msgInput"
+                            rows="1"
+                            placeholder="Message {{ partner_name }}..."
+                            class="w-full px-4 py-2.5 text-[14px] leading-relaxed rounded-2xl border border-transparent shadow-xs focus:outline-none focus:ring-2 focus:ring-[#00a884] resize-none transition"
+                            style="min-height: 42px; max-height: 120px;"
+                            oninput="autoResize(this)"
+                            onkeydown="handleKey(event)"
+                            required
+                        ></textarea>
+                    </div>
+
+                    <!-- Circular Green Send Button -->
+                    <button
+                        type="submit"
+                        id="sendBtn"
+                        class="w-11 h-11 rounded-full bg-[#00a884] hover:bg-[#029072] active:scale-95 text-white flex items-center justify-center shadow-md transition shrink-0"
+                        title="Send message"
+                    >
+                        <svg class="w-5 h-5 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
+                </form>
+                <div class="flex items-center justify-between px-2 pt-1 text-[10px] text-gray-400">
+                    <span>Press <kbd class="px-1 py-0.5 bg-gray-200 dark:bg-neutral-800 rounded font-mono">Enter</kbd> to send, <kbd class="px-1 py-0.5 bg-gray-200 dark:bg-neutral-800 rounded font-mono">Shift+Enter</kbd> for new line</span>
+                </div>
+            </div>
+
+            {% else %}
+            <!-- Empty state when no conversation is selected -->
+            <div class="flex-1 flex items-center justify-center p-8 text-center bg-gray-50/50 dark:bg-neutral-950">
+                <div class="max-w-sm space-y-3">
+                    <h3 class="text-base font-bold text-gray-900 dark:text-white">Choose a conversation or message a user</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Select any contact from the list, or search for coaches and friends to chat with.</p>
+                    <button type="button" onclick="openUserSearchModal()" class="px-4 py-2 rounded-xl bg-black dark:bg-white text-white dark:text-black font-extrabold text-xs shadow hover:opacity-80 transition">
+                        Search &amp; Message User
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- Edit Message Modal -->
+<div id="editMsgModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-black text-sm text-gray-900 dark:text-white">Edit Message</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-black dark:hover:text-white text-xl font-bold">&times;</button>
+        </div>
+        <textarea id="editMsgText" rows="4"
+            class="w-full px-4 py-3 text-sm rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#00a884] resize-none"
+            placeholder="Edit your message..."></textarea>
+        <div class="flex gap-3 mt-4">
+            <button onclick="closeEditModal()" class="flex-1 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 transition">Cancel</button>
+            <button onclick="submitEdit()" class="flex-1 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-black text-xs hover:opacity-80 transition">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- Copy Toast -->
+<div id="copyToast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-bold rounded-2xl shadow-xl">
+    Copied to clipboard!
+</div>
+
+<!-- Live User Search Modal -->
+<div id="userSearchModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-extrabold text-sm text-gray-900 dark:text-white">
+                Find Coaches &amp; Athletes
+            </h3>
+            <button onclick="closeUserSearchModal()" class="text-gray-400 hover:text-black dark:hover:text-white font-bold text-lg">&times;</button>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Search for coaches to discuss training or find other athletes to chat with.</p>
+
+        <div class="relative mb-3">
+            <input type="text" id="liveUserQuery" oninput="performLiveUserSearch()" placeholder="Search by name, specialization, or email..." 
+                   class="w-full px-3 py-2 text-xs rounded-xl bg-gray-100 dark:bg-[#202c33] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00a884]">
+        </div>
+
+        <div id="userSearchResults" class="max-h-60 overflow-y-auto space-y-1.5 chat-scroll">
+            <p class="text-center text-xs text-gray-400 py-4">Start typing above to search coaches and athletes...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const messagesDiv = document.getElementById('messages');
+    const msgInput = document.getElementById('msgInput');
+    const partnerId = {{ partner_id or 'null' }};
+    const currentUserId = {{ current_user.id }};
+    const socket = (typeof window.socket !== 'undefined' && window.socket) ? window.socket : io();
+
+    function showContactsView() {
+        if (window.innerWidth >= 768) {
+            window.location.href = "{{ url_for('client.chat', view='contacts') }}";
+            return;
+        }
+        const sidebar = document.getElementById('chatSidebar');
+        const main = document.getElementById('chatMain');
+        if (sidebar && main) {
+            sidebar.classList.remove('hidden');
+            sidebar.classList.add('flex');
+            main.classList.add('hidden');
+            main.classList.remove('flex');
+        }
+        try {
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('view', 'contacts');
+            newUrl.searchParams.delete('partner_id');
+            window.history.pushState({}, '', newUrl.toString());
+        } catch (e) {}
+    }
+
+    function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    }
+
+    function insertPrompt(text) {
+        if (!msgInput) return;
+        msgInput.value = text;
+        autoResize(msgInput);
+        msgInput.focus();
+    }
+
+    function handleKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend(e);
+        }
+    }
+
+    function scrollToBottom() {
+        if (messagesDiv) {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        scrollToBottom();
+    });
+
+        function appendMessageBubble(content, isSelf, timeStr, voiceUrl, msgId, extraData) {
+        if (!messagesDiv) return;
+        const bubble = document.createElement('div');
+        bubble.className = 'flex w-full group ' + (isSelf ? 'justify-end' : 'justify-start');
+        if (msgId) {
+            bubble.id = 'msg-row-' + msgId;
+        }
+        
+        let innerBody = '';
+        if (extraData && (extraData.message_type === 'program' || extraData.program)) {
+            const prog = extraData.program || {};
+            const progName = prog.name || (content ? content.replace('🎯 Coaching Program: ', '').replace('🎯 Assigned Program: ', '').replace(/"/g, '') : 'Custom Workout Program');
+            const progDesc = prog.description || '';
+            const viewUrl = prog.view_url || '/client/my-program';
+            innerBody = `
+                <div class="w-full min-w-[260px] sm:min-w-[320px] max-w-sm py-1 space-y-2">
+                    <div class="flex items-center justify-between pb-2 border-b border-black/10 dark:border-white/10">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🎯</span>
+                            <div>
+                                <span class="text-[10px] font-extrabold uppercase tracking-widest text-[#00a884] dark:text-[#25d366]">Coaching Program</span>
+                                <h4 class="text-sm font-black text-gray-900 dark:text-gray-100 leading-tight">${escapeHtml(progName)}</h4>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                            Delivered
+                        </span>
+                    </div>
+                    ${progDesc ? `<p class="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">${escapeHtml(progDesc)}</p>` : ''}
+                    <div class="pt-1">
+                        <a href="${viewUrl}" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white font-extrabold text-xs shadow-sm transition">
+                            <span>View &amp; Start Program</span>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </a>
+                    </div>
+                </div>
+            `;
+        } else if (voiceUrl) {
+            innerBody = `
+                <div class="w-full min-w-[260px] sm:min-w-[300px] max-w-sm py-1">
+                    <div class="flex items-center gap-2 mb-1.5 opacity-80">
+                        <svg class="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                        <span class="text-[11px] font-bold uppercase tracking-wider">Voice Message</span>
+                    </div>
+                    <audio controls controlsList="nodownload noplaybackrate" preload="metadata" class="w-full h-9 rounded-lg" src="${voiceUrl}">
+                        Audio not supported
+                    </audio>
+                    ${(content && content !== '[Voice Message]' && content !== '🎤 Voice Message' && content !== 'Voice Message') ? `<p class="whitespace-pre-wrap break-words leading-relaxed text-[13px] mt-1.5">${escapeHtml(content)}</p>` : ''}
+                </div>
+            `;
+        } else {
+            innerBody = `<p class="whitespace-pre-wrap break-words leading-relaxed text-[13.5px]">${escapeHtml(content)}</p>`;
+        }
+
+        const selfClass = 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-tr-xs';
+        const otherClass = 'bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] border border-gray-100 dark:border-gray-800/40 rounded-tl-xs';
+
+        const deleteBtnHtml = (isSelf && msgId) ? `
+            <button type="button" onclick="deleteMessage(${msgId})" title="Delete message" class="absolute -top-2 -left-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-neutral-800 border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-xs">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        ` : '';
+
+        let replyHtml = '';
+        if (extraData && extraData.reply_to) {
+            const rSender = escapeHtml(extraData.reply_to.sender_name || 'User');
+            const rMsg = escapeHtml(extraData.reply_to.message || '');
+            replyHtml = `
+                <div class="mb-2 px-3 py-1.5 rounded-xl bg-black/5 dark:bg-white/10 border-l-3 border-[#00a884] text-xs">
+                    <span class="font-extrabold text-[10px] block text-[#00a884] dark:text-[#25d366]">${rSender}</span>
+                    <span class="truncate block text-[11px] opacity-80">${rMsg}</span>
+                </div>
+            `;
+        }
+
+        bubble.innerHTML = `
+            <div class="relative max-w-[85%] sm:max-w-md px-3.5 py-2 rounded-2xl shadow-xs text-sm ${isSelf ? selfClass : otherClass}">
+                ${deleteBtnHtml}
+                ${replyHtml}
+                ${innerBody}
+                <div class="flex items-center justify-end gap-1 mt-1 text-[10px] ${isSelf ? 'text-gray-500 dark:text-gray-300' : 'text-gray-400'}">
+                    <span>${timeStr}</span>
+                    ${isSelf ? '<span class="tick-single text-gray-400"><svg class="w-3.5 h-3.5 inline-block text-gray-400" viewBox="0 0 16 16" fill="currentColor"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg></span>' : ''}
+                </div>
+            </div>
+        `;
+
+        const emptyState = document.getElementById('emptyState');
+        if (emptyState) emptyState.remove();
+
+        messagesDiv.appendChild(bubble);
+        scrollToBottom();
+    }
+
+    function handleSend(e) {
+        if (e) e.preventDefault();
+        if (!partnerId) return;
+        const content = msgInput.value.trim();
+        if (!content) return;
+
+        const replyId = document.getElementById('replyToId') ? parseInt(document.getElementById('replyToId').value) || null : null;
+        socket.emit('chat_message', {
+            target_user_id: partnerId,
+            msg: content,
+            reply_to_id: replyId
+        });
+        cancelReply();
+
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        let replyData = null;
+        if (replyId) {
+            const prevElem = document.getElementById('replyPreviewText');
+            replyData = {
+                id: replyId,
+                sender_name: 'You replied',
+                message: prevElem ? prevElem.textContent : ''
+            };
+        }
+        appendMessageBubble(content, true, timeStr, null, null, { reply_to: replyData });
+
+        socket.once('chat_message_sent', function(sentData) {
+            if (sentData && sentData.id) {
+                // Update the last bubble with msg-row ID if applicable
+                const rows = messagesDiv.querySelectorAll('.flex.w-full.justify-end');
+                if (rows.length > 0) {
+                    const lastRow = rows[rows.length - 1];
+                    if (!lastRow.id) {
+                        lastRow.id = 'msg-row-' + sentData.id;
+                        const bubbleInner = lastRow.querySelector('.relative');
+                        if (bubbleInner && !bubbleInner.querySelector('button[title="Delete message"]')) {
+                            const btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.onclick = () => deleteMessage(sentData.id);
+                            btn.title = 'Delete message';
+                            btn.className = 'absolute -top-2 -left-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-neutral-800 border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-xs';
+                            btn.textContent = '<svg class="w-3.5 h-3.5 inline-block text-gray-400" viewBox="0 0 16 16" fill="currentColor"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>•';
+                            bubbleInner.appendChild(btn);
+                        }
+                    }
+                }
+            }
+        });
+
+        msgInput.value = '';
+        msgInput.style.height = '42px';
+        msgInput.focus();
+    }
+
+
+    // ---- Chat Message Action Functions ----
+    let currentEditMsgId = null;
+    let replyToMsgId = null;
+
+    function replyToMessage(msgId, preview) {
+        replyToMsgId = msgId;
+        document.getElementById('replyToId').value = msgId;
+        document.getElementById('replyPreviewText').textContent = preview || '[Message]';
+        document.getElementById('replyPreviewBar').classList.remove('hidden');
+        document.getElementById('msgInput').focus();
+    }
+
+    function cancelReply() {
+        replyToMsgId = null;
+        document.getElementById('replyToId').value = '';
+        document.getElementById('replyPreviewText').textContent = '';
+        document.getElementById('replyPreviewBar').classList.add('hidden');
+    }
+
+    function copyMessage(text) {
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(function() {
+            const toast = document.getElementById('copyToast');
+            if (toast) {
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 2000);
+            }
+        }).catch(function() {
+            // Fallback for older browsers
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            const toast = document.getElementById('copyToast');
+            if (toast) {
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 2000);
+            }
+        });
+    }
+
+    function editMessage(msgId, currentText) {
+        currentEditMsgId = msgId;
+        const modal = document.getElementById('editMsgModal');
+        const textarea = document.getElementById('editMsgText');
+        if (modal && textarea) {
+            textarea.value = currentText || '';
+            modal.classList.remove('hidden');
+            setTimeout(() => textarea.focus(), 100);
+        }
+    }
+
+    function closeEditModal() {
+        currentEditMsgId = null;
+        const modal = document.getElementById('editMsgModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function submitEdit() {
+        if (!currentEditMsgId) return;
+        const textarea = document.getElementById('editMsgText');
+        const newText = textarea ? textarea.value.trim() : '';
+        if (!newText) return;
+
+        fetch('/client/chat/message/' + currentEditMsgId + '/edit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+            body: JSON.stringify({ message: newText })
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                // Update bubble text in DOM
+                const row = document.getElementById('msg-row-' + currentEditMsgId);
+                if (row) {
+                    const textEl = row.querySelector('p.whitespace-pre-wrap');
+                    if (textEl) textEl.textContent = data.new_text;
+                    // Add edited indicator
+                    if (!row.querySelector('.edited-label')) {
+                        const editedSpan = document.createElement('span');
+                        editedSpan.className = 'edited-label text-[9px] text-gray-400 italic ml-1';
+                        editedSpan.textContent = 'edited';
+                        const timeDiv = row.querySelector('.flex.items-center.justify-end.gap-1');
+                        if (timeDiv) timeDiv.prepend(editedSpan);
+                    }
+                }
+                closeEditModal();
+            } else {
+                alert(data.error || 'Failed to edit message');
+            }
+        }).catch(() => alert('Network error while editing message'));
+    }
+
+    // Listen for real-time edit events
+    socket.on('message_edited', function(data) {
+        if (!data || !data.message_id) return;
+        const row = document.getElementById('msg-row-' + data.message_id);
+        if (row) {
+            const textEl = row.querySelector('p.whitespace-pre-wrap');
+            if (textEl) textEl.textContent = data.new_text || '';
+            if (!row.querySelector('.edited-label')) {
+                const editedSpan = document.createElement('span');
+                editedSpan.className = 'edited-label text-[9px] text-gray-400 italic ml-1';
+                editedSpan.textContent = 'edited';
+                const timeDiv = row.querySelector('.flex.items-center.justify-end.gap-1');
+                if (timeDiv) timeDiv.prepend(editedSpan);
+            }
+        }
+    });
+
+    function getCSRFToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) return meta.getAttribute('content');
+        const cookie = document.cookie.split('; ').find(r => r.startsWith('csrf_token='));
+        if (cookie) return cookie.split('=')[1];
+        return '';
+    }
+    // ---- End Chat Action Functions ----
+
+    function deleteMessage(msgId) {
+        if (!confirm('Delete this message?')) return;
+        fetch('/client/chat/message/' + msgId + '/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() }
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                const row = document.getElementById('msg-row-' + msgId);
+                if (row) {
+                    const bubble = row.querySelector('.relative');
+                    if (bubble) {
+                        const textEl = bubble.querySelector('p.whitespace-pre-wrap');
+                        if (textEl) {
+                            textEl.textContent = 'This message was deleted';
+                            textEl.classList.add('italic', 'text-gray-400', 'dark:text-gray-500');
+                        }
+                        // Hide action menu
+                        const menu = bubble.querySelector('[data-msg-menu]');
+                        if (menu) menu.style.display = 'none';
+                    }
+                }
+            }
+        }).catch(() => {
+            socket.emit('delete_message', { message_id: msgId });
+        });
+    }
+
+    // Handle incoming chat message from Socket.IO
+    socket.on('chat_message', function(data) {
+        const fromId = parseInt(data.from || data.sender_id);
+        if (partnerId && fromId === partnerId) {
+            const timeStr = data.timestamp || 'Just now';
+            appendMessageBubble(data.msg || data.message || '', false, timeStr, data.voice_url, data.id, data);
+        }
+    });
+
+    // Handle deleted message
+    socket.on('message_deleted', function(data) {
+        if (!data || !data.message_id) return;
+        const row = document.getElementById('msg-row-' + data.message_id);
+        if (row) {
+            row.remove();
+        }
+    });
+
+
+    // Real-time online status updates
+    socket.on('user_status', function(data) {
+        if (!data || typeof data.user_id === 'undefined') return;
+        const uid = parseInt(data.user_id);
+        const isOnline = !!data.online;
+
+        // Update presence dot in contact list
+        const dots = document.querySelectorAll(`[data-user-status-dot="${uid}"]`);
+        dots.forEach(function(dot) {
+            if (isOnline) {
+                dot.classList.remove('bg-gray-400');
+                dot.classList.add('bg-[#25d366]');
+            } else {
+                dot.classList.remove('bg-[#25d366]');
+                dot.classList.add('bg-gray-400');
+            }
+        });
+
+        // Update header status if this is active partner
+        if (partnerId && uid === partnerId) {
+            const hDot = document.getElementById('headerStatusDot');
+            const hText = document.getElementById('headerStatusText');
+            if (hDot && hText) {
+                if (isOnline) {
+                    hDot.className = 'w-1.5 h-1.5 rounded-full bg-[#25d366] shrink-0 transition-colors';
+                    hText.className = 'text-[#00a884] dark:text-[#25d366]';
+                    hText.textContent = 'online';
+                } else {
+                    hDot.className = 'w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0 transition-colors';
+                    hText.className = 'text-gray-500 dark:text-gray-400';
+                    hText.textContent = 'offline';
+                }
+            }
+        }
+    });
+
+    if (partnerId) {
+        socket.emit('check_user_status', { target_user_id: partnerId });
+        // Mark messages as read when chat opens
+        socket.emit('mark_read', { partner_id: partnerId });
+    }
+
+    // Two-tick read receipt: update single <svg class="w-3.5 h-3.5 inline-block text-gray-400" viewBox="0 0 16 16" fill="currentColor"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg> to double <svg class="w-4 h-4 inline-block text-[#53bdeb]" viewBox="0 0 16 16" fill="currentColor"><path d="M12.354 4.354a.5.5 0 0 0-.708-.708L5 10.293 1.854 7.146a.5.5 0 1 0-.708.708l3.5 3.5a.5.5 0 0 0 .708 0l7-7zm-4 0a.5.5 0 0 0-.708-.708L2 9.293l.708.708 5.646-5.647z"/><path d="M15.354 4.354a.5.5 0 0 0-.708-.708L8 10.293l.708.708 6.646-6.647z"/></svg> when partner reads
+    socket.on('messages_read', function(data) {
+        if (data && partnerId && parseInt(data.by_user) === partnerId) {
+            document.querySelectorAll('.tick-single').forEach(function(el) {
+                el.classList.remove('tick-single', 'text-gray-400');
+                el.classList.add('tick-double', 'text-[#53bdeb]');
+                el.innerHTML = '<svg class="w-4 h-4 inline-block text-[#53bdeb]" viewBox="0 0 16 16" fill="currentColor"><path d="M12.354 4.354a.5.5 0 0 0-.708-.708L5 10.293 1.854 7.146a.5.5 0 1 0-.708.708l3.5 3.5a.5.5 0 0 0 .708 0l7-7zm-4 0a.5.5 0 0 0-.708-.708L2 9.293l.708.708 5.646-5.647z"/><path d="M15.354 4.354a.5.5 0 0 0-.708-.708L8 10.293l.708.708 6.646-6.647z"/></svg>';
+            });
+        }
+    });
+
+    // When incoming message arrives, mark it as read immediately (we're looking at this chat)
+    socket.on('chat_message', function(data) {
+        const fromId = parseInt(data.from || data.sender_id);
+        if (partnerId && fromId === partnerId) {
+            socket.emit('mark_read', { partner_id: partnerId });
+        }
+    });
+
+    // Voice recording — Squad Feed pattern (sendOnStop flag, timer, cancel/send)
+    var mediaRecorder = null;
+    var audioChunks = [];
+    var recordingTimer = null;
+    var recordingSeconds = 0;
+    var audioStream = null;
+
+    function toggleVoiceRecording() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            stopAndSendVoice();
+        } else {
+            startVoiceRecording();
+        }
+    }
+
+    async function startVoiceRecording() {
+        if (!partnerId) {
+            alert('Please select a contact to send a voice note.');
+            return;
+        }
+        try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Your browser does not support audio recording.');
+                return;
+            }
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(audioStream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) audioChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = async function() {
+                if (audioStream) {
+                    audioStream.getTracks().forEach(function(t) { t.stop(); });
+                    audioStream = null;
+                }
+                if (mediaRecorder.sendOnStop && audioChunks.length > 0) {
+                    var mime = (audioChunks[0] && audioChunks[0].type) ? audioChunks[0].type : 'audio/webm';
+                    var audioBlob = new Blob(audioChunks, { type: mime });
+                    await uploadVoiceBlob(audioBlob);
+                }
+            };
+
+            mediaRecorder.sendOnStop = true;
+            mediaRecorder.start();
+
+            recordingSeconds = 0;
+            document.getElementById('recordingTimer').textContent = '00:00';
+            document.getElementById('voiceRecordingBar').classList.remove('hidden');
+            document.getElementById('recordVoiceBtn').classList.add('text-red-600', 'animate-pulse');
+            recordingTimer = setInterval(function() {
+                recordingSeconds++;
+                var mins = String(Math.floor(recordingSeconds / 60)).padStart(2, '0');
+                var secs = String(recordingSeconds % 60).padStart(2, '0');
+                document.getElementById('recordingTimer').textContent = mins + ':' + secs;
+            }, 1000);
+        } catch (err) {
+            console.error('Microphone error:', err);
+            alert('Microphone access is required to record voice notes: ' + (err.message || err));
+        }
+    }
+
+    function stopAndSendVoice() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            clearInterval(recordingTimer);
+            document.getElementById('voiceRecordingBar').classList.add('hidden');
+            document.getElementById('recordVoiceBtn').classList.remove('text-red-600', 'animate-pulse');
+            mediaRecorder.sendOnStop = true;
+            mediaRecorder.stop();
+        }
+    }
+
+    function cancelVoiceRecording() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            clearInterval(recordingTimer);
+            document.getElementById('voiceRecordingBar').classList.add('hidden');
+            document.getElementById('recordVoiceBtn').classList.remove('text-red-600', 'animate-pulse');
+            mediaRecorder.sendOnStop = false;
+            mediaRecorder.stop();
+        }
+    }
+
+    async function uploadVoiceBlob(blob) {
+        var form = new FormData();
+        form.append('voice', blob, 'voice_message.webm');
+        form.append('receiver_id', partnerId);
+        try {
+            var res = await fetch('/client/upload-voice', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: form
+            });
+            var data = await res.json();
+            if (data.success && data.url) {
+                var now = new Date();
+                var timeStr = data.timestamp || (now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0'));
+                appendMessageBubble('[Voice Message]', true, timeStr, data.url);
+            } else {
+                alert(data.error || 'Voice message upload failed.');
+            }
+        } catch (e) {
+            console.error('Voice upload error:', e);
+            alert('Error uploading voice message.');
+        }
+    }
+
+    function filterContacts() {
+        const query = document.getElementById('coachSearchInput').value.toLowerCase();
+        const items = document.querySelectorAll('.coach-item');
+        items.forEach(item => {
+            const name = item.querySelector('.coach-name') ? item.querySelector('.coach-name').textContent.toLowerCase() : '';
+            const preview = item.querySelector('.coach-preview') ? item.querySelector('.coach-preview').textContent.toLowerCase() : '';
+            if (name.includes(query) || preview.includes(query)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    function openUserSearchModal() {
+        document.getElementById('userSearchModal').classList.remove('hidden');
+        document.getElementById('liveUserQuery').focus();
+    }
+
+    function closeUserSearchModal() {
+        document.getElementById('userSearchModal').classList.add('hidden');
+    }
+
+    let searchTimer = null;
+    function performLiveUserSearch() {
+        clearTimeout(searchTimer);
+        const query = document.getElementById('liveUserQuery').value.trim();
+        const container = document.getElementById('userSearchResults');
+        if (!query) {
+            container.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">Start typing above to search coaches and athletes...</p>';
+            return;
+        }
+        searchTimer = setTimeout(() => {
+            fetch(`/client/chat/search-users?q=${encodeURIComponent(query)}`)
+                .then(r => r.json())
+                .then(users => {
+                    if (!users.length) {
+                        container.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">No coaches or athletes found.</p>';
+                        return;
+                    }
+                    container.innerHTML = users.map(u => `
+                        <a href="${u.chat_url}" class="flex items-center justify-between p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-[#202c33] transition border border-gray-100 dark:border-gray-800">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 font-bold text-xs flex items-center justify-center shrink-0">
+                                    ${u.avatar}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-bold text-gray-900 dark:text-white truncate">${u.name}</p>
+                                    <p class="text-[10px] text-gray-400 truncate">${u.role}</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-bold text-[#00a884] shrink-0 ml-2">Chat &rarr;</span>
+                        </a>
+                    `).join('');
+                })
+                .catch(() => {
+                    container.innerHTML = '<p class="text-center text-xs text-red-400 py-4">Failed to search users.</p>';
+                });
+        }, 250);
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Auto-close DM when scout request is closed
+    socket.on('scout_closed', function(data) {
+        if (!data) return;
+        // If the client's own scout post was closed, or if partner was a scout negotiation
+        if (data.client_id === {{ current_user.client_profile.id if current_user.client_profile else 'null' }} || data.user_id === partnerId) {
+            alert('The marketplace scout thread has been closed. Redirecting...');
+            window.location.href = "{{ url_for('client.chat') }}";
+        }
+    });
+
+    // Notify client when admin closes the support DM
+    socket.on('support_chat_closed', function(data) {
+        if (!data) return;
+        var supportAdminId = {{ support_admin_id or 'null' }};
+        if (supportAdminId !== null && partnerId !== null && partnerId === supportAdminId) {
+            showToastNotification('The Kentaro support team has closed this conversation.', 'Support Chat Closed', 'info');
+            window.location.href = "{{ url_for('client.chat') }}?view=contacts";
+        } else {
+            window.location.reload();
+        }
+    });
+</script>
+
+    <!-- Contact Support Ticket Modal -->
+    <div id="startSupportModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-[#111b21] border border-gray-200 dark:border-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl"></span>
+                    <div>
+                        <h3 class="text-base font-black text-gray-900 dark:text-gray-100">Contact Kentaro Support</h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Submit a support request to open a direct assistance ticket.</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeStartSupportModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg">✕</button>
+            </div>
+            <form action="{{ url_for('support.create_ticket') }}" method="POST" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Subject</label>
+                    <input type="text" name="subject" required placeholder="e.g., Billing question, Technical issue, Account help" 
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#202c33] text-gray-900 dark:text-gray-100 text-xs focus:ring-1 focus:ring-[#00a884] focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">How can we help you?</label>
+                    <textarea name="description" rows="4" required placeholder="Describe what you need assistance with in detail..." 
+                              class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#202c33] text-gray-900 dark:text-gray-100 text-xs focus:ring-1 focus:ring-[#00a884] focus:outline-none"></textarea>
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeStartSupportModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition shadow-sm flex items-center gap-1.5">
+                        <span>Open Support Ticket</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openStartSupportModal() {
+            var modal = document.getElementById('startSupportModal');
+            if (modal) modal.classList.remove('hidden');
+        }
+        function closeStartSupportModal() {
+            var modal = document.getElementById('startSupportModal');
+            if (modal) modal.classList.add('hidden');
+        }
+    </script>
+
+<!-- Client Program Offer Preview Modal -->
+<div id="clientOfferPreviewModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-3xl max-w-lg w-full p-6 border border-gray-200 dark:border-gray-800 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800 mb-4">
+            <div>
+                <span class="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Coaching Program Proposal</span>
+                <h3 id="prevOfferTitle" class="text-base font-black text-gray-900 dark:text-gray-100"></h3>
+            </div>
+            <button onclick="document.getElementById('clientOfferPreviewModal').classList.add('hidden')" class="p-1 rounded-xl text-gray-400 hover:text-black dark:hover:text-white">✕</button>
+        </div>
+
+        <div class="space-y-4 text-xs">
+            <!-- Summary Grid -->
+            <div class="grid grid-cols-3 gap-2 bg-gray-50 dark:bg-gray-800/60 p-3 rounded-2xl">
+                <div>
+                    <span class="text-[9px] text-gray-400 uppercase font-bold">Coach</span>
+                    <p id="prevOfferCoach" class="font-bold text-gray-900 dark:text-gray-100"></p>
+                </div>
+                <div>
+                    <span class="text-[9px] text-gray-400 uppercase font-bold">Duration</span>
+                    <p id="prevOfferDuration" class="font-bold text-gray-900 dark:text-gray-100"></p>
+                </div>
+                <div>
+                    <span class="text-[9px] text-gray-400 uppercase font-bold">Price</span>
+                    <p id="prevOfferPrice" class="font-black text-emerald-600 dark:text-emerald-400"></p>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">Description</h4>
+                <p id="prevOfferDesc" class="text-gray-700 dark:text-gray-300 leading-relaxed"></p>
+            </div>
+
+            <div id="prevOfferGoalsBox">
+                <h4 class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">Target Goals &amp; Instructions</h4>
+                <p id="prevOfferGoals" class="text-gray-700 dark:text-gray-300 leading-relaxed"></p>
+            </div>
+
+            <!-- Workouts Breakdown -->
+            <div>
+                <h4 class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-2">Program Workout Structure</h4>
+                <div id="prevOfferWorkouts" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- Actions: Accept / Decline -->
+            <div id="prevOfferActions" class="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center gap-3">
+                <button type="button" onclick="declineOfferAction()" class="flex-1 py-2.5 rounded-xl border border-red-200 dark:border-red-900/60 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 font-bold transition">
+                    Decline Offer
+                </button>
+                <button type="button" onclick="acceptOfferAction()" class="flex-1 py-2.5 rounded-xl bg-[#00a884] hover:bg-[#008f6f] text-white font-black shadow-sm transition">
+                    Accept &amp; Continue to Payment →
+                </button>
+            </div>
+            <div id="prevOfferStatusNotice" class="hidden text-center py-2 text-xs font-bold"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+var currentViewingOfferId = null;
+
+function openClientOfferPreviewModal(offerId) {
+    if (!offerId) return;
+    currentViewingOfferId = offerId;
+    fetch('/client/marketplace/offer/' + offerId + '/preview')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.ok) {
+                alert(data.error || 'Failed to load offer preview');
+                return;
+            }
+            var o = data.offer;
+            document.getElementById('prevOfferTitle').textContent = o.title;
+            document.getElementById('prevOfferCoach').textContent = o.coach_name;
+            document.getElementById('prevOfferDuration').textContent = o.duration_weeks + ' Weeks';
+            document.getElementById('prevOfferPrice').textContent = o.currency + ' ' + parseFloat(o.amount).toFixed(2);
+            document.getElementById('prevOfferDesc').textContent = o.description || 'Custom tailored workout program.';
+            document.getElementById('prevOfferGoals').textContent = (o.goals || '') + (o.instructions ? ' • ' + o.instructions : '');
+
+            var wContainer = document.getElementById('prevOfferWorkouts');
+            wContainer.innerHTML = '';
+            if (o.workouts && o.workouts.length > 0) {
+                o.workouts.forEach(function(w) {
+                    var el = document.createElement('div');
+                    el.className = 'p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-100 dark:border-gray-800';
+                    var exList = w.exercises && w.exercises.length > 0 ? w.exercises.map(function(e) { return e.name + ' (' + e.sets + 'x' + e.reps + ')'; }).join(', ') : 'Routine planned';
+                    el.innerHTML = '<div class="font-bold text-gray-900 dark:text-gray-100">' + (w.workout_name || 'Workout') + ' <span class="text-[10px] text-gray-400 font-normal">(' + (w.day_name || '') + ')</span></div><div class="text-[10px] text-gray-500 mt-0.5">' + exList + '</div>';
+                    wContainer.appendChild(el);
+                });
+            } else {
+                wContainer.innerHTML = '<p class="text-gray-400 italic">Full workout exercises will be unlocked in your dashboard upon payment.</p>';
+            }
+
+            var actions = document.getElementById('prevOfferActions');
+            var notice = document.getElementById('prevOfferStatusNotice');
+            if (o.status === 'paid') {
+                actions.classList.add('hidden');
+                notice.classList.remove('hidden');
+                notice.className = 'text-center py-2 text-xs font-bold text-emerald-600';
+                notice.textContent = '✓ This program offer has been paid and is active in your dashboard.';
+            } else if (o.status === 'declined') {
+                actions.classList.add('hidden');
+                notice.classList.remove('hidden');
+                notice.className = 'text-center py-2 text-xs font-bold text-red-500';
+                notice.textContent = '✕ This program offer was declined.';
+            } else {
+                actions.classList.remove('hidden');
+                notice.classList.add('hidden');
+            }
+
+            document.getElementById('clientOfferPreviewModal').classList.remove('hidden');
+        })
+        .catch(function(err) {
+            console.error('Error loading offer:', err);
+        });
+}
+
+function acceptOfferAction() {
+    if (!currentViewingOfferId) return;
+    fetch('/client/marketplace/offer/' + currentViewingOfferId + '/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok && data.checkout_url) {
+            window.location.href = data.checkout_url;
+        } else {
+            alert(data.error || 'Failed to accept offer');
+        }
+    });
+}
+
+function declineOfferAction() {
+    if (!currentViewingOfferId || !confirm('Are you sure you want to decline this custom program offer?')) return;
+    fetch('/client/marketplace/offer/' + currentViewingOfferId + '/decline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok) {
+            document.getElementById('clientOfferPreviewModal').classList.add('hidden');
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to decline offer');
+        }
+    });
+}
+</script>
+{% endblock %}

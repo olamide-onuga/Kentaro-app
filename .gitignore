@@ -1,0 +1,61 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Byte-compiled / Python files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# SQLite databases & local data
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+instance/
+instance/*
+!instance/.gitkeep
+
+# Uploads directory (user generated content in production)
+app/static/uploads/videos/*
+app/static/uploads/photos/*
+app/static/uploads/form_checks/*
+!app/static/uploads/.gitkeep
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Testing & Logs
+.pytest_cache/
+*.log

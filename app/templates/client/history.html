@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <h1 class="text-3xl font-bold">Workout History</h1>
+    <a href="{{ url_for('client.dashboard') }}" class="text-blue-600 hover:underline">&larr; Dashboard</a>
+</div>
+
+{% if completions %}
+<div class="space-y-3">
+    {% for c in completions %}
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-lg p-5 flex justify-between items-center">
+        <div>
+            <h3 class="font-bold text-lg">{{ c.workout.name }}</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ c.completed_at.strftime('%A, %B %d, %Y') }}</p>
+            {% if c.client_notes %}
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1 italic">"{{ c.client_notes }}"</p>
+            {% endif %}
+        </div>
+        {% if c.perceived_effort %}
+        <div class="text-center">
+            <p class="text-2xl font-black">{{ c.perceived_effort }}/10</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500">RPE</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-gray-50 dark:bg-gray-950 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-12 text-center text-gray-500 dark:text-gray-400">
+    <p>No workouts completed yet. Start your first workout today!</p>
+</div>
+{% endif %}
+{% endblock %}

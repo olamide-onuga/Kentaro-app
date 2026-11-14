@@ -1,0 +1,364 @@
+{% extends "admin/layout.html" %}
+{% block title %}Platform Analytics &amp; Business Intelligence - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-8">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/60">
+                    Business Intelligence
+                </span>
+                <span class="text-xs text-gray-400 font-mono">Platform Metrics</span>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                Platform Analytics 📈
+            </h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Deep-dive operational metrics, subscriber breakdowns, athlete engagement, and growth trajectories.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <a href="{{ url_for('admin.analytics_data') }}" target="_blank"
+               class="px-3.5 py-2 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-xs font-mono font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                JSON API Feed { }
+            </a>
+        </div>
+    </div>
+
+    <!-- Core KPI Ribbon -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total Users</span>
+            <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">{{ total_users }}</div>
+            <span class="text-[11px] text-gray-400 font-mono block mt-1">{{ coaches_count }} Coaches • {{ clients_count }} Athletes</span>
+        </div>
+
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Active Subscriptions</span>
+            <div class="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{{ active_subs }}</div>
+            <span class="text-[11px] text-gray-400 font-mono block mt-1">{{ total_contracts }} Client Contracts</span>
+        </div>
+
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Workouts Logged</span>
+            <div class="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400 mt-1">{{ total_workouts }}</div>
+            <span class="text-[11px] text-gray-400 font-mono block mt-1">{{ total_check_ins }} Weekly Check-Ins</span>
+        </div>
+
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">Appointments Booked</span>
+            <div class="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-400 mt-1">{{ total_appointments }}</div>
+            <span class="text-[11px] text-gray-400 font-mono block mt-1">1-on-1 Sessions</span>
+        </div>
+    </div>
+
+    <!-- Chart 1: 30-Day Registration Trend -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-7 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <div>
+                <h2 class="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <span>📈</span> 30-Day Growth Trend
+                </h2>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Daily user onboarding curve comparing coaches and athletes.
+                </p>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-semibold">
+                <span class="flex items-center gap-1.5 text-red-600">
+                    <span class="w-3 h-3 rounded-full bg-red-600"></span> Total Users
+                </span>
+                <span class="flex items-center gap-1.5 text-blue-600">
+                    <span class="w-3 h-3 rounded-full bg-blue-500"></span> Coaches
+                </span>
+                <span class="flex items-center gap-1.5 text-emerald-600">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500"></span> Athletes
+                </span>
+            </div>
+        </div>
+
+        <div class="relative w-full h-72 sm:h-80">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Charts Row: Subscriptions Distribution & Role Breakdown -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Chart 2: Subscriptions Status Distribution -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
+            <div class="mb-4">
+                <h3 class="text-base font-extrabold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <span>💎</span> Coach Subscription Distribution
+                </h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Breakdown of active, cancelled, expired, and free-tier coaches.
+                </p>
+            </div>
+
+            <div class="relative w-full h-64 flex items-center justify-center">
+                <canvas id="subscriptionChart"></canvas>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-4 border-t border-gray-100 dark:border-gray-900 text-center text-xs font-mono">
+                <div>
+                    <span class="text-[10px] text-gray-400 uppercase block">Active</span>
+                    <strong class="text-emerald-600 dark:text-emerald-400">{{ active_subs }}</strong>
+                </div>
+                <div>
+                    <span class="text-[10px] text-gray-400 uppercase block">Cancelled</span>
+                    <strong class="text-amber-500">{{ cancelled_subs }}</strong>
+                </div>
+                <div>
+                    <span class="text-[10px] text-gray-400 uppercase block">Expired</span>
+                    <strong class="text-red-500">{{ expired_subs }}</strong>
+                </div>
+                <div>
+                    <span class="text-[10px] text-gray-400 uppercase block">Free / None</span>
+                    <strong class="text-gray-500">{{ free_or_no_sub }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart 3: Platform Role Distribution -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-7 shadow-sm flex flex-col justify-between">
+            <div class="mb-4">
+                <h3 class="text-base font-extrabold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <span>👥</span> User Role Breakdown
+                </h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Coach vs Athlete vs Administrator proportions.
+                </p>
+            </div>
+
+            <div class="relative w-full h-64 flex items-center justify-center">
+                <canvas id="roleRatioChart"></canvas>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100 dark:border-gray-900 text-center text-xs font-mono">
+                <div>
+                    <span class="text-[10px] text-gray-400 uppercase block">Coaches</span>
+                    <strong class="text-blue-600 dark:text-blue-400">{{ coaches_count }}</strong>
+                </div>
+                <div>
+                    <span class="text-[10px] text-gray-400 uppercase block">Athletes</span>
+                    <strong class="text-emerald-600 dark:text-emerald-400">{{ clients_count }}</strong>
+                </div>
+                <div>
+                    <span class="text-[10px] text-gray-400 uppercase block">Admins</span>
+                    <strong class="text-purple-600 dark:text-purple-400">{{ admins_count }}</strong>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Chart 4 & Leaderboard Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Chart 4: Monthly New Users (12 Months Bar Chart) - 2 cols -->
+        <div class="lg:col-span-2 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-7 shadow-sm">
+            <div class="mb-5">
+                <h3 class="text-base font-extrabold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                    <span>📊</span> Monthly Registrations (Last 12 Months)
+                </h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Historical volume of new platform accounts per month.
+                </p>
+            </div>
+
+            <div class="relative w-full h-64 sm:h-72">
+                <canvas id="monthlyUsersChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Leaderboard: Top Coaches by Athletes - 1 col -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+            <div>
+                <h3 class="text-sm font-extrabold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <span>🏅</span> Top Coaches by Athletes
+                </h3>
+
+                {% if top_coaches %}
+                <div class="space-y-3">
+                    {% for item in top_coaches %}
+                    {% set c = item[0] %}
+                    {% set count = item[1] %}
+                    <div class="flex items-center justify-between p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 text-xs">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="w-6 h-6 rounded-xl bg-black dark:bg-white text-white dark:text-black font-extrabold flex items-center justify-center text-[10px] shrink-0">
+                                {{ loop.index }}
+                            </span>
+                            <div class="truncate">
+                                <a href="{{ url_for('admin.coach_detail', coach_id=c.id) }}" class="font-bold text-gray-900 dark:text-gray-100 hover:underline truncate block">
+                                    Coach {{ c.first_name }} {{ c.last_name }}
+                                </a>
+                                <span class="text-[10px] text-gray-400">{{ c.specialization or 'Fitness Coach' }}</span>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-mono font-bold text-[11px] shrink-0">
+                            {{ count }} client{% if count != 1 %}s{% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-xs text-gray-400 py-6 text-center">No coaches have registered clients yet.</p>
+                {% endif %}
+            </div>
+
+            <div class="pt-4 border-t border-gray-100 dark:border-gray-900">
+                <a href="{{ url_for('admin.coaches') }}" class="block text-center text-xs font-bold text-red-600 dark:text-red-400 hover:underline">
+                    View All Coaches Directory &rarr;
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Chart.js CDN & Analytics Initialization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isDark = document.documentElement.classList.contains('dark');
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+    const textColor = isDark ? '#A3A3A3' : '#737373';
+
+    // 1. 30-Day Trend
+    const ctxTrend = document.getElementById('trendChart');
+    if (ctxTrend) {
+        new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: {{ trend_labels|tojson }},
+                datasets: [
+                    {
+                        label: 'Total Users',
+                        data: {{ users_trend|tojson }},
+                        borderColor: '#D90416',
+                        backgroundColor: 'rgba(217, 4, 22, 0.1)',
+                        borderWidth: 2.5,
+                        tension: 0.35,
+                        fill: true,
+                        pointRadius: 2
+                    },
+                    {
+                        label: 'Coaches',
+                        data: {{ coaches_trend|tojson }},
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.35,
+                        pointRadius: 2
+                    },
+                    {
+                        label: 'Athletes',
+                        data: {{ clients_trend|tojson }},
+                        borderColor: '#10B981',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.35,
+                        pointRadius: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, maxTicksLimit: 10 } },
+                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, stepSize: 1 } }
+                }
+            }
+        });
+    }
+
+    // 2. Subscription Distribution Doughnut
+    const ctxSub = document.getElementById('subscriptionChart');
+    if (ctxSub) {
+        new Chart(ctxSub, {
+            type: 'doughnut',
+            data: {
+                labels: ['Active', 'Cancelled', 'Expired', 'Free / None'],
+                datasets: [{
+                    data: [{{ active_subs }}, {{ cancelled_subs }}, {{ expired_subs }}, {{ free_or_no_sub }}],
+                    backgroundColor: ['#10B981', '#F59E0B', '#EF4444', '#6B7280'],
+                    borderWidth: 2,
+                    borderColor: isDark ? '#171717' : '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: textColor, font: { size: 11 }, boxWidth: 12 }
+                    }
+                },
+                cutout: '65%'
+            }
+        });
+    }
+
+    // 3. Role Ratio Pie
+    const ctxRole = document.getElementById('roleRatioChart');
+    if (ctxRole) {
+        new Chart(ctxRole, {
+            type: 'pie',
+            data: {
+                labels: ['Coaches', 'Athletes', 'Admins'],
+                datasets: [{
+                    data: [{{ coaches_count }}, {{ clients_count }}, {{ admins_count }}],
+                    backgroundColor: ['#3B82F6', '#10B981', '#8B5CF6'],
+                    borderWidth: 2,
+                    borderColor: isDark ? '#171717' : '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: textColor, font: { size: 11 }, boxWidth: 12 }
+                    }
+                }
+            }
+        });
+    }
+
+    // 4. Monthly Registrations Bar
+    const ctxMonthly = document.getElementById('monthlyUsersChart');
+    if (ctxMonthly) {
+        new Chart(ctxMonthly, {
+            type: 'bar',
+            data: {
+                labels: {{ monthly_labels|tojson }},
+                datasets: [{
+                    label: 'New Registrations',
+                    data: {{ monthly_users|tojson }},
+                    backgroundColor: '#D90416',
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: textColor, font: { size: 10 } } },
+                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 }, stepSize: 1 } }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

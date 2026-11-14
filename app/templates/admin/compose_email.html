@@ -1,0 +1,79 @@
+{% extends "admin/layout.html" %}
+{% block title %}Compose Email - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-2xl mx-auto space-y-6 pb-10">
+
+    <div class="flex items-center justify-between">
+        <div>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900">Administrator</span>
+            <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100 mt-1">Compose Email ✉️</h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Send a direct email to any user on the platform.</p>
+        </div>
+        <a href="{{ url_for('admin.dashboard') }}" class="text-xs font-semibold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition">← Back</a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, msg in messages %}
+    <div class="px-4 py-3 rounded-xl text-sm font-medium {% if category == 'success' %}bg-green-50 text-green-800 border border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900{% else %}bg-red-50 text-red-800 border border-red-200{% endif %}">
+        {{ msg }}
+    </div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm">
+        <form method="POST" class="space-y-5">
+
+            <!-- Recipient -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Select User (auto-fill email)</label>
+                    <select id="userSelect" onchange="document.getElementById('toEmail').value = this.options[this.selectedIndex].dataset.email || ''"
+                            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                        <option value="">— Or type email manually →</option>
+                        {% for u in users %}
+                        <option value="{{ u.id }}" data-email="{{ u.email }}">{{ u.email }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">To Email <span class="text-red-500">*</span></label>
+                    <input type="email" id="toEmail" name="to_email" required placeholder="recipient@example.com"
+                           class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                </div>
+            </div>
+
+            <!-- Subject -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Subject <span class="text-red-500">*</span></label>
+                <input type="text" name="subject" required placeholder="Email subject..."
+                       class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+            </div>
+
+            <!-- Body -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Message Body <span class="text-red-500">*</span></label>
+                <textarea name="body" rows="8" required placeholder="Write your message here. Line breaks will be preserved."
+                          class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white resize-y"></textarea>
+                <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">Email is sent from the platform's configured mail server. A Kentaro signature is auto-appended.</p>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-2">
+                <a href="{{ url_for('admin.dashboard') }}" class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition">Cancel</a>
+                <button type="submit" class="px-6 py-2.5 rounded-xl btn-primary-red text-white text-xs font-extrabold shadow-xs transition">
+                    ✉️ Send Email
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Quick links for common admin email actions -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Other Admin Tools</p>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ url_for('admin.send_anonymous_dm') }}" class="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition"> Send Anonymous DM</a>
+            <a href="{{ url_for('admin.users') }}" class="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition">👥 Manage Users</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

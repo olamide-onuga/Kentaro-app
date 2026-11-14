@@ -1,0 +1,624 @@
+﻿{% extends "base.html" %}
+{% block title %}My Dashboard - Kentaro{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  
+  
+</div>
+<div class="space-y-6 pb-10">
+
+    <!-- Welcome Header -->
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">Athlete Portal</p>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+                Hey{% if profile and profile.first_name %}, {{ profile.first_name }}{% endif %}!
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Here's how your coaching journey is going.
+            </p>
+        </div>
+
+        <!-- Action buttons -->
+        {% if profile and profile.coach %}
+        <div class="flex flex-wrap gap-2 mt-1">
+            <a href="{{ url_for('client.chat') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                Messages
+            </a>
+            <a href="{{ url_for('client.book_session') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Book Call
+            </a>
+            <button onclick="document.getElementById('clientTerminateModal').classList.remove('hidden')"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-xs font-semibold hover:bg-red-100 transition">
+                End Contract
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Profile incomplete banner -->
+    {% if not profile or not profile.is_complete %}
+    <div class="flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+        <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <p class="text-xs text-amber-800 dark:text-amber-200">
+            Your athlete profile is incomplete.
+            <a href="{{ url_for('client.profile') }}" class="font-bold underline ml-1">Complete it now &rarr;</a>
+        </p>
+    </div>
+{% endif %}
+    
+
+    <!-- â•â•â• MAIN DASHBOARD â•â•â• -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        <!-- LEFT: Main content (2 cols) -->
+        <div class="lg:col-span-2 space-y-5">
+
+            {% if not profile or not profile.coach %}
+                {% if active_post %}
+                <div class="rounded-3xl bg-neutral-900 border border-neutral-800 p-6 shadow-sm text-white space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Active Marketplace Request
+                        </span>
+                        <span class="text-xs text-neutral-400">{{ active_post.created_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-800 text-neutral-300">{{ active_post.specialization }}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-800 text-neutral-300">{{ active_post.skill_level }}</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">{{ active_post.title }}</h3>
+                        <p class="text-xs text-neutral-300 mt-1 line-clamp-2 leading-relaxed">{{ active_post.goal }}</p>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-neutral-800 text-xs">
+                        <span class="font-extrabold text-emerald-400">Budget: {{ active_post.budget_display }}</span>
+                        <a href="{{ url_for('client.marketplace') }}" class="px-4 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-neutral-200 transition">
+                            View Request &amp; Offers &rarr;
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <div class="rounded-3xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 shadow-sm">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <span class="inline-block px-2.5 py-1 rounded-md bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-[10px] font-extrabold uppercase tracking-wider mb-2">Find a Coach</span>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">Post a Request in the Marketplace</h2>
+                            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1 max-w-md">
+                                Tell coaches what skills you are working on, your struggles, and your custom budget. Certified coaches will review and send custom proposals.
+                            </p>
+                        </div>
+                        <a href="{{ url_for('client.marketplace') }}" class="px-5 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-extrabold text-xs shadow transition whitespace-nowrap">
+                            Post Request &rarr;
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
+
+                        <!-- Contract Termination Approval Request Card -->
+            {% set pending_termination = none %}
+            {% if profile and profile.contracts %}
+              {% for c in profile.contracts %}
+                {% if c.status == 'active' and c.termination_status == 'pending_client_approval' %}
+                  {% set pending_termination = c %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+
+            {% if pending_termination %}
+            <div class="rounded-3xl bg-gradient-to-r from-red-500/10 via-orange-500/10 to-red-600/10 border-2 border-red-500/40 p-6 shadow-md space-y-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">âš ï¸</span>
+                    <h3 class="text-lg font-black text-gray-900 dark:text-gray-100">Contract Termination Request</h3>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Your coach has requested to end your coaching contract.</p>
+                {% if pending_termination.termination_reason %}
+                <p class="text-sm text-gray-800 dark:text-gray-200"><strong>Reason:</strong> {{ pending_termination.termination_reason }}</p>
+                {% endif %}
+                <div class="flex gap-3 pt-1">
+                    <form method="POST" action="{{ url_for('client.approve_contract_termination') }}">
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition shadow-sm">
+                            Approve Termination
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('client.decline_contract_termination') }}">
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-bold text-xs hover:bg-gray-300 dark:hover:bg-gray-700 transition">
+                            Decline
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Pending Custom Negotiated Offers -->
+            {% if pending_offers %}
+            {% for offer in pending_offers %}
+            <div class="rounded-3xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-600/10 border-2 border-emerald-500/40 p-6 shadow-md space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider mb-1">
+                            Custom Budget Offer from Coach {{ offer.coach.first_name }}
+                        </div>
+                        <h3 class="text-lg font-black text-gray-900 dark:text-gray-100">{{ offer.title }}</h3>
+                        <p class="text-xs text-gray-600 dark:text-gray-400 mt-1 max-w-lg">
+                            {{ offer.description or 'Custom calisthenics coaching plan tailored to your budget.' }}
+                        </p>
+                    </div>
+                    <div class="text-left sm:text-right shrink-0">
+                        <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                            {{ offer.currency or 'USD' }} {{ offer.amount | money }}
+                        </div>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">{{ offer.duration_weeks }}-Week Coaching Access</span>
+                        <a href="{{ url_for('client.checkout_offer', offer_id=offer.id) }}"
+                           class="mt-3 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs shadow transition whitespace-nowrap inline-flex items-center gap-1.5">
+                            <span>Pay & Accept Offer</span> &rarr;
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Contract / time remaining banner (only shown when contract is active and not ended) -->
+            {% if profile and profile.coach and active_contract and days_remaining is not none and days_remaining > 0 %}
+            {% if days_remaining <= 7 %}
+            <div class="relative overflow-hidden rounded-2xl bg-red-600 text-white p-5 shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-widest opacity-70 mb-1">Coaching Access Expiring</p>
+                        <p class="text-2xl font-extrabold">
+                            {% if days_remaining == 0 %}Your coaching ends today!
+                            {% elif days_remaining == 1 %}Only 1 day left with your coach
+                            {% else %}Only {{ days_remaining }} days left{% endif %}
+                        </p>
+                        <p class="text-xs opacity-80 mt-1">Renew now so you don't lose access to your coach and program.</p>
+                    </div>
+                    <a href="{{ url_for('client.renew_contract') }}"
+                       class="shrink-0 ml-4 px-4 py-2.5 rounded-xl bg-white text-red-600 font-extrabold text-sm hover:bg-red-50 transition shadow">
+                        Renew Now &rarr;
+                    </a>
+                </div>
+                <div class="mt-4 h-1.5 bg-red-400/50 rounded-full overflow-hidden">
+                    {% set red_pct = ((days_remaining / 7) * 100) | int %}
+                    <div class="h-full bg-white rounded-full" style="width: {{ red_pct if red_pct < 100 else 100 }}%"></div>
+                </div>
+            </div>
+
+            {% elif days_remaining <= 14 %}
+            <div class="relative overflow-hidden rounded-2xl bg-amber-500 text-white p-5 shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-widest opacity-70 mb-1">Coaching Ending Soon</p>
+                        <p class="text-xl font-extrabold">
+                            You have {{ days_remaining }} days left with your coach
+                        </p>
+                        <p class="text-xs opacity-80 mt-1">Think about renewing before your access runs out.</p>
+                    </div>
+                    <a href="{{ url_for('client.renew_contract') }}"
+                       class="shrink-0 ml-4 px-4 py-2.5 rounded-xl bg-white text-amber-600 font-extrabold text-sm hover:bg-amber-50 transition shadow">
+                        Renew &rarr;
+                    </a>
+                </div>
+            </div>
+
+            {% else %}
+            {% set weeks_left = days_remaining // 7 %}
+            {% set rem_days = days_remaining % 7 %}
+            <div class="rounded-2xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-0.5">Your Coaching Time Left</p>
+                        <p class="text-2xl font-extrabold text-gray-900 dark:text-gray-100">
+                            {% if weeks_left >= 1 %}
+                                {{ weeks_left }} week{% if weeks_left != 1 %}s{% endif %}{% if rem_days > 0 %} and {{ rem_days }} day{% if rem_days != 1 %}s{% endif %}{% endif %}
+                            {% else %}
+                                {{ days_remaining }} day{% if days_remaining != 1 %}s{% endif %}
+                            {% endif %}
+                        </p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            That's plenty of time — keep showing up!
+                        </p>
+                    </div>
+                    <a href="{{ url_for('client.renew_contract') }}"
+                       class="shrink-0 ml-4 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition whitespace-nowrap">
+                        Extend Plan
+                    </a>
+                </div>
+                {% set total_days = (profile.active_package.duration_weeks or 4) * 7 %}
+                {% set gray_pct = ((days_remaining / total_days) * 100) | int %}
+                <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div class="h-full accent-progress-bar rounded-full transition-all"
+                         style="width: {{ gray_pct if gray_pct < 100 else 100 }}%"></div>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %} {# end if days_remaining is not none #}
+{% if progress and progress.total > 0 %}
+            <div class="mt-4">
+                <div class="flex items-center justify-between text-xs font-medium text-gray-500 dark:text-gray-400">
+                    <span>Program Progress</span>
+                    <span>{{ progress.completed }} / {{ progress.total }} workouts</span>
+                </div>
+                <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mt-1">
+                    <div class="h-2 bg-amber-500" style="width: {{ (progress.completed / progress.total * 100) | int }}%;"></div>
+                </div>
+            </div>
+            {% endif %}
+            
+
+            {% if workout_streak and workout_streak > 0 %}
+            <div class="flex items-center gap-3 px-5 py-3 rounded-2xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+              <div class="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-xs">STREAK</div>
+              <div>
+                <p class="text-sm font-bold text-orange-800 dark:text-orange-300">{{ workout_streak }}-Day Workout Streak!</p>
+                <p class="text-xs text-orange-600 dark:text-orange-400">Keep it up — don't break the chain!</p>
+              </div>
+            </div>
+            {% endif %}
+
+            {% if profile and profile.coach %}
+            <!-- Today's Real-Time Workout -->
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl shadow-sm p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">Today's Schedule</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                            {{ today_day_name }}
+                        </span>
+                    </div>
+                    {% if today_workout %}
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold {% if today_workout.is_rest %}bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300{% else %}bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300{% endif %}">
+                        {% if today_workout.is_rest %}Rest &amp; Recovery{% else %}Training Session{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if today_workout %}
+                    {% if today_workout.is_rest %}
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-5 p-5 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40">
+                        <div>
+                            <h2 class="text-xl font-black text-blue-950 dark:text-blue-100 flex items-center gap-2">
+                                <span>{{ today_workout.name }}</span>
+                                <span class="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase tracking-wider">(Rest Day)</span>
+                            </h2>
+                            <p class="text-xs text-blue-700 dark:text-blue-300 mt-1 max-w-md">
+                                {{ today_workout.notes or 'Active recovery day. Focus on mobility, hydration, and light stretching to prepare for your next workout.' }}
+                            </p>
+                        </div>
+                        <div class="shrink-0">
+                            {% if today_is_completed %}
+                            <span class="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-blue-200/70 text-blue-900 dark:bg-blue-900/80 dark:text-blue-200 text-xs font-bold">
+                                &#10003; Rest Logged Today
+                            </span>
+                            {% else %}
+                            <form method="POST" action="{{ url_for('client.complete_workout', workout_id=today_workout.id) }}">
+                                <button type="submit" class="px-5 py-2.5 rounded-xl border border-blue-400 text-blue-800 bg-white dark:border-blue-800 dark:bg-blue-900/60 dark:text-blue-200 text-xs font-black hover:opacity-80 transition shadow-sm">
+                                    Mark Rest Day Done &#10003;
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-5">
+                        <div>
+                            <h2 class="text-2xl font-extrabold text-gray-900 dark:text-gray-100">{{ today_workout.name }}</h2>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                {{ today_workout.workout_exercises.count() }} exercise{% if today_workout.workout_exercises.count() != 1 %}s{% endif %} in today's routine
+                            </p>
+                        </div>
+                        <div class="shrink-0 flex items-center gap-2">
+                            {% if today_is_completed %}
+                            <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 text-xs font-bold">
+                                &#10003; Completed Today
+                            </span>
+                            <a href="{{ url_for('client.workout_view', workout_id=today_workout.id) }}"
+                               class="inline-flex items-center px-4 py-2 rounded-xl bg-gray-100 dark:bg-neutral-800 text-gray-800 dark:text-gray-200 font-bold text-xs hover:bg-gray-200 dark:hover:bg-neutral-700 transition">
+                                Review Workout
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('client.workout_view', workout_id=today_workout.id) }}"
+                               class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-black dark:bg-white text-white dark:text-black font-extrabold text-xs shadow-md transition hover:opacity-80">
+                                Start Workout &rarr;
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if today_workout.notes %}
+                    <div class="mt-4 p-3.5 rounded-xl bg-gray-50 dark:bg-neutral-900 border border-gray-100 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-400">
+                        <strong class="text-gray-900 dark:text-gray-200">Coach Note:</strong> {{ today_workout.notes }}
+                    </div>
+                    {% endif %}
+                    {% endif %}
+
+                {% else %}
+                <div class="py-8 text-center rounded-xl bg-gray-50 dark:bg-neutral-900 border border-dashed border-gray-200 dark:border-gray-800">
+                    <h3 class="font-bold text-gray-900 dark:text-gray-100">No workout scheduled for {{ today_day_name }}</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-xs mx-auto">
+                        Your coach will update your routine with exercises for {{ today_day_name }} shortly.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Active Program -->
+            {% if active_program %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-6">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Current Program</span>
+                    <a href="{{ url_for('client.my_program') }}" class="text-xs font-semibold text-black dark:text-white hover:underline">View Full Schedule &rarr;</a>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">{{ active_program.name }}</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                    {{ active_program.description or 'A customised program built just for you by your coach.' }}
+                </p>
+            </div>
+            {% else %}
+<div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-6 text-center">
+    <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">No Active Program</h3>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Your coach hasn't assigned a program yet — check back soon.</p>
+</div>
+{% endif %}
+            {% endif %} {# end if profile.coach #}
+
+            {% if not profile or not profile.coach %}
+            <!-- Negotiation Threads for coachless clients -->
+            {% if negotiation_threads %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Coach Negotiations</span>
+                    <a href="{{ url_for('client.chat') }}" class="text-xs font-semibold text-black dark:text-white hover:underline">Open Messages &rarr;</a>
+                </div>
+                <div class="space-y-3">
+                    {% for thread in negotiation_threads %}
+                    <a href="{{ url_for('client.chat', partner_id=thread.user.id) }}" class="flex items-center justify-between p-3.5 rounded-xl bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center font-bold text-sm text-amber-600 dark:text-amber-400 shrink-0">
+                                {{ thread.coach.first_name[0] if thread.coach.first_name else 'C' }}
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Coach {{ thread.coach.first_name }} {{ thread.coach.last_name }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
+                                    {% if thread.last_msg %}{{ thread.last_msg.message[:50] }}{% if thread.last_msg.message|length > 50 %}…{% endif %}{% else %}No messages yet{% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            {% if thread.offer %}
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold">Offer Pending</span>
+                            {% endif %}
+                            <span class="text-[10px] text-gray-400">{{ thread.last_msg.timestamp.strftime('%b %d') if thread.last_msg and thread.last_msg.timestamp else '' }}</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Marketplace CTA for coachless clients -->
+            <div class="rounded-3xl bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/20 p-6 shadow-sm">
+                <div class="flex flex-col items-center text-center gap-3">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Calisthenics Marketplace</h3>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 max-w-sm">Post what you're looking for and let coaches come to you. Negotiate custom plans that fit your goals and budget.</p>
+                    <a href="{{ url_for('client.marketplace') }}" class="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs shadow transition">
+                        Browse Marketplace &rarr;
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Upcoming Appointments -->
+            {% if upcoming_appointments %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Upcoming Calls</span>
+                    <a href="{{ url_for('client.appointments') }}" class="text-xs font-semibold text-black dark:text-white hover:underline">View All &rarr;</a>
+                </div>
+                <div class="space-y-2.5">
+                    {% for appt in upcoming_appointments %}
+                    <div class="flex items-center justify-between p-3.5 rounded-xl bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800">
+                        <div class="flex items-center gap-3">
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ appt.date.strftime('%A, %b %d') }}</p>
+                                <p class="text-xs text-gray-400">{{ appt.start_time.strftime('%I:%M %p') }}</p>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('client.voice_call') }}"
+                           class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:opacity-80 transition">
+                            Join Call
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- RIGHT: Sidebar (1 col) -->
+        <div class="space-y-5">
+
+            <!-- Coach card -->
+            {% if profile.coach %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <p class="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Your Coach</p>
+                    <span class="text-xs font-bold text-amber-500">Rating: {{ profile.coach.average_rating }}</span>
+                </div>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-11 h-11 rounded-xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center font-extrabold text-base text-black dark:text-white shrink-0">
+                        {{ profile.coach.first_name[0] if profile.coach.first_name else 'C' }}
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-1">
+                            {{ profile.coach.first_name }} {{ profile.coach.last_name }}
+                            {% if profile.coach.is_verified %}
+                            <span class="text-xs text-blue-600 dark:text-blue-400" title="Verified Coach">&#10003;</span>
+                            {% endif %}
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ profile.coach.specialization or 'Fitness Coach' }}
+                        </p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <a href="{{ url_for('client.chat') }}"
+                       class="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                        Messages
+                    </a>
+                    <a href="{{ url_for('client.voice_call') }}"
+                       class="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                        Call
+                    </a>
+                </div>
+                <button onclick="document.getElementById('rateCoachModal').classList.remove('hidden')"
+                        class="w-full py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-bold hover:bg-amber-100 transition flex items-center justify-center gap-1">
+                    Rate &amp; Review Coach
+                </button>
+            </div>
+            {% else %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-5 text-center">
+                <div class="w-10 h-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center text-lg mx-auto mb-2 font-bold">K</div>
+                <h4 class="font-bold text-sm text-gray-900 dark:text-gray-100">No Coach Assigned</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3">Find a calisthenics specialist or negotiate a custom budget plan.</p>
+                <a href="{{ url_for('main.coaches_directory') }}" class="inline-block w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition">
+                    Browse Marketplace &rarr;
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Package / Membership card -->
+            {% if profile.coach and active_contract and profile.active_package %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-5">
+                <p class="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2">Active Plan</p>
+                <h4 class="font-bold text-base text-gray-900 dark:text-gray-100">{{ profile.active_package.name }}</h4>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 mb-4">{{ profile.active_package.duration_weeks }}-week coaching plan</p>
+                <a href="{{ url_for('client.renew_contract') }}"
+                   class="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-xs font-bold hover:opacity-80 transition">
+                    Renew / Extend Plan
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Quick links -->
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-5">
+                <p class="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Quick Access</p>
+                <div class="space-y-0.5">
+                    {% set links = [
+                        (url_for('client.profile'),      'My Profile & Goals'),
+                        (url_for('client.my_program'),   'My Program'),
+                        (url_for('client.check_in'),     'Weekly Check-In'),
+                        (url_for('client.nutrition'),    'Nutrition Tracker'),
+                        (url_for('client.habits'),       'Habit Tracker'),
+                        (url_for('client.session_notes'),'Session Notes'),
+                        (url_for('client.progress'),     'Progress & Bodyweight'),
+                        (url_for('client.history'),      'Workout History'),
+                        (url_for('client.appointments'), 'Appointments'),
+                        (url_for('client.chat'),         'Messages'),
+                        (url_for('client.community'),    'Squad Feed'),
+                    ] %}
+                    {% for href, label in links %}
+                    <a href="{{ href }}" class="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-300 transition">
+                        <span class="text-sm font-medium">{{ label }}</span>
+                        <span class="text-xs text-gray-400">&rarr;</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Danger Zone (inside profile block) -->
+    <div class="bg-white dark:bg-black border border-red-200 dark:border-red-900/50 rounded-2xl p-5 shadow-sm">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+                <h3 class="text-sm font-bold text-red-700 dark:text-red-400">Delete Account</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-md">
+                    Permanently removes your profile, all workout history, progress logs, and bookings.
+                </p>
+            </div>
+            <form method="POST" action="{{ url_for('client.delete_profile') }}">
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition whitespace-nowrap">
+                    Delete Account
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<!-- End Contract Modal -->
+<div id="clientTerminateModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-extrabold text-lg text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                End Coaching Contract
+            </h3>
+            <button onclick="document.getElementById('clientTerminateModal').classList.add('hidden')"
+                    class="p-1.5 rounded-xl text-gray-400 hover:text-black dark:hover:text-white transition">&#10003;•</button>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Are you sure you want to end your contract with Coach {{ profile.coach.first_name if profile and profile.coach else '' }}?
+            You can re-enroll anytime.
+        </p>
+        <form action="{{ url_for('client.terminate_contract') }}" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Reason (optional)</label>
+                <textarea name="reason" rows="3" placeholder="e.g. Taking a break, schedule changes..."
+                          class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"></textarea>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-1">
+                <button type="button" onclick="document.getElementById('clientTerminateModal').classList.add('hidden')"
+                        class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition shadow-md">
+                    End Contract
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Rate Coach Modal -->
+{% if profile and profile.coach %}
+<div id="rateCoachModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-extrabold text-base text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <span>â­</span> Rate Coach {{ profile.coach.first_name }}
+            </h3>
+            <button onclick="document.getElementById('rateCoachModal').classList.add('hidden')" class="p-1 rounded-xl text-gray-400 hover:text-black dark:hover:text-white">&#10003;•</button>
+        </div>
+        <form action="{{ url_for('client.rate_coach') }}" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Rating (1 to 5 Stars)</label>
+                <div class="flex items-center justify-between px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800">
+                    {% for star in [1, 2, 3, 4, 5] %}
+                    <label class="cursor-pointer flex flex-col items-center gap-1">
+                        <input type="radio" name="rating" value="{{ star }}" {% if star == 5 %}checked{% endif %} class="accent-amber-500">
+                        <span class="text-xs font-bold text-gray-800 dark:text-gray-200">{{ star }} â˜…</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Feedback / Review (optional)</label>
+                <textarea name="review_text" rows="3" placeholder="Share your experience working with Coach {{ profile.coach.first_name }}..."
+                          class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs text-gray-900 dark:text-gray-100 focus:outline-none"></textarea>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-1">
+                <button type="button" onclick="document.getElementById('rateCoachModal').classList.add('hidden')" class="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400">Cancel</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs shadow-md">Submit Rating</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

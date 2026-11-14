@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6 pb-12 max-w-6xl mx-auto">
+    <!-- Top Nav / Program Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-black p-6 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm">
+        <div>
+            <a href="{{ url_for('programs.index') }}" class="text-xs font-bold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition flex items-center gap-1 mb-1">
+                &larr; All Routines &amp; Programs
+            </a>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-black text-gray-900 dark:text-white">{{ program.name }}</h1>
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                    Calisthenics Routine
+                </span>
+            </div>
+            {% if program.description %}
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">{{ program.description }}</p>
+            {% endif %}
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-neutral-900 border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-600 dark:text-gray-300">
+                Full 7-Day Weekly Routine
+            </span>
+        </div>
+    </div>
+
+    <!-- Main Routine Days Container -->
+    {% for phase in program.phases.order_by('order').all() %}
+    <div class="space-y-6">
+        <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-3">
+            <div>
+                <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+                    <span>{{ phase.name }}</span>
+                    <span class="text-xs font-medium text-gray-400">({{ phase.workouts.count() }} Days Scheduled)</span>
+                </h2>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-gray-500">7 Days (Mon – Sun)</span>
+            </div>
+        </div>
+
+        {% set workouts = phase.workouts.order_by('scheduled_weekday', 'day_number', 'id').all() %}
+        {% if workouts %}
+        <div class="grid grid-cols-1 gap-6">
+            {% for workout in workouts %}
+            <div class="bg-white dark:bg-black rounded-3xl border {% if workout.is_rest %}border-blue-200 dark:border-blue-900/60 bg-blue-50/20 dark:bg-blue-950/10{% else %}border-gray-200 dark:border-gray-800{% endif %} p-6 shadow-sm transition hover:shadow-md">
+                
+                <!-- Day Card Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-gray-800">
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs {% if workout.is_rest %}bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300{% else %}bg-neutral-900 dark:bg-neutral-100 text-white dark:text-black{% endif %}">
+                            {{ workout.scheduled_weekday or workout.day_number }}
+                        </span>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-black text-gray-900 dark:text-white">
+                                    {{ workout.name }}
+                                </h3>
+                                {% if workout.is_rest %}
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                                     Rest Day
+                                </span>
+                                {% else %}
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
+                                     Training Day ({{ workout.workout_exercises.count() }} Exercises)
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% if workout.notes %}
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ workout.notes }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Day Actions -->
+                    <div class="flex items-center gap-2">
+                        <!-- Toggle Rest Day Form -->
+                        <form method="POST" action="{{ url_for('programs.toggle_rest', program_id=program.id, workout_id=workout.id) }}">
+                            <button type="submit" class="px-3 py-1.5 rounded-xl border text-xs font-bold transition {% if workout.is_rest %}border-emerald-300 text-emerald-700 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100{% else %}border-blue-200 text-blue-700 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 hover:bg-blue-100{% endif %}">
+                                {% if workout.is_rest %}Set as Training Day {% else %}Mark as Rest Day {% endif %}
+                            </button>
+                        </form>
+
+                        <!-- Edit Day Details Button -->
+                        <button onclick="openEditDayModal({{ workout.id }}, '{{ workout.name|replace('\'', '\\\'') }}', '{{ (workout.day_name or '')|replace('\'', '\\\'') }}', {{ workout.day_number }}, {{ 'true' if workout.is_rest else 'false' }}, '{{ (workout.notes or '')|replace('\'', '\\\'') }}')" 
+                                class="p-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-900 transition text-xs font-bold" title="Edit Day Name & Notes">
+                            Edit Notes
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Day Content -->
+                <div class="mt-4">
+                    {% if workout.is_rest %}
+                    <!-- Rest Day Banner -->
+                    <div class="p-5 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 flex items-start gap-3">
+                        <span class="text-2xl"></span>
+                        <div>
+                            <h4 class="text-sm font-bold text-blue-900 dark:text-blue-200">Active Recovery &amp; Rest Day</h4>
+                            <p class="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                                {{ workout.notes or 'Rest day scheduled. Client focuses on recovery, hydration, mobility drills, and light stretching to prepare for the next training session.' }}
+                            </p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Training Day Exercises List -->
+                    {% set exercises_in_workout = workout.workout_exercises.order_by('order').all() %}
+                    {% if exercises_in_workout %}
+                    <div class="space-y-3 mb-4">
+                        {% for we in exercises_in_workout %}
+                        <div class="flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-neutral-900 border border-gray-200/70 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition">
+                            <div class="flex items-center gap-3">
+                                <span class="w-6 h-6 rounded-lg bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 font-bold text-xs flex items-center justify-center">
+                                    {{ loop.index }}
+                                </span>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h5 class="text-sm font-black text-gray-900 dark:text-white">{{ we.exercise.name }}</h5>
+                                        {% if we.exercise.muscle_group %}
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+                                            {{ we.exercise.muscle_group }}
+                                        </span>
+                                        {% endif %}
+                                        {% if we.exercise.equipment %}
+                                        <span class="text-[10px] text-gray-400">({{ we.exercise.equipment }})</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300 mt-1">
+                                        {% if we.sets %}<span><strong>{{ we.sets }}</strong> Sets</span>{% endif %}
+                                        {% if we.reps %}<span>• <strong>{{ we.reps }}</strong></span>{% endif %}
+                                        {% if we.duration %}<span>• <strong>{{ we.duration }}</strong></span>{% endif %}
+                                        {% if we.rest %}<span class="text-blue-600 dark:text-blue-400">• Rest: {{ we.rest }}</span>{% endif %}
+                                        {% if we.weight %}<span>• Load: {{ we.weight }}</span>{% endif %}
+                                        {% if we.tempo %}<span>• Tempo: {{ we.tempo }}</span>{% endif %}
+                                    </div>
+                                    {% if we.notes %}
+                                    <p class="text-[11px] text-amber-600 dark:text-amber-400 mt-1 italic"> {{ we.notes }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <form method="POST" action="{{ url_for('programs.remove_exercise', program_id=program.id, workout_id=workout.id, we_id=we.id) }}">
+                                <button type="submit" class="text-xs text-red-400 hover:text-red-600 font-bold p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 transition">
+                                    Remove
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="p-6 rounded-2xl bg-gray-50 dark:bg-neutral-900/50 border border-dashed border-gray-200 dark:border-gray-800 text-center mb-4">
+                        <p class="text-xs text-gray-400 dark:text-gray-500">No exercises added to this day yet. Add calisthenics exercises below.</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Add Exercise Button for this Day -->
+                    <button onclick="openAddExerciseModal({{ workout.id }}, '{{ workout.name|replace('\'', '\\\'') }}')" 
+                            class="w-full py-2.5 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 text-xs font-black text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-neutral-900 transition flex items-center justify-center gap-1.5">
+                        <span>+</span> Add Exercise to {{ workout.name }}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-gray-50 dark:bg-neutral-900 border border-dashed border-gray-200 dark:border-gray-800 rounded-3xl p-12 text-center">
+            <p class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">No days added to this routine yet</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mb-4">Start by adding your first day (e.g. Monday, Tuesday, etc.) or setting up training days.</p>
+            <button onclick="openAddDayModal({{ phase.id }})" class="px-5 py-2.5 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-black text-xs hover:opacity-80 transition shadow">
+                + Add First Day
+            </button>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- ========================================================== -->
+<!-- MODAL: ADD EXERCISE TO DAY (WITH INLINE CREATION) -->
+<!-- ========================================================== -->
+<div id="add-exercise-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-black rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-2">
+            <h3 class="text-lg font-black text-gray-900 dark:text-white" id="modalDayTitle">Add Exercise to Workout</h3>
+            <button onclick="closeAddExerciseModal()" class="text-gray-400 hover:text-black dark:hover:text-white text-lg font-bold">&times;</button>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Select from your exercise library or quickly create a new calisthenics movement.</p>
+
+        <form method="POST" id="addExerciseForm" action="" class="space-y-4">
+            <!-- Exercise Selection or New Toggle -->
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">Choose Exercise</label>
+                    <button type="button" onclick="toggleNewExerciseMode()" class="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline" id="toggleExBtn">
+                        + Create New Exercise
+                    </button>
+                </div>
+
+                <!-- Existing Exercises Dropdown -->
+                <div id="existingExSelectContainer">
+                    <select name="exercise_id" id="exerciseSelect" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-white focus:outline-none">
+                        {% for ex in exercises %}
+                        <option value="{{ ex.id }}">{{ ex.name }} {% if ex.muscle_group %}({{ ex.muscle_group }}){% endif %} {% if ex.equipment %}— {{ ex.equipment }}{% endif %}</option>
+                        {% else %}
+                        <option value="new">+ Create your first exercise</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- New Exercise Inline Inputs (Hidden by default) -->
+                <div id="newExInlineContainer" class="hidden p-4 rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 space-y-3">
+                    <div>
+                        <label class="block text-[11px] font-bold uppercase text-amber-800 dark:text-amber-300 mb-1">New Exercise Name *</label>
+                        <input type="text" name="new_exercise_name" id="newExNameInput" placeholder="e.g. Ring Muscle-Up, Straddle Planche Hold" 
+                               class="w-full px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-800 bg-white dark:bg-black text-sm text-gray-900 dark:text-white focus:outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 dark:text-gray-400 mb-1">Category / Movement</label>
+                            <select name="new_muscle_group" class="w-full px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-xs">
+                                <option value="Push">Push (Dips, Pushups, HSPU)</option>
+                                <option value="Pull">Pull (Pull-ups, Levers, Rows)</option>
+                                <option value="Core">Core / Compression (L-Sit, Dragon Flag)</option>
+                                <option value="Skills">Skills / Balance (Handstand, Planche)</option>
+                                <option value="Legs">Legs (Pistol Squats, Nordics)</option>
+                                <option value="Full Body">Full Body</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-600 dark:text-gray-400 mb-1">Equipment</label>
+                            <select name="new_equipment" class="w-full px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-xs">
+                                <option value="Bodyweight">Bodyweight / Floor</option>
+                                <option value="Gymnastic Rings">Gymnastic Rings</option>
+                                <option value="Pull-Up Bar">Pull-Up Bar</option>
+                                <option value="Parallettes">Parallettes</option>
+                                <option value="Resistance Bands">Resistance Bands</option>
+                                <option value="Weighted Belt">Weighted Belt / Vest</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target Metric Type (Reps vs Hold Duration) -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">Target Metric Type</label>
+                <div class="flex gap-4 text-xs font-semibold">
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="metric_type" value="reps" checked onclick="toggleMetricType('reps')" class="accent-black dark:accent-white">
+                        <span>Sets &amp; Reps (e.g. 4 × 8-10 reps)</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="metric_type" value="duration" onclick="toggleMetricType('duration')" class="accent-black dark:accent-white">
+                        <span>Sets &amp; Hold Duration (e.g. 4 × 20s hold)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Sets, Reps/Duration, Rest, Load -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">Sets *</label>
+                    <input type="number" name="sets" value="3" min="1" max="20" required 
+                           class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-white">
+                </div>
+                <div id="repsField">
+                    <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">Reps</label>
+                    <input type="text" name="reps" id="repsInput" placeholder="e.g. 8-10 or Failure" 
+                           class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-white">
+                </div>
+                <div id="durationField" class="hidden">
+                    <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">Hold Duration</label>
+                    <input type="text" name="duration" id="durationInput" placeholder="e.g. 20s hold" 
+                           class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">Rest Period</label>
+                    <input type="text" name="rest" placeholder="e.g. 90s, 2 min" 
+                           class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-white">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">Weight / Load</label>
+                    <input type="text" name="weight" placeholder="e.g. Bodyweight, +10kg" 
+                           class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-white">
+                </div>
+            </div>
+
+            <!-- Coach Technique Cues & Notes -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">Coach Technique Cues &amp; Instructions</label>
+                <textarea name="notes" rows="2" placeholder="e.g. Full depression of scapula at bottom, point toes, explode on concentric phase..." 
+                          class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-xs text-gray-900 dark:text-white focus:outline-none resize-none"></textarea>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button type="button" onclick="closeAddExerciseModal()" class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-900">
+                    Cancel
+                </button>
+                <button type="submit" class="flex-1 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-xs font-black hover:opacity-80 transition shadow">
+                    Add to Workout
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================== -->
+<!-- MODAL: EDIT DAY DETAILS -->
+<!-- ========================================================== -->
+<div id="edit-day-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-black rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 max-w-md w-full p-6">
+        <h3 class="text-lg font-black text-gray-900 dark:text-white mb-1">Edit Day Details</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Update day name, order, or recovery notes.</p>
+        
+        <form method="POST" id="editDayForm" action="" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">Day Name *</label>
+                <input type="text" name="name" id="editDayName" required class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-white">
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">Day Number</label>
+                <input type="number" name="day_number" id="editDayNumber" min="1" max="14" required class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm text-gray-900 dark:text-white">
+            </div>
+            <label class="flex items-center gap-2 p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 cursor-pointer">
+                <input type="checkbox" name="is_rest" id="editDayIsRest" value="1" class="accent-black dark:accent-white w-4 h-4 rounded">
+                <span class="text-xs font-bold text-gray-900 dark:text-white">Mark as Rest &amp; Recovery Day </span>
+            </label>
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1">Notes / Instructions</label>
+                <textarea name="notes" id="editDayNotes" rows="2" class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-xs text-gray-900 dark:text-white resize-none"></textarea>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button type="button" onclick="closeEditDayModal()" class="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300">Cancel</button>
+                <button type="submit" class="flex-1 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-xs font-black shadow">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let isNewExerciseMode = false;
+
+function openAddDayModal(phaseId) {
+    if (phaseId) {
+        document.getElementById('addDayPhaseId').value = phaseId;
+    }
+    document.getElementById('add-day-modal').classList.remove('hidden');
+}
+
+function closeAddDayModal() {
+    document.getElementById('add-day-modal').classList.add('hidden');
+}
+
+function setQuickDayName(day) {
+    document.getElementById('dayNameInput').value = day;
+}
+
+function openAddExerciseModal(workoutId, workoutName) {
+    document.getElementById('modalDayTitle').textContent = 'Add Exercise to ' + workoutName;
+    document.getElementById('addExerciseForm').action = '/coach/programs/{{ program.id }}/workout/' + workoutId + '/add-exercise';
+    document.getElementById('add-exercise-modal').classList.remove('hidden');
+}
+
+function closeAddExerciseModal() {
+    document.getElementById('add-exercise-modal').classList.add('hidden');
+    if (isNewExerciseMode) toggleNewExerciseMode();
+}
+
+function toggleNewExerciseMode() {
+    isNewExerciseMode = !isNewExerciseMode;
+    const selectBox = document.getElementById('existingExSelectContainer');
+    const newBox = document.getElementById('newExInlineContainer');
+    const toggleBtn = document.getElementById('toggleExBtn');
+    const newExName = document.getElementById('newExNameInput');
+
+    if (isNewExerciseMode) {
+        selectBox.classList.add('hidden');
+        newBox.classList.remove('hidden');
+        toggleBtn.textContent = '← Choose from Library';
+        newExName.setAttribute('required', 'required');
+    } else {
+        selectBox.classList.remove('hidden');
+        newBox.classList.add('hidden');
+        toggleBtn.textContent = '+ Create New Exercise';
+        newExName.removeAttribute('required');
+        newExName.value = '';
+    }
+}
+
+function toggleMetricType(type) {
+    const repsField = document.getElementById('repsField');
+    const durField = document.getElementById('durationField');
+    if (type === 'reps') {
+        repsField.classList.remove('hidden');
+        durField.classList.add('hidden');
+    } else {
+        durField.classList.remove('hidden');
+        repsField.classList.add('hidden');
+    }
+}
+
+function openEditDayModal(workoutId, name, dayName, dayNum, isRest, notes) {
+    document.getElementById('editDayName').value = name;
+    document.getElementById('editDayNumber').value = dayNum;
+    document.getElementById('editDayIsRest').checked = isRest;
+    document.getElementById('editDayNotes').value = notes;
+    document.getElementById('editDayForm').action = '/coach/programs/{{ program.id }}/workout/' + workoutId + '/edit-details';
+    document.getElementById('edit-day-modal').classList.remove('hidden');
+}
+
+function closeEditDayModal() {
+    document.getElementById('edit-day-modal').classList.add('hidden');
+}
+</script>
+{% endblock %}

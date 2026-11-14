@@ -1,0 +1,84 @@
+Created At: 2026-10-06T22:55:07+01:00
+Completed At: 2026-10-06T22:55:07+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1423
+Total Bytes: 56539
+Showing lines 100 to 175
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+100:             flash('Your post looking for a coach has been published to the marketplace!', 'success')
+101:             return redirect(url_for('client.marketplace'))
+102:         else:
+103:             flash('Please fill in all required fields.', 'danger')
+104: 
+105:     my_posts = ClientPost.query.filter_by(client_id=profile.id).order_by(ClientPost.created_at.desc()).all()
+106:     all_active_posts = ClientPost.query.filter_by(status='active').order_by(ClientPost.created_at.desc()).all()
+107:     return render_template('client/marketplace.html', my_posts=my_posts, all_active_posts=all_active_posts)
+108: 
+109: @client_bp.route('/marketplace/post/<int:post_id>/close', methods=['POST'])
+110: @login_required
+111: def close_marketplace_post(post_id):
+112:     profile = current_user.client_profile
+113:     post = ClientPost.query.get_or_404(post_id)
+114:     if post.client_id == profile.id:
+115:         post.status = 'closed'
+116:         db.session.commit()
+117:         flash('Post marked as closed.', 'info')
+118:     return redirect(url_for('client.marketplace'))
+119: 
+120: @client_bp.route('/voice-call')
+121: @login_required
+122: def voice_call():
+123:     profile = current_user.client_profile
+124:     if not profile or not profile.coach:
+125:         flash('No coach assigned.', 'danger')
+126:         return redirect(url_for('client.dashboard'))
+127:     partner_id = profile.coach.user_id
+128:     partner_name = f"Coach {profile.coach.first_name if profile.coach.first_name else 'Coach'}"
+129:     from app.models.progress import FormCheckSubmission
+130:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+131:     return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+132: 
+133: @client_bp.route('/dashboard')
+134: @login_required
+135: def dashboard():
+136:     profile = current_user.client_profile
+137:     if not profile:
+138:         profile = ClientProfile(user_id=current_user.id)
+139:         db.session.add(profile)
+140:         db.session.commit()
+141:     
+142:     today_workout = None
+143:     active_program = None
+144:     progress = None
+145: 
+146:     if profile:
+147:         cp = profile.client_programs.filter_by(is_active=True).first()
+148:         if cp:
+149:             active_program = cp.program
+150:                         # Find today's workout — simple heuristic: find first uncompleted workout in order
+151:             completed_ids = [c.workout_id for c in profile.completions.all()]
+152:             # Compute total workouts in active program
+153:             total_workouts = 0
+154:             if active_program:
+155:                 for phase in active_program.phases:
+156:                     total_workouts += phase.workouts.count()
+157:             # progress dict passed to template
+158:             progress = {
+159:                 'completed': len(completed_ids),
+160:                 'total': total_workouts,
+161:             }
+162:             for phase in cp.program.phases.order_by('order').all():
+163:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+164:                     if w.id not in completed_ids:
+165:                         today_workout = w
+166:                         break
+167:                 if today_workout:
+168:                     break
+169: 
+170:     upcoming_appointments = []
+171:     if profile:
+172:         from app.models.calendar import Appointment
+173:         from datetime import date as date_cls
+174:         upcoming_appointments = Appointment.query.filter(
+175:             Appointment.client_id == profile.id,
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

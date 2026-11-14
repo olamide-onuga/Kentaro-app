@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Social Hub & Friends - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Social Network</span>
+            <h1 class="text-3xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight mt-1">
+                Friends & Connections 🤝
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Connect with athletes and coaches, send friend requests, and chat freely across the community.
+            </p>
+        </div>
+        {% if current_user.is_coach %}
+        <a href="{{ url_for('coach.dashboard') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+            ← Coach Dashboard
+        </a>
+        {% elif current_user.is_client %}
+        <a href="{{ url_for('client.dashboard') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+            ← Client Dashboard
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Search Users Bar -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4">
+        <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">🔍 Find Athletes & Coaches</h2>
+        <form method="GET" action="{{ url_for('social.friends') }}" class="flex gap-3">
+            <input type="text" name="q" value="{{ search_q or '' }}" placeholder="Search user by email address..." class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition">
+            <button type="submit" class="px-6 py-2.5 rounded-xl btn-primary-red font-bold text-sm shadow-xs transition">
+                Search
+            </button>
+        </form>
+
+        {% if users_found %}
+        <div class="pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {% for u in users_found %}
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200/50 dark:border-gray-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gray-200 dark:bg-gray-800 flex items-center justify-center font-bold text-sm text-gray-700 dark:text-gray-300">
+                        {{ u.email[0].upper() }}
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ u.email }}</p>
+                        <span class="text-[10px] uppercase font-bold text-gray-400">
+                            {% if u.is_coach %}Coach{% elif u.is_client %}Client / Athlete{% else %}User{% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('social.send_friend_request', user_id=u.id) }}">
+                    <button type="submit" class="px-3 py-1.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs hover:opacity-80 transition">
+                        + Add Friend
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% elif search_q %}
+        <p class="text-xs text-gray-400 pt-2">No users found matching "{{ search_q }}".</p>
+        {% endif %}
+    </div>
+
+    <!-- Pending Incoming Friend Requests -->
+    {% if incoming_requests %}
+    <div class="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-3xl p-6 shadow-sm space-y-4">
+        <h2 class="text-lg font-bold text-amber-900 dark:text-amber-300 flex items-center gap-2">
+            <span>📬</span> Pending Friend Requests ({{ incoming_requests|length }})
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for req in incoming_requests %}
+            <div class="bg-white dark:bg-black border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm">
+                <div>
+                    <p class="text-sm font-bold text-gray-900 dark:text-gray-100">{{ req.sender.email }}</p>
+                    <p class="text-xs text-gray-400">Sent {{ req.created_at.strftime('%b %d, %Y') }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <form method="POST" action="{{ url_for('social.respond_friend_request', req_id=req.id, action='accept') }}">
+                        <button type="submit" class="px-3 py-1.5 rounded-xl bg-green-600 text-white font-bold text-xs hover:bg-green-700 transition">
+                            Accept
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('social.respond_friend_request', req_id=req.id, action='reject') }}">
+                        <button type="submit" class="px-3 py-1.5 rounded-xl bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-xs hover:bg-gray-300 dark:hover:bg-gray-700 transition">
+                            Decline
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Friends List -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <span>👥</span> My Friends ({{ friends_list|length }})
+        </h2>
+
+        {% if friends_list %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for friend in friends_list %}
+            <div class="border border-gray-200 dark:border-gray-800 rounded-2xl p-4 flex items-center justify-between gap-3 bg-gray-50/50 dark:bg-gray-900/50 hover:border-gray-300 dark:hover:border-gray-700 transition">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-10 h-10 rounded-xl bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-extrabold text-sm flex-shrink-0">
+                        {{ friend.email[0].upper() }}
+                    </div>
+                    <div class="truncate">
+                        <p class="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{{ friend.email }}</p>
+                        <span class="text-[10px] uppercase font-bold text-gray-400">
+                            {% if friend.is_coach %}Coach{% elif friend.is_client %}Client{% else %}Member{% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                {% if current_user.is_client %}
+                <a href="{{ url_for('client.chat') }}" class="px-3 py-1.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs hover:opacity-80 transition flex-shrink-0">
+                    💬 Chat
+                </a>
+                {% elif current_user.is_coach %}
+                <a href="{{ url_for('coach.client_chat', client_id=friend.id) }}" class="px-3 py-1.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs hover:opacity-80 transition flex-shrink-0">
+                    💬 Chat
+                </a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-gray-400 text-sm">
+            You don't have any friends added yet. Use the search bar above to find members and send requests!
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

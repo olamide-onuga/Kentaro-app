@@ -1,0 +1,388 @@
+{% extends "admin/layout.html" %}
+{% block title %}Admin Dashboard - Kentaro Control Center{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-8">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/60">
+                    Control Center
+                </span>
+                <span class="text-xs text-gray-400 font-mono">Platform Admin</span>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                Dashboard Overview 
+            </h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Live metrics, registration trends, and real-time operational status.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+            <a href="{{ url_for('admin.analytics') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl btn-secondary font-bold text-xs shadow-xs transition">
+                <span>📈</span> Analytics BI
+            </a>
+            <a href="{{ url_for('admin.activity') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl btn-secondary font-bold text-xs shadow-xs transition">
+                <span>📝</span> Activity Log
+            </a>
+            <a href="{{ url_for('admin.support_chat') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl btn-primary-red font-bold text-xs shadow-xs transition">
+                <span>💬</span> Support DM
+            </a>
+        </div>
+    </div>
+
+    <!-- Stat Cards Grid (6 Main + 2 Secondary) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+
+        <!-- 1. Total Users -->
+        <a href="{{ url_for('admin.users') }}" class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white transition-all rounded-3xl p-5 shadow-sm group">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Total Users</span>
+                <span class="text-xl group-hover:scale-110 transition-transform">👥</span>
+            </div>
+            <div class="text-3xl font-black text-gray-900 dark:text-gray-100">{{ users_count }}</div>
+            <div class="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-900 flex items-center justify-between text-[11px] text-gray-500">
+                <span>All accounts</span>
+                <span class="font-bold text-black dark:text-white">&rarr;</span>
+            </div>
+        </a>
+
+        <!-- 2. Coaches -->
+        <a href="{{ url_for('admin.coaches') }}" class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white transition-all rounded-3xl p-5 shadow-sm group">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Coaches</span>
+                <span class="text-xl group-hover:scale-110 transition-transform">🏆</span>
+            </div>
+            <div class="text-3xl font-black text-gray-900 dark:text-gray-100">{{ coaches_count }}</div>
+            <div class="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-900 flex items-center justify-between text-[11px] text-gray-500">
+                <span>Coaching pros</span>
+                <span class="font-bold text-black dark:text-white">&rarr;</span>
+            </div>
+        </a>
+
+        <!-- 3. Clients / Athletes -->
+        <a href="{{ url_for('admin.clients') }}" class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white transition-all rounded-3xl p-5 shadow-sm group">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Athletes</span>
+                <span class="text-xl group-hover:scale-110 transition-transform">🏋️</span>
+            </div>
+            <div class="text-3xl font-black text-gray-900 dark:text-gray-100">{{ clients_count }}</div>
+            <div class="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-900 flex items-center justify-between text-[11px] text-gray-500">
+                <span>Active clients</span>
+                <span class="font-bold text-black dark:text-white">&rarr;</span>
+            </div>
+        </a>
+
+        <!-- 4. Pending Coach Apps -->
+        <a href="{{ url_for('admin.coaches', status='pending') }}" class="bg-white dark:bg-gray-950 border {% if pending_coaches > 0 %}border-amber-300 dark:border-amber-800/80 bg-amber-50/20 dark:bg-amber-950/10{% else %}border-gray-200 dark:border-gray-800{% endif %} hover:border-black dark:hover:border-white transition-all rounded-3xl p-5 shadow-sm group">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Pending Coaches</span>
+                <span class="text-xl group-hover:scale-110 transition-transform">⏳</span>
+            </div>
+            <div class="text-3xl font-black {% if pending_coaches > 0 %}text-amber-600 dark:text-amber-400{% else %}text-gray-900 dark:text-gray-100{% endif %}">
+                {{ pending_coaches }}
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-900 flex items-center justify-between text-[11px] text-amber-700 dark:text-amber-300 font-semibold">
+                <span>{{ 'Needs approval' if pending_coaches > 0 else 'Queue clear' }}</span>
+                <span class="font-bold">&rarr;</span>
+            </div>
+        </a>
+
+        <!-- 5. Active Subscriptions -->
+        <a href="{{ url_for('admin.subscriptions') }}" class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 hover:border-black dark:hover:border-white transition-all rounded-3xl p-5 shadow-sm group">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Active Subs</span>
+                <span class="text-xl group-hover:scale-110 transition-transform">💎</span>
+            </div>
+            <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400">{{ active_subscriptions }}</div>
+            <div class="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-900 flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                <span>{{ active_contracts }} Contracts</span>
+                <span>&rarr;</span>
+            </div>
+        </a>
+
+        <!-- 6. Open Bug Reports -->
+        <a href="{{ url_for('admin.reports', status='pending') }}" class="bg-white dark:bg-gray-950 border {% if reports_count > 0 %}border-red-300 dark:border-red-900/80 bg-red-50/20 dark:bg-red-950/10{% else %}border-gray-200 dark:border-gray-800{% endif %} hover:border-black dark:hover:border-white transition-all rounded-3xl p-5 shadow-sm group">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">Open Reports</span>
+                <span class="text-xl group-hover:scale-110 transition-transform">🚨</span>
+            </div>
+            <div class="text-3xl font-black text-red-600 dark:text-red-400">{{ reports_count }}</div>
+            <div class="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-900 flex items-center justify-between text-[11px] text-red-600 dark:text-red-400 font-bold">
+                <span>{{ 'Action required' if reports_count > 0 else 'No open bugs' }}</span>
+                <span>&rarr;</span>
+            </div>
+        </a>
+
+    </div>
+
+    <!-- Registration Trend Chart (Last 30 Days) -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-7 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">📈</span>
+                    <h2 class="text-lg font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                        Registration Trend (Last 30 Days)
+                    </h2>
+                </div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Daily new platform sign-ups across all user roles.
+                </p>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-semibold">
+                <span class="inline-flex items-center gap-1.5 text-gray-800 dark:text-gray-200">
+                    <span class="w-3 h-3 rounded-full bg-red-600 inline-block"></span> Total Users
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                    <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> Coaches
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Athletes
+                </span>
+            </div>
+        </div>
+
+        <div class="relative w-full h-72 sm:h-80">
+            <canvas id="registrationTrendChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Two-Column Section: Quick Actions & Recent Activity Feed -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Column 1: Quick Links & Tools (1 col) -->
+        <div class="space-y-4">
+            <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm">
+                <h3 class="text-sm font-extrabold text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <span>⚡</span> Quick Management
+                </h3>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <a href="{{ url_for('admin.users') }}" class="p-3 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800/80 transition border border-gray-100 dark:border-gray-800 flex flex-col items-start gap-1">
+                        <span class="text-lg">👥</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-gray-100">User Accounts</span>
+                        <span class="text-[10px] text-gray-400">{{ users_count }} total</span>
+                    </a>
+                    <a href="{{ url_for('admin.coaches') }}" class="p-3 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800/80 transition border border-gray-100 dark:border-gray-800 flex flex-col items-start gap-1">
+                        <span class="text-lg">🏆</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-gray-100">Coaches Queue</span>
+                        <span class="text-[10px] text-gray-400">{{ pending_coaches }} pending</span>
+                    </a>
+                    <a href="{{ url_for('admin.clients') }}" class="p-3 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800/80 transition border border-gray-100 dark:border-gray-800 flex flex-col items-start gap-1">
+                        <span class="text-lg">🏋️</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-gray-100">Athletes</span>
+                        <span class="text-[10px] text-gray-400">{{ clients_count }} registered</span>
+                    </a>
+                    <a href="{{ url_for('admin.appointments') }}" class="p-3 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800/80 transition border border-gray-100 dark:border-gray-800 flex flex-col items-start gap-1">
+                        <span class="text-lg">📅</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-gray-100">Appointments</span>
+                        <span class="text-[10px] text-gray-400">Schedules</span>
+                    </a>
+                    <a href="{{ url_for('admin.subscriptions') }}" class="p-3 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800/80 transition border border-gray-100 dark:border-gray-800 flex flex-col items-start gap-1">
+                        <span class="text-lg">📋</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-gray-100">Subscriptions</span>
+                        <span class="text-[10px] text-gray-400">{{ active_subscriptions }} active</span>
+                    </a>
+                    <a href="{{ url_for('admin.reports') }}" class="p-3 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800/80 transition border border-gray-100 dark:border-gray-800 flex flex-col items-start gap-1">
+                        <span class="text-lg">🚨</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-gray-100">Bug Reports</span>
+                        <span class="text-[10px] text-red-500 font-bold">{{ reports_count }} open</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- System Info Widget -->
+            <div class="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 text-xs space-y-2">
+                <div class="font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider text-[10px]">
+                    System Environment
+                </div>
+                <div class="flex items-center justify-between text-gray-500 dark:text-gray-400 font-mono text-[11px]">
+                    <span>Database</span>
+                    <span class="font-bold text-gray-800 dark:text-gray-200">SQLite (Production Ready)</span>
+                </div>
+                <div class="flex items-center justify-between text-gray-500 dark:text-gray-400 font-mono text-[11px]">
+                    <span>Media Files</span>
+                    <span class="font-bold text-gray-800 dark:text-gray-200">{{ videos_count }} Videos</span>
+                </div>
+                <div class="flex items-center justify-between text-gray-500 dark:text-gray-400 font-mono text-[11px]">
+                    <span>Packages</span>
+                    <span class="font-bold text-gray-800 dark:text-gray-200">{{ packages_count }} Packages</span>
+                </div>
+                <div class="pt-2 border-t border-gray-200 dark:border-gray-800 flex justify-end">
+                    <a href="{{ url_for('admin.settings') }}" class="text-xs font-bold text-red-600 dark:text-red-400 hover:underline">
+                        Edit System Settings &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2 & 3: Recent Activity Feed (2 cols) -->
+        <div class="lg:col-span-2 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-7 shadow-sm">
+            <div class="flex items-center justify-between mb-5 border-b border-gray-100 dark:border-gray-900 pb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">📝</span>
+                    <h3 class="text-base font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
+                        Recent Administrative Activity
+                    </h3>
+                </div>
+                <a href="{{ url_for('admin.activity') }}" class="text-xs font-bold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition">
+                    View Full Audit Log &rarr;
+                </a>
+            </div>
+
+            {% if recent_activities %}
+            <div class="divide-y divide-gray-100 dark:divide-gray-900">
+                {% for act in recent_activities %}
+                <div class="py-3.5 flex items-start justify-between gap-4 text-xs">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-900 flex items-center justify-center shrink-0 font-bold text-xs text-gray-700 dark:text-gray-300">
+                            {% if 'user' in act.action %}👤
+                            {% elif 'coach' in act.action %}🏆
+                            {% elif 'report' in act.action %}🚨
+                            {% elif 'plan' in act.action %}💎
+                            {% elif 'contract' in act.action %}📜
+                            {% elif 'chat' in act.action %}💬
+                            {% else %}{% endif %}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider
+                                      {% if 'approve' in act.action or 'activate' in act.action %}bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300
+                                      {% elif 'reject' in act.action or 'deactivate' in act.action or 'delete' in act.action %}bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300
+                                      {% else %}bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300{% endif %}">
+                                    {{ act.action|replace('_', ' ') }}
+                                </span>
+                                <span class="font-bold text-gray-900 dark:text-gray-100">
+                                    {{ act.detail or 'Admin action executed' }}
+                                </span>
+                            </div>
+                            <div class="text-[11px] text-gray-400 mt-1 font-mono">
+                                By <span class="text-gray-600 dark:text-gray-300">{{ act.admin.email if act.admin else 'Admin' }}</span>
+                                {% if act.target_type %}• Target: <span class="uppercase text-[10px] font-bold text-gray-500">{{ act.target_type }} #{{ act.target_id or '' }}</span>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-[11px] text-gray-400 font-mono whitespace-nowrap shrink-0">
+                        {{ act.created_at.strftime('%b %d, %H:%M') if act.created_at else '' }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12 text-gray-400 text-xs">
+                <span class="text-3xl block mb-2">📜</span>
+                No administrative activity logged yet. Operations will be recorded here automatically.
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Chart.js CDN & Registration Trend Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('registrationTrendChart');
+    if (!ctx) return;
+
+    const labels = {{ trend_labels|tojson }};
+    const usersData = {{ users_trend|tojson }};
+    const coachesData = {{ coaches_trend|tojson }};
+    const clientsData = {{ clients_trend|tojson }};
+
+    const isDark = document.documentElement.classList.contains('dark');
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+    const textColor = isDark ? '#A3A3A3' : '#737373';
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Total Users',
+                    data: usersData,
+                    borderColor: '#D90416',
+                    backgroundColor: 'rgba(217, 4, 22, 0.1)',
+                    borderWidth: 2.5,
+                    tension: 0.35,
+                    fill: true,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Coaches',
+                    data: coachesData,
+                    borderColor: '#3B82F6',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [4, 4],
+                    tension: 0.35,
+                    pointRadius: 2
+                },
+                {
+                    label: 'Athletes',
+                    data: clientsData,
+                    borderColor: '#10B981',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.35,
+                    pointRadius: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: isDark ? '#171717' : '#ffffff',
+                    titleColor: isDark ? '#ffffff' : '#111111',
+                    bodyColor: isDark ? '#e5e5e5' : '#404040',
+                    borderColor: isDark ? '#292929' : '#e5e5e5',
+                    borderWidth: 1,
+                    padding: 10,
+                    boxPadding: 4,
+                    usePointStyle: true
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: gridColor
+                    },
+                    ticks: {
+                        color: textColor,
+                        font: { size: 10 },
+                        maxTicksLimit: 10
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: gridColor
+                    },
+                    ticks: {
+                        color: textColor,
+                        font: { size: 10 },
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

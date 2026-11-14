@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Join Kentaro - Choose Account Type{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto py-12 px-4">
+    <div class="text-center mb-8">
+        <h2 class="text-3xl font-black text-kn-text dark:text-kn-text-dark tracking-tight">Join Kentaro</h2>
+        <p class="text-sm text-kn-muted dark:text-kn-muted-dark mt-2">Select how you want to use the platform</p>
+    </div>
+
+    <div class="space-y-4">
+        <!-- Client Option (Primary Athlete Flow) -->
+        <a href="{{ url_for('auth.register_client') }}" class="group block p-6 rounded-2xl border-2 border-brand-red dark:border-brand-red-dark bg-white dark:bg-kn-card-dark hover:bg-red-50/20 dark:hover:bg-red-950/20 transition shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-brand-red dark:text-brand-red-dark">For Athletes</span>
+                <span class="text-lg">🔥</span>
+            </div>
+            <h3 class="text-lg font-bold text-kn-text dark:text-kn-text-dark group-hover:text-brand-red dark:group-hover:text-brand-red-dark transition">
+                I want to be Coached
+            </h3>
+            <p class="text-xs text-kn-muted dark:text-kn-muted-dark mt-1">
+                Access custom calisthenics programs, submit form check videos, track workouts, and get direct coach feedback.
+            </p>
+        </a>
+
+        <!-- Coach Option -->
+        <a href="{{ url_for('auth.register_coach') }}" class="group block p-6 rounded-2xl border border-kn-border dark:border-kn-border-dark bg-white dark:bg-kn-card-dark hover:border-kn-text dark:hover:border-kn-text-dark transition shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-kn-muted dark:text-kn-muted-dark">For Coaches</span>
+                <span class="text-lg">🏋️</span>
+            </div>
+            <h3 class="text-lg font-bold text-kn-text dark:text-kn-text-dark">
+                I am a Fitness Coach
+            </h3>
+            <p class="text-xs text-kn-muted dark:text-kn-muted-dark mt-1">
+                Build programs, manage athlete rosters, review form check submissions, and monetize your coaching.
+            </p>
+        </a>
+    </div>
+
+    <p class="text-center text-xs text-kn-muted dark:text-kn-muted-dark mt-8">
+        Already have an account? 
+        <a href="{{ url_for('auth.login') }}" class="font-bold text-brand-red dark:text-brand-red-dark hover:underline">Log In</a>
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,3 @@
+@client_bp.route('/dashboard')
+@login_required
+def dashboard():

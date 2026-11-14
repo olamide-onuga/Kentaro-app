@@ -1,0 +1,601 @@
+/* =========================================================
+   Kentaro - Premium Coaching Platform
+   Black, White & Red Theme System (Light, Dark & Notifications)
+   ========================================================= */
+
+/* ── Centralized Design Tokens & CSS Custom Properties ──── */
+:root {
+    /* Base Color Tokens (Light Mode) */
+    --bg-primary: #F5F7FA;
+    --bg-card: #FFFFFF;
+    --bg-secondary: #EDF0F4;
+    --text-primary: #171A21;
+    --text-secondary: #606875;
+    --border-color: #DCE1E8;
+    --input-bg: #FFFFFF;
+    --accent-color: #D92D3A;
+    --accent-hover: #B92330;
+    --link-color: #C92533;
+
+    /* Semantic Notification Colors (Light Mode) */
+    --success-bg: #EAF8EF;
+    --success-text: #176B37;
+    --success-border: #B8E5C5;
+
+    --error-bg: #FDECEE;
+    --error-text: #A61D2D;
+    --error-border: #F4BEC4;
+
+    --warning-bg: #FFF5DF;
+    --warning-text: #875A08;
+    --warning-border: #F0D99F;
+
+    --info-bg: #EAF4FF;
+    --info-text: #205C9B;
+    --info-border: #B9D8FA;
+
+    /* Legacy Token Aliases */
+    --kn-page: var(--bg-primary);
+    --kn-card: var(--bg-card);
+    --kn-section: var(--bg-secondary);
+    --kn-border: var(--border-color);
+    --kn-text: var(--text-primary);
+    --kn-muted: var(--text-secondary);
+    --kn-accent: var(--accent-color);
+    --kn-accent-hover: var(--accent-hover);
+    --kn-accent-light: rgba(217, 45, 58, 0.08);
+}
+
+html.dark {
+    /* Base Color Tokens (Dark Mode) */
+    --bg-primary: #0B0D10;
+    --bg-card: #14171C;
+    --bg-secondary: #1B2027;
+    --text-primary: #F5F7FA;
+    --text-secondary: #A7AFBA;
+    --border-color: #2A3038;
+    --input-bg: #111419;
+    --accent-color: #E63946;
+    --accent-hover: #FF4D5A;
+    --link-color: #FF5C66;
+
+    /* Semantic Notification Colors (Dark Mode) */
+    --success-bg: #142B20;
+    --success-text: #86E3A6;
+    --success-border: #28563A;
+
+    --error-bg: #32191D;
+    --error-text: #FF9CA4;
+    --error-border: #673039;
+
+    --warning-bg: #332817;
+    --warning-text: #FFD28A;
+    --warning-border: #654A26;
+
+    --info-bg: #17283B;
+    --info-text: #93C9FF;
+    --info-border: #2D4F72;
+
+    /* Legacy Token Aliases */
+    --kn-page: var(--bg-primary);
+    --kn-card: var(--bg-card);
+    --kn-section: var(--bg-secondary);
+    --kn-border: var(--border-color);
+    --kn-text: var(--text-primary);
+    --kn-muted: var(--text-secondary);
+    --kn-accent: var(--accent-color);
+    --kn-accent-hover: var(--accent-hover);
+    --kn-accent-light: rgba(230, 57, 70, 0.12);
+}
+
+/* ── Native Browser & Root Level Controls ─────────────────── */
+html.dark {
+    color-scheme: dark;
+    background-color: #0B0D10;
+}
+
+html:not(.dark) {
+    color-scheme: light;
+    background-color: #F5F7FA;
+}
+
+/* ── Global Typography & Backgrounds ──────────────────────── */
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body {
+    background-color: #0B0D10 !important;
+    color: #F5F7FA !important;
+}
+
+/* ── LIGHT MODE STYLING (html:not(.dark)) ────────────────────── */
+/* In light mode: Everything that was dark becomes light, and text becomes dark */
+
+/* Card & Panel Surfaces (#FFFFFF) */
+html:not(.dark) .bg-white,
+html:not(.dark) .kn-card {
+    background-color: #FFFFFF !important;
+}
+
+/* Secondary Surfaces, Sub-containers & Hovers (#EDF0F4) */
+html:not(.dark) .bg-gray-50,
+html:not(.dark) .bg-gray-100,
+html:not(.dark) .bg-gray-200,
+html:not(.dark) .kn-section {
+    background-color: #EDF0F4 !important;
+}
+
+/* Transform rogue dark containers to light mode surfaces */
+html:not(.dark) .bg-black:not(.btn-primary-red):not(.btn-cta):not([class*="bg-red-"]):not([class*="bg-emerald-"]):not([class*="bg-amber-"]):not([class*="bg-green-"]):not(video),
+html:not(.dark) .bg-gray-950:not([class*="bg-red-"]):not(video),
+html:not(.dark) .bg-gray-900:not([class*="bg-red-"]):not(video),
+html:not(.dark) .bg-neutral-900:not([class*="bg-red-"]):not(video),
+html:not(.dark) .bg-neutral-950:not([class*="bg-red-"]):not(video) {
+    background-color: #FFFFFF !important;
+    color: #171A21 !important;
+    border-color: #DCE1E8 !important;
+}
+
+/* Invert dark buttons in light mode to clean light buttons */
+html:not(.dark) button.bg-black,
+html:not(.dark) a.bg-black:not(.btn-primary-red):not([class*="bg-red-"]),
+html:not(.dark) span.bg-black:not(.btn-primary-red):not([class*="bg-red-"]) {
+    background-color: #EDF0F4 !important;
+    color: #171A21 !important;
+    border: 1px solid #DCE1E8 !important;
+}
+html:not(.dark) button.bg-black:hover,
+html:not(.dark) a.bg-black:hover:not(.btn-primary-red):not([class*="bg-red-"]) {
+    background-color: #DCE1E8 !important;
+}
+
+/* Light Mode Borders & Dividers (#DCE1E8) */
+html:not(.dark) .border-gray-100,
+html:not(.dark) .border-gray-200,
+html:not(.dark) .border-gray-300,
+html:not(.dark) .border-gray-700,
+html:not(.dark) .border-gray-800,
+html:not(.dark) .border-neutral-800,
+html:not(.dark) .kn-border {
+    border-color: #DCE1E8 !important;
+}
+
+/* Light Mode Main Text (#171A21) */
+html:not(.dark) .text-gray-900,
+html:not(.dark) .text-gray-800,
+html:not(.dark) .text-black,
+html:not(.dark) .kn-text {
+    color: #171A21 !important;
+}
+
+/* Transform light/white text inside inverted containers to dark */
+html:not(.dark) [class*="bg-black"] .text-white:not(.btn-primary-red *),
+html:not(.dark) [class*="bg-gray-950"] .text-white,
+html:not(.dark) [class*="bg-gray-900"] .text-white,
+html:not(.dark) [class*="bg-neutral-900"] .text-white {
+    color: #171A21 !important;
+}
+
+/* Light Mode Secondary & Muted Text (#606875) */
+html:not(.dark) .text-gray-700,
+html:not(.dark) .text-gray-600,
+html:not(.dark) .text-gray-500,
+html:not(.dark) .kn-muted {
+    color: #606875 !important;
+}
+
+/* ── DARK MODE STYLING (html.dark) ────────────────────────── */
+/* In dark mode: EVERYTHING that was light becomes dark, and text becomes light */
+
+/* Card & Panel Surfaces (#14171C) */
+/* Force ANY light surface to become sleek dark card in dark mode */
+html.dark .bg-white:not(.btn-primary-red):not(.btn-cta):not([class*="bg-red-"]):not([class*="bg-emerald-"]):not([class*="bg-amber-"]):not([class*="bg-green-"]):not(.alert-card):not(.toast-notification):not(video),
+html.dark .kn-card,
+html.dark .dark\:bg-black,
+html.dark .dark\:bg-gray-950,
+html.dark .dark\:bg-neutral-900,
+html.dark .dark\:bg-neutral-950,
+html.dark .dark\:bg-\[\#171717\],
+html.dark .dark\:bg-\[\#14171C\],
+html.dark .dark\:bg-\[\#111b21\],
+html.dark .dark\:bg-\[\#202c33\] {
+    background-color: #14171C !important;
+}
+
+/* Secondary Backgrounds, Inner Sections, Hovers & Menus (#1B2027) */
+html.dark .bg-gray-50:not([class*="bg-red-"]):not([class*="bg-emerald-"]):not([class*="bg-amber-"]):not([class*="bg-green-"]):not(.alert-card),
+html.dark .bg-gray-100:not([class*="bg-red-"]):not([class*="bg-emerald-"]):not([class*="bg-amber-"]):not([class*="bg-green-"]):not(.alert-card),
+html.dark .bg-gray-200:not([class*="bg-red-"]):not([class*="bg-emerald-"]):not([class*="bg-amber-"]):not([class*="bg-green-"]):not(.alert-card),
+html.dark .kn-section,
+html.dark .dark\:bg-gray-900,
+html.dark .dark\:bg-gray-800,
+html.dark .dark\:bg-neutral-800,
+html.dark .dark\:bg-\[\#111111\],
+html.dark .dark\:bg-\[\#1B2027\],
+html.dark .dark\:bg-\[\#2a3942\],
+html.dark .dark\:hover\:bg-gray-800:hover,
+html.dark .dark\:hover\:bg-gray-900:hover,
+html.dark .dark\:hover\:bg-neutral-800:hover {
+    background-color: #1B2027 !important;
+}
+
+/* Invert dark:bg-white buttons in dark mode so they are never glowing white rectangles */
+html.dark .dark\:bg-white {
+    background-color: #1B2027 !important;
+    color: #F5F7FA !important;
+    border: 1px solid #2A3038 !important;
+}
+html.dark .dark\:bg-white:hover {
+    background-color: #2A3038 !important;
+}
+
+/* Dark Mode Borders & Dividers (#2A3038) */
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-gray-300,
+html.dark .border-gray-700,
+html.dark .border-gray-800,
+html.dark .dark\:border-gray-800,
+html.dark .dark\:border-gray-700,
+html.dark .dark\:border-\[\#292929\],
+html.dark .dark\:border-\[\#2A3038\],
+html.dark .kn-border {
+    border-color: #2A3038 !important;
+}
+
+/* Dark Mode Main Text (#F5F7FA) */
+/* Force all dark text to crisp off-white in dark mode */
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-black,
+html.dark .dark\:text-gray-100,
+html.dark .dark\:text-gray-200,
+html.dark .dark\:text-white,
+html.dark .dark\:text-\[\#F5F7FA\],
+html.dark .dark\:text-\[\#e9edef\],
+html.dark .kn-text {
+    color: #F5F7FA !important;
+}
+
+/* Dark Mode Secondary & Muted Text (#A7AFBA) */
+html.dark .text-gray-700,
+html.dark .text-gray-600,
+html.dark .text-gray-500,
+html.dark .dark\:text-gray-400,
+html.dark .dark\:text-gray-300,
+html.dark .dark\:text-gray-500,
+html.dark .dark\:text-\[\#A7AFBA\],
+html.dark .dark\:text-\[\#A3A3A3\],
+html.dark .dark\:text-\[\#8696a0\],
+html.dark .kn-muted {
+    color: #A7AFBA !important;
+}
+
+/* ── Input Fields ────────────────────────────────────────── */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]),
+textarea,
+select {
+    background-color: #FFFFFF !important;
+    color: #171A21 !important;
+    border: 1px solid #DCE1E8 !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none !important;
+    border-color: #D92D3A !important;
+    box-shadow: 0 0 0 2px rgba(217, 45, 58, 0.2) !important;
+}
+
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]),
+html.dark textarea,
+html.dark select {
+    background-color: #111419 !important;
+    color: #F5F7FA !important;
+    border: 1px solid #2A3038 !important;
+}
+
+html.dark input:focus,
+html.dark textarea:focus,
+html.dark select:focus {
+    border-color: #E63946 !important;
+    box-shadow: 0 0 0 2px rgba(230, 57, 70, 0.25) !important;
+}
+
+select option {
+    background-color: #FFFFFF !important;
+    color: #171A21 !important;
+}
+
+html.dark select option {
+    background-color: #14171C !important;
+    color: #F5F7FA !important;
+}
+
+/* Minimalist Underline Input Aesthetic */
+.input-line {
+    width: 100%;
+    background-color: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid #DCE1E8 !important;
+    border-radius: 0 !important;
+    padding: 0.65rem 0.25rem !important;
+    color: #171A21 !important;
+    font-size: 0.95rem !important;
+    outline: none !important;
+    box-shadow: none !important;
+    transition: border-bottom-color 0.2s ease !important;
+}
+
+.input-line:focus {
+    border-bottom-color: #D92D3A !important;
+    box-shadow: none !important;
+}
+
+html.dark .input-line {
+    border-bottom: 2px solid #2A3038 !important;
+    color: #F5F7FA !important;
+}
+
+html.dark .input-line:focus {
+    border-bottom-color: #E63946 !important;
+    box-shadow: none !important;
+}
+
+.input-line::placeholder {
+    color: #A7AFBA !important;
+}
+
+html.dark .input-line::placeholder {
+    color: #606875 !important;
+}
+
+/* ── Links ───────────────────────────────────────────────── */
+a.link-accent {
+    color: #C92533;
+    transition: color 0.15s ease;
+}
+
+a.link-accent:hover {
+    color: #B92330;
+    text-decoration: underline;
+}
+
+html.dark a.link-accent {
+    color: #FF5C66;
+}
+
+html.dark a.link-accent:hover {
+    color: #FF4D5A;
+}
+
+/* ── Primary Accent Buttons ──────────────────────────────── */
+.btn-primary-red,
+.btn-cta,
+.btn-accent {
+    background-color: #D92D3A !important;
+    color: #FFFFFF !important;
+    font-weight: 700;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn-primary-red:hover,
+.btn-cta:hover,
+.btn-accent:hover {
+    background-color: #B92330 !important;
+}
+
+.btn-primary-red:active,
+.btn-cta:active,
+.btn-accent:active {
+    transform: scale(0.98);
+}
+
+html.dark .btn-primary-red,
+html.dark .btn-cta,
+html.dark .btn-accent {
+    background-color: #E63946 !important;
+    color: #FFFFFF !important;
+}
+
+html.dark .btn-primary-red:hover,
+html.dark .btn-cta:hover,
+html.dark .btn-accent:hover {
+    background-color: #FF4D5A !important;
+}
+
+/* ── Secondary Neutral Buttons ───────────────────────────── */
+.btn-secondary {
+    background-color: #EDF0F4;
+    color: #171A21;
+    border: 1px solid #DCE1E8;
+    transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+    background-color: #DCE1E8;
+}
+
+html.dark .btn-secondary {
+    background-color: #1B2027;
+    color: #F5F7FA;
+    border-color: #2A3038;
+}
+
+html.dark .btn-secondary:hover {
+    background-color: #2A3038;
+}
+
+/* ── Red Accent Badges & Tags ────────────────────────────── */
+.badge-red {
+    background-color: rgba(217, 45, 58, 0.08) !important;
+    color: #D92D3A !important;
+    border: 1px solid rgba(217, 45, 58, 0.25) !important;
+}
+
+html.dark .badge-red {
+    background-color: rgba(230, 57, 70, 0.15) !important;
+    color: #FF5C66 !important;
+    border: 1px solid rgba(230, 57, 70, 0.35) !important;
+}
+
+/* ── Progress Indicators & Active Tabs ────────────────────── */
+.accent-progress-bar,
+.progress-bar-red {
+    background-color: #D92D3A !important;
+}
+
+html.dark .accent-progress-bar,
+html.dark .progress-bar-red {
+    background-color: #E63946 !important;
+}
+
+.tab-active {
+    border-bottom: 2px solid #D92D3A !important;
+    color: #D92D3A !important;
+}
+
+html.dark .tab-active {
+    border-bottom: 2px solid #E63946 !important;
+    color: #FF5C66 !important;
+}
+
+/* ── Selection ───────────────────────────────────────────── */
+::selection {
+    background-color: #D92D3A;
+    color: #FFFFFF;
+}
+
+html.dark ::selection {
+    background-color: #E63946;
+    color: #FFFFFF;
+}
+
+/* ── Minimalist Scrollbars ───────────────────────────────── */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(120, 120, 120, 0.3);
+    border-radius: 9999px;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 120, 120, 0.5);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Semantic Flash Alert Banners & Messages ─────────────── */
+.alert-card {
+    border-width: 1px;
+    border-style: solid;
+    transition: all 0.2s ease;
+}
+
+/* Success */
+.alert-success,
+.toast-success {
+    background-color: var(--success-bg) !important;
+    color: var(--success-text) !important;
+    border-color: var(--success-border) !important;
+}
+.alert-success .alert-icon {
+    color: var(--success-text);
+}
+
+/* Error / Danger */
+.alert-error,
+.alert-danger,
+.toast-error,
+.toast-danger {
+    background-color: var(--error-bg) !important;
+    color: var(--error-text) !important;
+    border-color: var(--error-border) !important;
+}
+.alert-error .alert-icon,
+.alert-danger .alert-icon {
+    color: var(--error-text);
+}
+
+/* Warning */
+.alert-warning,
+.toast-warning {
+    background-color: var(--warning-bg) !important;
+    color: var(--warning-text) !important;
+    border-color: var(--warning-border) !important;
+}
+.alert-warning .alert-icon {
+    color: var(--warning-text);
+}
+
+/* Information / Default */
+.alert-info,
+.toast-info {
+    background-color: var(--info-bg) !important;
+    color: var(--info-text) !important;
+    border-color: var(--info-border) !important;
+}
+.alert-info .alert-icon {
+    color: var(--info-text);
+}
+
+/* ── Toast Notifications System ──────────────────────────── */
+.toast-notification {
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.dark .toast-notification {
+    box-shadow: 0 20px 30px -5px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.toast-notification .toast-title {
+    opacity: 0.85;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.toast-notification .toast-body {
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 2px;
+    line-height: 1.4;
+}
+
+.toast-notification .toast-close {
+    opacity: 0.65;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+    border-radius: 0.5rem;
+}
+
+.toast-notification .toast-close:hover {
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+html.dark .toast-notification .toast-close:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}

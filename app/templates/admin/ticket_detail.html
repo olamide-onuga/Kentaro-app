@@ -1,0 +1,248 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Ticket #{{ ticket.ticket_ref }} — Kentaro Admin{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-4xl space-y-6">
+    <!-- Breadcrumb & Nav -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+            <a href="{{ url_for('admin.support_tickets') }}" class="hover:text-black dark:hover:text-white transition">Support Tickets</a>
+            <span>/</span>
+            <span class="font-bold text-gray-900 dark:text-gray-100">#{{ ticket.ticket_ref }}</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <a href="{{ url_for('admin.support_tickets') }}" class="px-3.5 py-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                ← Back to Tickets
+            </a>
+
+            {% if ticket.status == 'active' and (is_assigned or is_superadmin) %}
+            <button onclick="document.getElementById('closeTicketModal').classList.remove('hidden')" class="px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition">
+                Close Ticket
+            </button>
+            {% elif ticket.status == 'pending' %}
+            <form method="POST" action="{{ url_for('admin.accept_ticket', ticket_id=ticket.id) }}">
+                <button type="submit" class="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition">
+                    Accept Ticket
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Ticket Info Header Card -->
+    <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 p-6 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100 dark:border-gray-800">
+            <div>
+                <div class="flex items-center gap-2.5 mb-1.5">
+                    <span class="font-mono text-xs font-black px-2.5 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+                        #{{ ticket.ticket_ref }}
+                    </span>
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-extrabold uppercase bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+                        {{ ticket.category|capitalize }}
+                    </span>
+                    {% if ticket.status == 'pending' %}
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900">
+                        ● Pending Assignment
+                    </span>
+                    {% elif ticket.status == 'active' %}
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900">
+                        ● Active Support
+                    </span>
+                    {% else %}
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-500">
+                        Closed
+                    </span>
+                    {% endif %}
+                </div>
+                <h1 class="text-xl font-black text-gray-900 dark:text-gray-100">{{ ticket.subject }}</h1>
+            </div>
+
+            <!-- Creator Details -->
+            {% set u = ticket.user %}
+            <div class="bg-gray-50 dark:bg-gray-800/40 rounded-2xl p-3 border border-gray-100 dark:border-gray-800 text-xs">
+                <div class="font-bold text-gray-900 dark:text-gray-100">
+                    {% if u.is_coach and u.coach_profile and u.coach_profile.first_name %}
+                        Coach {{ u.coach_profile.first_name }} {{ u.coach_profile.last_name or '' }}
+                    {% elif u.is_client and u.client_profile and u.client_profile.first_name %}
+                        {{ u.client_profile.full_name }}
+                    {% else %}
+                        {{ u.email }}
+                    {% endif %}
+                </div>
+                <div class="text-[11px] text-gray-500 mt-0.5">
+                    User #{{ u.id }} • {{ u.email }}
+                </div>
+                {% if ticket.assigned_admin %}
+                <div class="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-1">
+                    Assigned: {{ ticket.assigned_admin.admin_display_name }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- If Pending, show prominent Accept banner -->
+        {% if ticket.status == 'pending' %}
+        <div class="pt-5 flex items-center justify-between gap-4 bg-amber-50/60 dark:bg-amber-950/20 -mx-6 -mb-6 p-6 rounded-b-3xl border-t border-amber-200/80 dark:border-amber-900/40">
+            <div>
+                <p class="text-xs font-black text-amber-900 dark:text-amber-200">
+                    This ticket is awaiting an administrator.
+                </p>
+                <p class="text-[11px] text-amber-700 dark:text-amber-400">
+                    Click Accept to claim this ticket under your name (<strong>{{ admin_display_name }}</strong>) and unlock the live chat.
+                </p>
+            </div>
+            <form method="POST" action="{{ url_for('admin.accept_ticket', ticket_id=ticket.id) }}">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition shadow-sm whitespace-nowrap">
+                    Accept &amp; Start Assisting
+                </button>
+            </form>
+        </div>
+        {% elif ticket.status == 'closed' %}
+        <!-- Closed summary -->
+        <div class="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-gray-500">
+            <div>
+                Closed on {{ ticket.closed_at.strftime('%b %d, %Y · %H:%M') if ticket.closed_at else '' }}
+                {% if ticket.closed_by %} by {{ ticket.closed_by.admin_display_name }}{% endif %}
+            </div>
+            {% if ticket.rating %}
+            <div class="flex items-center gap-1 font-bold text-amber-500">
+                <span>User Rating:</span>
+                <span>★ {{ ticket.rating }}/5</span>
+                {% if ticket.rating_feedback %}
+                <span class="text-gray-400 font-normal italic">("{{ ticket.rating_feedback }}")</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Message Feed -->
+    <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 p-6 shadow-sm">
+        <h2 class="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4">
+            Ticket Transcript
+        </h2>
+
+        <div id="adminTicketMessages" class="space-y-4 mb-6">
+            {% for msg in messages %}
+                {% if msg.is_system %}
+                <div class="flex justify-center my-3">
+                    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs text-blue-700 dark:text-blue-300 max-w-xl text-center">
+                        <span>ℹ️</span>
+                        <span class="font-medium">{{ msg.message }}</span>
+                        <span class="text-[10px] text-blue-400 ml-1">{{ msg.created_at.strftime('%H:%M') }}</span>
+                    </div>
+                </div>
+                {% else %}
+                {% set is_admin_msg = (msg.sender_id != ticket.user_id) %}
+                <div class="flex items-start gap-3 {% if is_admin_msg %}flex-row-reverse{% endif %}">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 {% if is_admin_msg %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200{% endif %}">
+                        {% if is_admin_msg %}
+                            {{ msg.sender.admin_display_name[0].upper() if msg.sender else 'A' }}
+                        {% else %}
+                            {{ ticket.user.email[0].upper() }}
+                        {% endif %}
+                    </div>
+
+                    <div class="max-w-[80%]">
+                        <div class="flex items-center gap-2 mb-1 {% if is_admin_msg %}justify-end{% endif %}">
+                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                {% if is_admin_msg %}
+                                    {{ msg.sender.admin_display_name if msg.sender else 'Support Team' }}
+                                    <span class="ml-1 text-[10px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">Staff</span>
+                                {% else %}
+                                    {{ ticket.user.email.split('@')[0] }} (User)
+                                {% endif %}
+                            </span>
+                            <span class="text-[10px] text-gray-400">{{ msg.created_at.strftime('%H:%M') }}</span>
+                        </div>
+
+                        <div class="p-4 rounded-2xl text-xs leading-relaxed {% if is_admin_msg %}bg-black dark:bg-white text-white dark:text-black rounded-tr-sm{% else %}bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm{% endif %}">
+                            <p class="whitespace-pre-wrap">{{ msg.message }}</p>
+                            {% if msg.attachment_url %}
+                            <div class="mt-2.5 pt-2 border-t {% if is_admin_msg %}border-white/20{% else %}border-gray-200 dark:border-gray-700{% endif %}">
+                                <a href="{{ msg.attachment_url }}" target="_blank" class="inline-flex items-center gap-1.5 font-bold hover:underline">
+                                    <span>📎 View Submitted Attachment</span>
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- Admin Reply Input -->
+        {% if ticket.status == 'active' %}
+            {% if can_reply %}
+            <form method="POST" action="{{ url_for('admin.admin_ticket_reply', ticket_ref=ticket.ticket_ref) }}" class="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-3">
+                <textarea name="message" rows="3" required placeholder="Type reply to {{ ticket.user.email }} as {{ admin_display_name }}..."
+                          class="w-full px-4 py-3 rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 text-xs focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"></textarea>
+
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-gray-400">
+                        Replying as: <strong class="text-black dark:text-white">{{ admin_display_name }}</strong>
+                    </span>
+
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-xs font-black hover:opacity-90 transition">
+                        Send Response
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <div class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs text-center">
+                This ticket is assigned to <strong>{{ ticket.assigned_admin.admin_display_name }}</strong>. Only the assigned administrator or Super Admin can reply.
+            </div>
+            {% endif %}
+        {% elif ticket.status == 'pending' %}
+        <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 text-center text-xs text-gray-500">
+            Accept this ticket above to start responding.
+        </div>
+        {% else %}
+        <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 text-center text-xs text-gray-500">
+            This ticket is closed and read-only.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal: Close Ticket Confirmation -->
+<div id="closeTicketModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-3xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-800 shadow-2xl">
+        <h3 class="text-base font-black text-gray-900 dark:text-gray-100 mb-2">Close Support Ticket #{{ ticket.ticket_ref }}?</h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+            Closing this ticket will make the conversation read-only, create a permanent support report, and prompt the user to rate their support experience with <strong>{{ admin_display_name }}</strong>.
+        </p>
+
+        <div class="flex items-center justify-end gap-3">
+            <button onclick="document.getElementById('closeTicketModal').classList.add('hidden')" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100">
+                Cancel
+            </button>
+            <form method="POST" action="{{ url_for('admin.close_ticket', ticket_id=ticket.id) }}">
+                <button type="submit" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black transition">
+                    Confirm &amp; Close Ticket
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof io !== 'undefined') {
+        var socket = io();
+        var ticketId = {{ ticket.id }};
+        socket.emit('join_ticket', { ticket_id: ticketId });
+
+        socket.on('ticket_message', function(data) {
+            if (data.ticket_id == ticketId && data.sender_id != {{ current_user.id }}) {
+                window.location.reload();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,69 @@
+Created At: 2026-10-16T20:02:56+01:00
+Completed At: 2026-10-16T20:02:56+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1709
+Total Bytes: 67762
+Showing lines 800 to 860
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+800:     if coach_user_id:
+801:         ChatMessage.query.filter(
+802:             ((ChatMessage.sender_id == current_user.id) & (ChatMessage.receiver_id == coach_user_id)) |
+803:             ((ChatMessage.sender_id == coach_user_id) & (ChatMessage.receiver_id == current_user.id))
+804:         ).delete()
+805: 
+806:     db.session.commit()
+807:     
+808:     from app.services.email import send_termination_emails
+809:     try:
+810:         send_termination_emails(coach, profile, 'client', reason)
+811:     except Exception: pass
+812:     
+813:     if coach_user_id:
+814:         socketio.emit('notification', {
+815:             'msg': f'Client {profile.full_name} ended their coaching contract.'
+816:         }, room=f'user_{coach_user_id}')
+817:         
+818:     flash('Your coaching contract has been terminated.', 'info')
+819:     return redirect(url_for('client.dashboard'))
+820: 
+821: @client_bp.route('/api/validate-discount', methods=['POST'])
+822: @login_required
+823: def validate_discount():
+824:     from flask import jsonify
+825:     data = request.get_json() or {}
+826:     code = data.get('code', '').strip().upper()
+827:     profile = current_user.client_profile
+828:     if not profile or not profile.coach_id:
+829:         return jsonify({'valid': False, 'message': 'No coach assigned.'})
+830:         
+831:     from app.models.coaching import CoachDiscount
+832:     disc = CoachDiscount.query.filter_by(coach_id=profile.coach_id, code=code, is_active=True).first()
+833:     if not disc:
+834:         return jsonify({'valid': False, 'message': 'Invalid or expired discount code.'})
+835:         
+836:     return jsonify({
+837:         'valid': True,
+838:         'code': disc.code,
+839:         'discount_type': disc.discount_type,
+840:         'discount_value': float(disc.discount_value),
+841:         'message': f'{disc.discount_value}% off applied!' if disc.discount_type == 'percentage' else f'${disc.discount_value} off applied!'
+842:     })
+843: 
+844: 
+845: @client_bp.route('/progress')
+846: @login_required
+847: def progress():
+848:     import os
+849:     from datetime import datetime, date
+850:     from app.models.progress import BodyweightLog, ProgressPhoto, FormCheckSubmission
+851:     from app.models.workout import Exercise
+852:     
+853:     profile = current_user.client_profile
+854:     if not profile:
+855:         flash('Please complete your profile first.', 'warning')
+856:         return redirect(url_for('client.dashboard'))
+857:         
+858:     weight_logs = profile.bodyweight_logs.order_by(BodyweightLog.date.asc(), BodyweightLog.created_at.asc()).all()
+859:     latest_weight = weight_logs[-1] if weight_logs else None
+860:     
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

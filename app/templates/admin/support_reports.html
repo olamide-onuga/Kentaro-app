@@ -1,0 +1,163 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Support Reports &amp; Customer Ratings — Kentaro Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100">Support Reports &amp; Ratings</h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Permanent records of resolved support tickets, resolution metrics, and customer feedback.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{{ url_for('admin.support_tickets') }}" class="px-3.5 py-2 rounded-2xl border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 transition">
+                ← Support Ticket Desk
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Metrics -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 p-5 shadow-sm">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Closed Tickets</p>
+            <p class="text-2xl font-black text-gray-900 dark:text-gray-100 mt-1">{{ total_closed }}</p>
+        </div>
+
+        <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 p-5 shadow-sm">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Average Rating</p>
+            <div class="flex items-center gap-1.5 mt-1">
+                <span class="text-2xl font-black text-amber-500">{{ avg_rating }}</span>
+                <span class="text-xs text-amber-400">★★★★★</span>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 p-5 shadow-sm">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Active In Progress</p>
+            <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{{ active_count }}</p>
+        </div>
+
+        <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 p-5 shadow-sm">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Pending Review</p>
+            <p class="text-2xl font-black text-amber-500 mt-1">{{ pending_count }}</p>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-bold text-gray-400 mr-1">Rating Filter:</span>
+            <a href="{{ url_for('admin.support_reports', q=search_q) }}"
+               class="px-3 py-1 rounded-xl text-xs font-bold transition {% if not rating_filter %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200{% endif %}">
+                All
+            </a>
+            {% for r in [5, 4, 3, 2, 1] %}
+            <a href="{{ url_for('admin.support_reports', rating=r, q=search_q) }}"
+               class="px-3 py-1 rounded-xl text-xs font-bold transition {% if rating_filter == r %}bg-amber-400 text-black font-black{% else %}bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200{% endif %}">
+                {{ r }} ★
+            </a>
+            {% endfor %}
+        </div>
+
+        <!-- Search -->
+        <form method="GET" action="{{ url_for('admin.support_reports') }}" class="flex items-center gap-2">
+            {% if rating_filter %}<input type="hidden" name="rating" value="{{ rating_filter }}">{% endif %}
+            <div class="relative w-full sm:w-64">
+                <input type="text" name="q" value="{{ search_q }}" placeholder="Search ID, subject, user, admin..."
+                       class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-black dark:focus:ring-white outline-none">
+                <span class="absolute left-2.5 top-2 text-gray-400 text-xs">🔍</span>
+            </div>
+            {% if search_q or rating_filter %}
+            <a href="{{ url_for('admin.support_reports') }}" class="text-xs text-gray-400 hover:text-black dark:hover:text-white">✕ Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Reports Table -->
+    <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-sm overflow-hidden">
+        {% if tickets %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500 uppercase tracking-widest text-[10px] font-black border-b border-gray-100 dark:border-gray-800">
+                    <tr>
+                        <th class="px-6 py-3.5">Ticket ID</th>
+                        <th class="px-6 py-3.5">User</th>
+                        <th class="px-6 py-3.5">Subject</th>
+                        <th class="px-6 py-3.5">Assigned Admin</th>
+                        <th class="px-6 py-3.5">Closed Date</th>
+                        <th class="px-6 py-3.5">Customer Rating</th>
+                        <th class="px-6 py-3.5 text-right">Report Detail</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                    {% for t in tickets %}
+                    <tr class="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition">
+                        <td class="px-6 py-4 font-mono font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                            <span class="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800">
+                                #{{ t.ticket_ref }}
+                            </span>
+                        </td>
+
+                        <td class="px-6 py-4">
+                            {% set u = t.user %}
+                            <div class="font-bold text-gray-900 dark:text-gray-100">
+                                {% if u and u.is_coach and u.coach_profile and u.coach_profile.first_name %}
+                                    Coach {{ u.coach_profile.first_name }}
+                                {% elif u and u.is_client and u.client_profile and u.client_profile.first_name %}
+                                    {{ u.client_profile.full_name }}
+                                {% else %}
+                                    {{ u.email.split('@')[0] if u else 'User' }}
+                                {% endif %}
+                            </div>
+                            <div class="text-[10px] text-gray-400">User #{{ u.id if u else '?' }}</div>
+                        </td>
+
+                        <td class="px-6 py-4 max-w-xs font-bold text-gray-900 dark:text-gray-100 truncate" title="{{ t.subject }}">
+                            {{ t.subject }}
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-800 dark:text-gray-200">
+                            {{ t.assigned_admin.admin_display_name if t.assigned_admin else 'Admin Team' }}
+                        </td>
+
+                        <td class="px-6 py-4 text-gray-500 whitespace-nowrap">
+                            {{ t.closed_at.strftime('%b %d, %Y') if t.closed_at else '' }}
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if t.rating %}
+                            <div class="flex items-center gap-1">
+                                <span class="text-amber-400 font-bold">{% for s in range(t.rating) %}★{% endfor %}</span>
+                                <span class="font-extrabold text-gray-800 dark:text-gray-200 ml-1">({{ t.rating }}/5)</span>
+                            </div>
+                            {% if t.rating_feedback %}
+                            <p class="text-[10px] text-gray-400 truncate max-w-xs mt-0.5 italic">
+                                "{{ t.rating_feedback }}"
+                            </p>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-xs text-gray-400 italic">Not rated</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <a href="{{ url_for('admin.support_report_detail', ticket_ref=t.ticket_ref) }}"
+                               class="px-3.5 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-bold hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition">
+                                View Full Report →
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-12 text-center text-gray-400 text-xs">
+            No closed ticket reports found matching your criteria.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

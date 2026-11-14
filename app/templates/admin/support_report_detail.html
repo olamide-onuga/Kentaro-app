@@ -1,0 +1,139 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}Support Report #{{ ticket.ticket_ref }} — Kentaro Admin{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-4xl space-y-6">
+    <!-- Breadcrumb & Print -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+            <a href="{{ url_for('admin.support_reports') }}" class="hover:text-black dark:hover:text-white transition">Support Reports</a>
+            <span>/</span>
+            <span class="font-bold text-gray-900 dark:text-gray-100">Audit #{{ ticket.ticket_ref }}</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button onclick="window.print()" class="px-3.5 py-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 transition">
+                🖨️ Print Report
+            </button>
+            <a href="{{ url_for('admin.support_reports') }}" class="px-3.5 py-1.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-xs font-black">
+                ← All Reports
+            </a>
+        </div>
+    </div>
+
+    <!-- Audit Summary Card -->
+    <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 p-8 shadow-sm">
+        <div class="flex items-center justify-between pb-6 border-b border-gray-100 dark:border-gray-800">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg">
+                    Official Support Audit Record
+                </span>
+                <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100 mt-2">
+                    {{ ticket.subject }}
+                </h1>
+                <p class="font-mono text-xs text-gray-400 mt-0.5">Reference: #{{ ticket.ticket_ref }}</p>
+            </div>
+
+            <!-- Rating Stamp -->
+            {% if ticket.rating %}
+            <div class="text-right bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-4 rounded-2xl">
+                <span class="text-2xl text-amber-400 font-bold">{% for s in range(ticket.rating) %}★{% endfor %}</span>
+                <p class="text-xs font-black text-gray-900 dark:text-gray-100 mt-1">Rating: {{ ticket.rating }}/5</p>
+            </div>
+            {% else %}
+            <div class="text-right text-xs text-gray-400 italic">No rating submitted</div>
+            {% endif %}
+        </div>
+
+        <!-- 4-Column Audit Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 py-6 border-b border-gray-100 dark:border-gray-800 text-xs">
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Customer / User</p>
+                {% set u = ticket.user %}
+                <p class="font-bold text-gray-900 dark:text-gray-100">
+                    {% if u.is_coach and u.coach_profile and u.coach_profile.first_name %}
+                        Coach {{ u.coach_profile.first_name }} {{ u.coach_profile.last_name or '' }}
+                    {% elif u.is_client and u.client_profile and u.client_profile.first_name %}
+                        {{ u.client_profile.full_name }}
+                    {% else %}
+                        {{ u.email.split('@')[0] }}
+                    {% endif %}
+                </p>
+                <p class="text-gray-500 text-[11px]">User #{{ u.id }} • {{ u.email }}</p>
+                <span class="inline-block text-[10px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-800 mt-1">
+                    {{ 'Coach' if u.is_coach else ('Athlete' if u.is_client else 'User') }}
+                </span>
+            </div>
+
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Assigned Administrator</p>
+                <p class="font-bold text-gray-900 dark:text-gray-100">
+                    {{ ticket.assigned_admin.admin_display_name if ticket.assigned_admin else 'None' }}
+                </p>
+                <p class="text-gray-500 text-[11px]">{{ ticket.assigned_admin.email if ticket.assigned_admin else '' }}</p>
+                {% if ticket.closed_by and ticket.closed_by != ticket.assigned_admin %}
+                <p class="text-[10px] text-gray-400 mt-1">Closed by: {{ ticket.closed_by.admin_display_name }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Resolution Timeline</p>
+                <p class="text-gray-600 dark:text-gray-300">Created: <strong class="text-gray-900 dark:text-gray-100">{{ ticket.created_at.strftime('%b %d, %H:%M') }}</strong></p>
+                <p class="text-gray-600 dark:text-gray-300">Accepted: <strong class="text-gray-900 dark:text-gray-100">{{ ticket.accepted_at.strftime('%b %d, %H:%M') if ticket.accepted_at else 'N/A' }}</strong></p>
+                <p class="text-gray-600 dark:text-gray-300">Closed: <strong class="text-gray-900 dark:text-gray-100">{{ ticket.closed_at.strftime('%b %d, %H:%M') if ticket.closed_at else 'N/A' }}</strong></p>
+            </div>
+
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Metrics</p>
+                <p class="text-gray-600 dark:text-gray-300">Total Duration: <strong class="text-gray-900 dark:text-gray-100">{{ resolution_time or 'N/A' }}</strong></p>
+                <p class="text-gray-600 dark:text-gray-300">Total Messages: <strong class="text-gray-900 dark:text-gray-100">{{ messages|length }}</strong></p>
+                <p class="text-gray-600 dark:text-gray-300">Category: <strong class="text-gray-900 dark:text-gray-100 uppercase">{{ ticket.category }}</strong></p>
+            </div>
+        </div>
+
+        {% if ticket.rating_feedback %}
+        <div class="py-4 border-b border-gray-100 dark:border-gray-800">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Customer Feedback</p>
+            <p class="text-xs italic text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800/40 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800">
+                "{{ ticket.rating_feedback }}"
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- Full Transcript -->
+        <div class="pt-6">
+            <h3 class="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">
+                Full Conversation Transcript
+            </h3>
+
+            <div class="space-y-4">
+                {% for msg in messages %}
+                <div class="p-4 rounded-2xl text-xs {% if msg.is_system %}bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40{% elif msg.sender_id != ticket.user_id %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100{% endif %}">
+                    <div class="flex items-center justify-between pb-2 mb-2 border-b {% if msg.sender_id != ticket.user_id and not msg.is_system %}border-white/20{% else %}border-gray-200 dark:border-gray-700{% endif %}">
+                        <span class="font-bold">
+                            {% if msg.is_system %}
+                                System Announcement
+                            {% elif msg.sender_id != ticket.user_id %}
+                                {{ msg.sender.admin_display_name if msg.sender else 'Support Administrator' }} (Staff)
+                            {% else %}
+                                {{ ticket.user.email }} (User)
+                            {% endif %}
+                        </span>
+                        <span class="text-[10px] opacity-70">
+                            {{ msg.created_at.strftime('%Y-%m-%d · %H:%M:%S UTC') }}
+                        </span>
+                    </div>
+                    <p class="whitespace-pre-wrap leading-relaxed">{{ msg.message }}</p>
+                    {% if msg.attachment_url %}
+                    <p class="mt-2 text-[11px] font-bold">
+                        Attachment: <a href="{{ msg.attachment_url }}" target="_blank" class="underline">View file</a>
+                    </p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

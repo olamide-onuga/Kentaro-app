@@ -1,0 +1,69 @@
+Created At: 2026-10-03T10:28:00+01:00
+Completed At: 2026-10-03T10:28:00+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1361
+Total Bytes: 55131
+Showing lines 100 to 160
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+100: @login_required
+101: def close_marketplace_post(post_id):
+102:     profile = current_user.client_profile
+103:     post = ClientPost.query.get_or_404(post_id)
+104:     if post.client_id == profile.id:
+105:         post.status = 'closed'
+106:         db.session.commit()
+107:         flash('Post marked as closed.', 'info')
+108:     return redirect(url_for('client.marketplace'))
+109: 
+110: @client_bp.route('/voice-call')
+111: @login_required
+112: def voice_call():
+113:     profile = current_user.client_profile
+114:     if not profile or not profile.coach:
+115:         flash('No coach assigned.', 'danger')
+116:         return redirect(url_for('client.dashboard'))
+117:     partner_id = profile.coach.user_id
+118:     partner_name = f"Coach {profile.coach.first_name if profile.coach.first_name else 'Coach'}"
+119:     from app.models.progress import FormCheckSubmission
+120:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+121:     return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+122: 
+123: @client_bp.route('/dashboard')
+124: def dashboard():
+125:     profile = current_user.client_profile
+126:     today_workout = None
+127:     active_program = None
+128: 
+129:     if profile:
+130:         cp = profile.client_programs.filter_by(is_active=True).first()
+131:         if cp:
+132:             active_program = cp.program
+133:                         # Find today's workout — simple heuristic: find first uncompleted workout in order
+134:             completed_ids = [c.workout_id for c in profile.completions.all()]
+135:             # Compute total workouts in active program
+136:             total_workouts = 0
+137:             if active_program:
+138:                 for phase in active_program.phases:
+139:                     total_workouts += phase.workouts.count()
+140:             # progress dict passed to template
+141:             progress = {
+142:                 'completed': len(completed_ids),
+143:                 'total': total_workouts,
+144:             }
+145:             for phase in cp.program.phases.order_by('order').all():
+146:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+147:                     if w.id not in completed_ids:
+148:                         today_workout = w
+149:                         break
+150:                 if today_workout:
+151:                     break
+152: 
+153:     upcoming_appointments = []
+154:     if profile:
+155:         from app.models.calendar import Appointment
+156:         from datetime import date as date_cls
+157:         upcoming_appointments = Appointment.query.filter(
+158:             Appointment.client_id == profile.id,
+159:             Appointment.date >= date_cls.today(),
+160:             Appointment.status == 'scheduled'
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

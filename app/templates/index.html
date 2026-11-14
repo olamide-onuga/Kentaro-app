@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center py-20">
+    <h1 class="text-5xl font-black mb-6 text-kn-text dark:text-kn-text-dark">Build your fitness empire.</h1>
+    <p class="text-xl text-kn-muted dark:text-kn-muted-dark mb-8 max-w-2xl mx-auto">
+        Kentaro is the premium platform for modern online fitness coaches. Manage clients, build programs, process payments, and schedule calls—all in one place.
+    </p>
+    <div class="mt-4 flex space-x-4 justify-center">
+        <a href="{{ url_for('auth.register_coach') }}" class="inline-block btn-secondary text-lg font-bold px-6 py-3 rounded-xl shadow-md transition">Start Coaching</a>
+        <a href="{{ url_for('auth.register_choice') }}" class="inline-block btn-primary-red text-lg font-bold px-6 py-3 rounded-xl shadow-md transition">Get Started</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Admin Registration - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-8 bg-white dark:bg-kn-card-dark p-8 sm:p-10 border border-kn-border dark:border-kn-border-dark rounded-3xl shadow-sm">
+    <div class="flex items-center gap-3 border-b border-kn-border dark:border-kn-border-dark pb-4 mb-6">
+        <div class="w-10 h-10 rounded-2xl bg-red-100 dark:bg-red-950/60 flex items-center justify-center text-brand-red dark:text-brand-red-dark font-extrabold text-lg">
+            
+        </div>
+        <div>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest badge-red">
+                Admin Setup
+            </span>
+            <h2 class="text-2xl font-black text-kn-text dark:text-kn-text-dark tracking-tight mt-0.5">
+                Register Admin
+            </h2>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.register_admin') }}" class="space-y-6">
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-kn-text dark:text-kn-text-dark mb-1" for="email">
+                Admin Email *
+            </label>
+            <input class="input-line" type="email" name="email" id="email" placeholder="admin@kentaro.com" required autocomplete="email">
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-kn-text dark:text-kn-text-dark mb-1" for="adminRegPwd">
+                Password *
+            </label>
+            <div class="relative">
+                <input class="input-line pr-10" type="password" name="password" id="adminRegPwd" placeholder="••••••••" required minlength="6" pattern="(?=.*[0-9])(?=.*[a-zA-Z]).{6,}" title="Password must be at least 6 characters and contain both letters and numbers." autocomplete="new-password">
+                <button type="button" onclick="togglePassword('adminRegPwd', 'adminRegPwdToggleBtn')" class="absolute right-1 top-1/2 -translate-y-1/2 text-sm p-1 text-kn-muted hover:text-kn-text dark:hover:text-kn-text-dark transition" id="adminRegPwdToggleBtn">👁️</button>
+            </div>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Must be at least 6 characters with both letters and numbers.</p>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-kn-text dark:text-kn-text-dark mb-1" for="adminRegConfirmPwd">
+                Confirm Password *
+            </label>
+            <div class="relative">
+                <input class="input-line pr-10" type="password" name="confirm_password" id="adminRegConfirmPwd" placeholder="••••••••" required minlength="6" autocomplete="new-password">
+                <button type="button" onclick="togglePassword('adminRegConfirmPwd', 'adminRegConfirmPwdToggleBtn')" class="absolute right-1 top-1/2 -translate-y-1/2 text-sm p-1 text-kn-muted hover:text-kn-text dark:hover:text-kn-text-dark transition" id="adminRegConfirmPwdToggleBtn">👁️</button>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-kn-text dark:text-kn-text-dark mb-1" for="admin_key">
+                Admin Security Secret Key <span class="text-kn-muted dark:text-kn-muted-dark font-normal lowercase">(optional for 1st admin)</span>
+            </label>
+            <input class="input-line" type="password" name="admin_key" id="admin_key" placeholder="Enter ADMIN_REGISTRATION_KEY">
+        </div>
+
+        <button type="submit" class="w-full btn-primary-red py-3 px-4 rounded-xl font-bold text-sm shadow-md transition">
+            Create Admin Account &rarr;
+        </button>
+    </form>
+
+    <div class="text-center mt-8 pt-6 border-t border-kn-border dark:border-kn-border-dark text-xs">
+        <a href="{{ url_for('admin.login') }}" class="text-kn-muted dark:text-kn-muted-dark hover:text-brand-red dark:hover:text-brand-red-dark font-semibold">
+            Already an Admin? Log in to Control Center
+        </a>
+    </div>
+</div>
+{% endblock %}

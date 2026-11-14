@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block title %}Find Your Coach - Scouting Marketplace - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Athlete Portal</span>
+            <h1 class="text-3xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight mt-1">
+                Find Your Coach
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Post your goals, struggles, and custom budget. Certified coaches will scout your request and send tailored program offers.
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            {% if active_contract and active_contract.coach %}
+            <a href="{{ url_for('client.chat', partner_id=active_contract.coach.user_id, category='coaching') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black dark:bg-white text-white dark:text-black text-sm font-bold shadow-sm transition">
+                <span>My Coach Chat</span> &rarr;
+            </a>
+            {% endif %}
+            <a href="{{ url_for('client.dashboard') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                ← Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Contract Enrolled Banner -->
+    {% if active_contract and active_contract.coach %}
+    <div class="p-5 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-xl shrink-0">
+                ✓
+            </div>
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Active Coaching Program</span>
+                <h3 class="text-base font-bold text-gray-900 dark:text-gray-100">
+                    You are enrolled with Coach {{ active_contract.coach.first_name }} {{ active_contract.coach.last_name or '' }}
+                </h3>
+                <p class="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                    Your training program and direct coaching line are active in your portal.
+                </p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+            <a href="{{ url_for('client.my_program') }}" class="px-4 py-2 rounded-xl bg-white dark:bg-black border border-emerald-300 dark:border-emerald-800 text-xs font-bold text-gray-900 dark:text-gray-100 hover:bg-emerald-50 dark:hover:bg-neutral-800 transition">
+                My Program
+            </a>
+            <a href="{{ url_for('client.chat', partner_id=active_contract.coach.user_id, category='coaching') }}" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">
+                Message Coach
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Active Coaching Request Card (if exists) -->
+    {% if active_post %}
+    <div class="bg-white dark:bg-black border-2 border-amber-500/30 rounded-3xl p-6 md:p-8 shadow-sm space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
+            <div class="flex items-center gap-2.5">
+                <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    Active Request — Receiving Offers
+                </span>
+                <span class="text-xs text-gray-400">Posted {{ active_post.created_at.strftime('%b %d, %Y') }}</span>
+            </div>
+            <form method="POST" action="{{ url_for('client.close_marketplace_post', post_id=active_post.id) }}" onsubmit="return confirm('Withdraw this coaching request from the marketplace?');">
+                <button type="submit" class="px-3.5 py-1.5 rounded-xl border border-red-200 dark:border-red-900/60 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition">
+                    Withdraw Request
+                </button>
+            </form>
+        </div>
+
+        <div>
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+                <span class="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200">
+                    {{ active_post.specialization }}
+                </span>
+                <span class="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200">
+                    {{ active_post.skill_level }} ({{ active_post.experience }})
+                </span>
+                <span class="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200">
+                    {{ active_post.preferred_duration }}
+                </span>
+                <span class="px-2.5 py-0.5 rounded-md text-[11px] font-extrabold bg-green-50 text-green-700 dark:bg-green-950/50 dark:text-green-300 border border-green-200 dark:border-green-800/60">
+                    Budget: {{ active_post.budget_display }}
+                </span>
+            </div>
+            <h2 class="text-xl font-extrabold text-gray-900 dark:text-gray-100">
+                {{ active_post.title }}
+            </h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-red-50/40 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 rounded-2xl p-4">
+                <span class="text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-400 block mb-1">
+                    Struggles &amp; Plateaus
+                </span>
+                <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{{ active_post.problem }}</p>
+            </div>
+            <div class="bg-blue-50/40 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-2xl p-4">
+                <span class="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 block mb-1">
+                    Target Goals
+                </span>
+                <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{{ active_post.goal }}</p>
+            </div>
+        </div>
+
+        {% if active_post.expectations %}
+        <div class="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs">
+            <span class="font-bold text-gray-900 dark:text-gray-100 block mb-1">Expectations from Coach:</span>
+            <p class="text-gray-600 dark:text-gray-400">{{ active_post.expectations }}</p>
+        </div>
+        {% endif %}
+
+        <div class="pt-2 flex items-center justify-between text-xs text-gray-500">
+            <span>Communication preference: <strong>{{ active_post.comm_preference }}</strong></span>
+            <span class="text-emerald-600 dark:text-emerald-400 font-bold">✓ Visible to certified coaches in Marketplace</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Create Request Form (if no active post and not currently enrolled) -->
+    {% if not active_post and not active_contract %}
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-6 md:p-8 shadow-sm">
+        <div class="mb-6">
+            <span class="text-xs font-black uppercase tracking-widest text-[#00a884]">Scouting Request</span>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mt-0.5">Post a Coaching Request</h2>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Specify your training goals, current experience, and budget so coaches can propose custom programs for you.</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('client.marketplace') }}" class="space-y-6">
+            
+            <!-- Summary Title -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                    Request Title / Summary <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="title" required placeholder="e.g. Need a coach to unlock Planche &amp; Handstand pushup without wrist strain" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition">
+            </div>
+
+            <!-- Coaching Specialization & Skill Level -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                        Coaching Specialization <span class="text-red-500">*</span>
+                    </label>
+                    <select name="specialization" required class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition">
+                        <option value="Calisthenics & Strength">Calisthenics &amp; Strength</option>
+                        <option value="Handstands & Balancing">Handstands &amp; Balancing</option>
+                        <option value="Planche & Lever">Planche &amp; Front Lever</option>
+                        <option value="Muscle Building & Hypertrophy">Muscle Building &amp; Hypertrophy</option>
+                        <option value="Weight Loss & Conditioning">Weight Loss &amp; Conditioning</option>
+                        <option value="Mobility & Flexibility">Mobility &amp; Flexibility</option>
+                        <option value="Other">Other Category</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                        Current Skill Level <span class="text-red-500">*</span>
+                    </label>
+                    <select name="skill_level" required class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition">
+                        <option value="Beginner">Beginner (0-1 pull-up)</option>
+                        <option value="Intermediate" selected>Intermediate (can do pull-ups/dips)</option>
+                        <option value="Advanced">Advanced (freestanding handstand, etc.)</option>
+                        <option value="Elite">Elite (Planche, Front lever, etc.)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                        Training Experience <span class="text-red-500">*</span>
+                    </label>
+                    <select name="experience" required class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition">
+                        <option value="0-6 Months">0 - 6 Months</option>
+                        <option value="6-12 Months" selected>6 - 12 Months</option>
+                        <option value="1-2 Years">1 - 2 Years</option>
+                        <option value="2+ Years">2+ Years</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Struggles & Goals -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                        What are you struggling with? <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="problem" rows="3" required placeholder="Describe plateaus, form sticking points, discomfort, lack of structure..." class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                        What do you want to achieve? <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="goal" rows="3" required placeholder="Specific milestones: 30s handstand, 5s full planche, add 10kg weighted pull-up..." class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"></textarea>
+                </div>
+            </div>
+
+            <!-- Client Custom Budget Write-Out Section -->
+            <div class="p-6 rounded-3xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200/80 dark:border-gray-800">
+                    <div>
+                        <span class="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                            <span>💰</span> Write Out Your Custom Budget <span class="text-red-500">*</span>
+                        </span>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Enter the monthly amount or price range you are looking to spend. Coaches will scout and propose programs within your budget.
+                        </p>
+                    </div>
+
+                    <!-- Currency Switcher -->
+                    <div class="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                        <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Currency:</label>
+                        <select id="budgetCurrencySelect" name="currency" onchange="onBudgetCurrencyChange(this.value)"
+                                class="px-3 py-1.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-black text-black dark:text-white text-xs font-black focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition">
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="NGN">NGN (₦)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Custom Range Inputs: Min & Max Budget (Direct Write-Out) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                            Minimum Target Budget (<span class="currencySymbolText">$</span>) *
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-gray-400 currencySymbolText">$</span>
+                            <input type="number" step="any" min="0" id="inputMinBudget" name="min_budget" required placeholder="e.g. 50"
+                                   oninput="onManualBudgetInput()"
+                                   class="w-full pl-8 pr-3.5 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition">
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-1">Starting monthly budget you are planning for.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                            Maximum Target Budget (<span class="currencySymbolText">$</span>) *
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-gray-400 currencySymbolText">$</span>
+                            <input type="number" step="any" min="0" id="inputMaxBudget" name="max_budget" required placeholder="e.g. 150"
+                                   oninput="onManualBudgetInput()"
+                                   class="w-full pl-8 pr-3.5 py-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition">
+                        </div>
+                        <p class="text-[11px] text-gray-400 mt-1">Highest target you want to spend / month.</p>
+                    </div>
+                </div>
+
+                <!-- Flexible Budget Option -->
+                <div class="flex items-center gap-2.5 pt-1">
+                    <input type="checkbox" id="inputFlexibleBudget" name="is_flexible_budget" value="1" onchange="onFlexibleToggle(this)"
+                           class="w-4 h-4 rounded text-[#00a884] border-gray-300 dark:border-gray-700 focus:ring-[#00a884] cursor-pointer">
+                    <label for="inputFlexibleBudget" class="text-xs text-gray-600 dark:text-gray-300 font-medium cursor-pointer select-none">
+                        Open to coach proposals outside this range if the package includes premium features
+                    </label>
+                </div>
+
+                <!-- Summary Callout -->
+                <div class="p-3.5 rounded-2xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 flex items-center justify-between text-xs">
+                    <span class="text-gray-500 dark:text-gray-400">Coaches will see your custom budget as:</span>
+                    <span id="budgetSummaryText" class="font-black text-[#00a884] dark:text-[#25d366]">Write out your budget above</span>
+                </div>
+            </div>
+
+            <!-- Duration & Communication Preferences -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Preferred Coaching Duration</label>
+                    <select name="preferred_duration" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm">
+                        <option value="4 Weeks">4 Weeks</option>
+                        <option value="8 Weeks">8 Weeks</option>
+                        <option value="12 Weeks" selected>12 Weeks (Recommended)</option>
+                        <option value="6 Months">6 Months</option>
+                        <option value="Ongoing">Ongoing Coaching</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">Communication Preference</label>
+                    <select name="comm_preference" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white text-sm">
+                        <option value="In-App Chat & Voice Notes" selected>In-App Chat &amp; Voice Notes</option>
+                        <option value="Weekly Video Check-ins">Weekly Video Check-ins</option>
+                        <option value="Daily Form Review">Daily Form Review</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                    Expectations from Coach <span class="text-gray-400 font-normal lowercase">(optional)</span>
+                </label>
+                <textarea name="expectations" rows="2" placeholder="e.g. Want feedback on videos 2x per week, custom program updates monthly..." class="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"></textarea>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button type="submit" class="px-6 py-3 rounded-xl bg-black dark:bg-white text-white dark:text-black font-extrabold text-sm shadow-md hover:opacity-90 transition">
+                    Publish Request to Marketplace &rarr;
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Previous Requests History -->
+    {% if my_posts %}
+    <div class="space-y-4">
+        <h3 class="text-base font-bold text-gray-900 dark:text-gray-100">Request History</h3>
+        <div class="grid grid-cols-1 gap-3">
+            {% for post in my_posts %}
+            {% if post != active_post %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-4 flex items-center justify-between gap-4 text-xs">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider {% if post.status == 'fulfilled' %}bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300{% else %}bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400{% endif %}">
+                            {{ post.status }}
+                        </span>
+                        <span class="text-gray-400">{{ post.created_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    <span class="font-bold text-gray-900 dark:text-gray-100">{{ post.title }}</span>
+                </div>
+                {% if post.status == 'fulfilled' and post.fulfilled_coach %}
+                <span class="text-emerald-600 dark:text-emerald-400 font-semibold">Coached by {{ post.fulfilled_coach.first_name }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+const CURRENCY_SYMBOLS = {
+    'USD': '$',
+    'EUR': '€',
+    'GBP': '£',
+    'NGN': '₦'
+};
+
+function onBudgetCurrencyChange(currency) {
+    const sym = CURRENCY_SYMBOLS[currency] || '$';
+    document.querySelectorAll('.currencySymbolText').forEach(el => el.textContent = sym);
+    onManualBudgetInput();
+}
+
+function onFlexibleToggle(checkbox) {
+    onManualBudgetInput();
+}
+
+function onManualBudgetInput() {
+    const minInput = document.getElementById('inputMinBudget');
+    const maxInput = document.getElementById('inputMaxBudget');
+    const summaryText = document.getElementById('budgetSummaryText');
+    const currency = document.getElementById('budgetCurrencySelect')?.value || 'USD';
+    const flexCheck = document.getElementById('inputFlexibleBudget');
+
+    const minVal = minInput?.value ? parseFloat(minInput.value) : null;
+    const maxVal = maxInput?.value ? parseFloat(maxInput.value) : null;
+
+    if (summaryText) {
+        let text = '';
+        if (minVal !== null && maxVal !== null) {
+            text = `${currency} ${minVal.toLocaleString()} - ${maxVal.toLocaleString()} / mo`;
+        } else if (maxVal !== null) {
+            text = `Up to ${currency} ${maxVal.toLocaleString()} / mo`;
+        } else if (minVal !== null) {
+            text = `From ${currency} ${minVal.toLocaleString()} / mo`;
+        } else {
+            text = 'Write out your budget above';
+        }
+
+        if (flexCheck && flexCheck.checked && (minVal !== null || maxVal !== null)) {
+            text += ' (Flexible)';
+        } else if (flexCheck && flexCheck.checked && minVal === null && maxVal === null) {
+            text = 'Flexible / Open to Offers';
+        }
+        summaryText.textContent = text;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    onManualBudgetInput();
+});
+</script>
+{% endblock %}

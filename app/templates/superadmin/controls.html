@@ -1,0 +1,154 @@
+{% extends "superadmin/layout.html" %}
+
+{% block title %}System Controls - Kentaro Super Admin{% endblock %}
+
+{% block superadmin_content %}
+<div class="space-y-6">
+
+    <div>
+        <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100">Emergency &amp; System Controls</h1>
+        <p class="text-xs text-gray-500 mt-1">Platform switches, security toggles, and global broadcast announcements.</p>
+    </div>
+
+    <!-- Switches Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        <!-- Maintenance Mode Switch -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-400">Emergency Switch</span>
+                    {% if controls.maintenance_mode %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/20 text-red-600">Active</span>
+                    {% else %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-gray-100 dark:bg-gray-800 text-gray-500">Disabled</span>
+                    {% endif %}
+                </div>
+                <h3 class="text-base font-black text-gray-900 dark:text-gray-100">Maintenance Mode</h3>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+                    When active, public and client/coach pages display a temporary maintenance notice. Platform administrators retain full access.
+                </p>
+            </div>
+            <div class="pt-5 border-t border-gray-100 dark:border-gray-800 mt-4">
+                <form method="POST" action="{{ url_for('superadmin.controls') }}">
+                    <input type="hidden" name="action" value="toggle_maintenance">
+                    <button type="submit"
+                            class="w-full py-2.5 rounded-xl font-black text-xs transition shadow-xs {% if controls.maintenance_mode %}bg-emerald-600 hover:bg-emerald-500 text-white{% else %}bg-red-600 hover:bg-red-500 text-white{% endif %}">
+                        {{ 'Deactivate Maintenance Mode' if controls.maintenance_mode else 'Activate Maintenance Mode' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- User Registration Switch -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-gray-400">Access Control</span>
+                    {% if controls.allow_registrations %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600">Open</span>
+                    {% else %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-600">Closed</span>
+                    {% endif %}
+                </div>
+                <h3 class="text-base font-black text-gray-900 dark:text-gray-100">User Signups &amp; Registrations</h3>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Toggle whether new coaches and clients can register accounts on Kentaro. When closed, new signups are blocked.
+                </p>
+            </div>
+            <div class="pt-5 border-t border-gray-100 dark:border-gray-800 mt-4">
+                <form method="POST" action="{{ url_for('superadmin.controls') }}">
+                    <input type="hidden" name="action" value="toggle_registrations">
+                    <button type="submit"
+                            class="w-full py-2.5 rounded-xl font-black text-xs transition shadow-xs border border-gray-300 dark:border-gray-700 hover:border-black dark:hover:border-white text-gray-900 dark:text-gray-100">
+                        {{ 'Close New Registrations' if controls.allow_registrations else 'Open New Registrations' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Marketplace Access Switch -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-gray-400">Feature Toggle</span>
+                    {% if controls.allow_marketplace %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600">Enabled</span>
+                    {% else %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-600">Paused</span>
+                    {% endif %}
+                </div>
+                <h3 class="text-base font-black text-gray-900 dark:text-gray-100">Calisthenics Marketplace</h3>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Controls whether clients can post coaching requests and coaches can scout new clients.
+                </p>
+            </div>
+            <div class="pt-5 border-t border-gray-100 dark:border-gray-800 mt-4">
+                <form method="POST" action="{{ url_for('superadmin.controls') }}">
+                    <input type="hidden" name="action" value="toggle_marketplace">
+                    <button type="submit"
+                            class="w-full py-2.5 rounded-xl font-black text-xs transition shadow-xs border border-gray-300 dark:border-gray-700 hover:border-black dark:hover:border-white text-gray-900 dark:text-gray-100">
+                        {{ 'Pause Marketplace' if controls.allow_marketplace else 'Enable Marketplace' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Custom Program Offers Switch -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-gray-400">Commerce Feature</span>
+                    {% if controls.allow_custom_offers %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600">Enabled</span>
+                    {% else %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-600">Paused</span>
+                    {% endif %}
+                </div>
+                <h3 class="text-base font-black text-gray-900 dark:text-gray-100">Custom Program Purchases</h3>
+                <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Controls whether coaches can send in-chat custom program offers and clients can checkout via Paystack.
+                </p>
+            </div>
+            <div class="pt-5 border-t border-gray-100 dark:border-gray-800 mt-4">
+                <form method="POST" action="{{ url_for('superadmin.controls') }}">
+                    <input type="hidden" name="action" value="toggle_custom_offers">
+                    <button type="submit"
+                            class="w-full py-2.5 rounded-xl font-black text-xs transition shadow-xs border border-gray-300 dark:border-gray-700 hover:border-black dark:hover:border-white text-gray-900 dark:text-gray-100">
+                        {{ 'Pause Custom Offers' if controls.allow_custom_offers else 'Enable Custom Offers' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Announcement Broadcast Box -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xs max-w-2xl">
+        <h3 class="text-sm font-black text-gray-900 dark:text-gray-100 mb-1">Global Broadcast Announcement</h3>
+        <p class="text-xs text-gray-500 mb-4">Display a high-priority announcement alert across the top of all user dashboards.</p>
+
+        <form method="POST" action="{{ url_for('superadmin.controls') }}" class="space-y-4">
+            <input type="hidden" name="action" value="update_announcement">
+
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="announcement_active" name="announcement_active" value="1" {% if controls.announcement_active %}checked{% endif %} class="rounded text-black focus:ring-black">
+                <label for="announcement_active" class="text-xs font-bold text-gray-800 dark:text-gray-200 cursor-pointer">
+                    Enable announcement banner globally
+                </label>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Announcement Content</label>
+                <textarea name="announcement_text" rows="3" placeholder="Enter message to broadcast..."
+                          class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white resize-none">{{ controls.announcement_text }}</textarea>
+            </div>
+
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-black text-xs hover:opacity-85 transition">
+                Update Broadcast
+            </button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

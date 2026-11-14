@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto mt-10">
+    <h2 class="text-2xl font-bold mb-6 text-center">Register</h2>
+    <p class="text-center mb-4">Select the type of account you want to create:</p>
+    <div class="flex flex-col space-y-4">
+        <a href="{{ url_for('auth.register_client') }}" class="w-full py-2 px-4 bg-black dark:bg-white text-white dark:text-black text-center rounded hover:bg-gray-800">Client</a>
+        <a href="{{ url_for('auth.register_coach') }}" class="w-full py-2 px-4 bg-black dark:bg-white text-white dark:text-black text-center rounded hover:bg-gray-800">Coach</a>
+    </div>
+    <p class="mt-6 text-center"><a href="{{ url_for('auth.login') }}" class="text-sm text-gray-600 dark:text-gray-400 hover:underline">Already have an account? Log in</a></p>
+</div>
+{% endblock %}

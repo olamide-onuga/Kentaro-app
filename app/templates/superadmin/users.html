@@ -1,0 +1,131 @@
+{% extends "superadmin/layout.html" %}
+
+{% block title %}User Management - Kentaro Super Admin{% endblock %}
+
+{% block superadmin_content %}
+<div class="space-y-6">
+
+    <!-- Header & Search -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100">All Platform Users</h1>
+            <p class="text-xs text-gray-500 mt-1">
+                Full authority over coaches, clients, and platform accounts.
+            </p>
+        </div>
+        <form method="GET" action="{{ url_for('superadmin.users') }}" class="flex items-center gap-2">
+            <input type="hidden" name="role" value="{{ current_role }}">
+            <input type="hidden" name="status" value="{{ current_status }}">
+            <input type="text" name="q" value="{{ search_query }}" placeholder="Search email or name..."
+                   class="px-3.5 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white w-48 sm:w-64">
+            <button type="submit" class="px-3.5 py-2 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-xs hover:opacity-85 transition">
+                Search
+            </button>
+        </form>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="text-[10px] font-black uppercase tracking-wider text-gray-400 mr-1">Filter Role:</span>
+        <a href="{{ url_for('superadmin.users', role='all', status=current_status, q=search_query) }}"
+           class="px-3 py-1.5 rounded-xl font-bold transition {% if current_role == 'all' %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-black dark:hover:border-white{% endif %}">
+            All ({{ users|length if current_role == 'all' else 'All' }})
+        </a>
+        <a href="{{ url_for('superadmin.users', role='coach', status=current_status, q=search_query) }}"
+           class="px-3 py-1.5 rounded-xl font-bold transition {% if current_role == 'coach' %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-black dark:hover:border-white{% endif %}">
+            Coaches
+        </a>
+        <a href="{{ url_for('superadmin.users', role='client', status=current_status, q=search_query) }}"
+           class="px-3 py-1.5 rounded-xl font-bold transition {% if current_role == 'client' %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-black dark:hover:border-white{% endif %}">
+            Clients
+        </a>
+        <a href="{{ url_for('superadmin.users', role='admin', status=current_status, q=search_query) }}"
+           class="px-3 py-1.5 rounded-xl font-bold transition {% if current_role == 'admin' %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-black dark:hover:border-white{% endif %}">
+            Admins
+        </a>
+        <a href="{{ url_for('superadmin.users', role='superadmin', status=current_status, q=search_query) }}"
+           class="px-3 py-1.5 rounded-xl font-bold transition {% if current_role == 'superadmin' %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-black dark:hover:border-white{% endif %}">
+            Super Admins
+        </a>
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xs">
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+                <thead class="text-[10px] uppercase font-black tracking-wider text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                    <tr>
+                        <th class="py-3 px-3">User</th>
+                        <th class="py-3 px-3">Role</th>
+                        <th class="py-3 px-3">Status</th>
+                        <th class="py-3 px-3">Email Verified</th>
+                        <th class="py-3 px-3">Joined Date</th>
+                        <th class="py-3 px-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60 font-medium">
+                    {% for u in users %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40 transition">
+                        <td class="py-3 px-3">
+                            <div class="font-black text-gray-900 dark:text-gray-100">{{ u.display_name or (u.email.split('@')[0].title()) }}</div>
+                            <div class="text-[11px] text-gray-400 font-mono">{{ u.email }}</div>
+                        </td>
+                        <td class="py-3 px-3">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase {% if u.is_superadmin %}bg-amber-400/20 text-amber-600 border border-amber-400/30{% elif u.is_admin %}bg-blue-500/10 text-blue-600{% elif u.is_coach %}bg-emerald-500/10 text-emerald-600{% else %}bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300{% endif %}">
+                                {{ u.role.name if u.role else 'None' }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3">
+                            {% if u.is_active %}
+                            <span class="text-emerald-600 font-bold inline-flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active
+                            </span>
+                            {% else %}
+                            <span class="text-red-600 font-bold inline-flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Inactive
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3">
+                            {% if u.is_email_confirmed %}
+                            <span class="text-emerald-600 font-semibold">&check; Verified</span>
+                            {% else %}
+                            <span class="text-gray-400 font-normal">Unverified</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 text-gray-400 font-mono text-[11px]">
+                            {{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '' }}
+                        </td>
+                        <td class="py-3 px-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <!-- Change role dropdown / modal trigger -->
+                                {% if not u.is_primary_superadmin %}
+                                <form method="POST" action="{{ url_for('superadmin.user_toggle_status', user_id=u.id) }}" class="inline">
+                                    <button type="submit" class="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-800 text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white transition">
+                                        {{ 'Deactivate' if u.is_active else 'Activate' }}
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('superadmin.user_toggle_email_verify', user_id=u.id) }}" class="inline">
+                                    <button type="submit" class="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-800 text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:border-black dark:hover:border-white transition" title="Toggle email confirmation">
+                                        {{ 'Unverify' if u.is_email_confirmed else 'Verify' }}
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('superadmin.user_delete', user_id=u.id) }}" class="inline" onsubmit="return confirm('Permanently delete {{ u.email }}? This action is irreversible.');">
+                                    <button type="submit" class="px-2 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 font-bold text-[11px] hover:bg-red-600 hover:text-white transition">
+                                        Delete
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-[11px] text-gray-400 italic">Protected</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

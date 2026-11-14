@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Voice & Video Call with {{ partner_name }} - Kentaro{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-7xl mx-auto space-y-3">
+
+    <!-- Header & Navigation -->
+    <div class="flex items-center justify-between px-1">
+        <a href="{{ url_for('client.dashboard') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition">
+            <span>←</span> Back to Dashboard
+        </a>
+        <div class="flex items-center gap-2">
+            <span id="callStatus" class="text-xs font-semibold px-3 py-1 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                Ready
+            </span>
+            <span id="callTimer" class="hidden text-xs font-mono font-bold px-3 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black">
+                00:00
+            </span>
+        </div>
+    </div>
+
+    <!-- Call Theater Room Container (Google Meet / Zoom Full Stage Style) -->
+    <div id="callContainer" class="relative bg-gray-950 rounded-3xl overflow-hidden shadow-2xl border border-gray-800 w-full aspect-video md:aspect-[16/9] lg:h-[75vh] min-h-[440px] max-h-[820px] flex items-center justify-center group">
+
+        <!-- Remote Video Feed Container (Full Stage) -->
+        <div id="remoteVideoWrapper" class="relative w-full h-full flex items-center justify-center overflow-hidden transition-all duration-300">
+            <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+
+            <!-- Active Speaker Glow Indicator around Remote Video -->
+            <div id="remoteSpeakerRing" class="pointer-events-none absolute inset-0 rounded-3xl transition-all duration-300 ring-0"></div>
+
+            <!-- Remote Partner Info Pill (Bottom Left of Video Stage) -->
+            <div id="remoteInfoPill" class="absolute bottom-20 left-4 z-20 bg-black/70 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-lg">
+                <span id="remoteSpeakingWave" class="hidden w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
+                <span id="remoteMicIcon" class="text-xs">🎙️</span>
+                <span class="font-medium">{{ partner_name }}</span>
+            </div>
+
+            <!-- Remote Partner Mute Badge (Top Left) -->
+            <div id="remoteMuteBadge" class="hidden absolute top-4 left-4 z-20 bg-red-600/90 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 backdrop-blur-sm shadow-md font-semibold">
+                <span>🔇</span>
+                <span id="remoteMuteText">{{ partner_name }} is muted</span>
+            </div>
+
+            <!-- Remote Partner Screen Sharing Badge (Top Left Sub) -->
+            <div id="remoteScreenBadge" class="hidden absolute top-14 left-4 z-20 bg-blue-600/90 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 backdrop-blur-sm shadow-md font-semibold">
+                <span>🖥️</span>
+                <span id="remoteScreenText">{{ partner_name }} is sharing screen</span>
+            </div>
+
+            <!-- Remote Placeholder (When camera is off or call not yet active) -->
+            <div id="remotePlaceholder" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white bg-gradient-to-b from-gray-900 to-black z-10">
+                <div class="relative mb-6">
+                    <div class="w-24 h-24 md:w-28 md:h-28 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center text-4xl md:text-5xl font-extrabold shadow-inner">
+                        {{ partner_name[0] if partner_name else 'C' }}
+                    </div>
+                    <span id="remoteStatusDot" class="w-4 h-4 rounded-full bg-gray-500 border-2 border-black absolute -bottom-1 -right-1"></span>
+                </div>
+
+                <h3 id="remoteNameHeading" class="text-xl md:text-2xl font-bold mb-1">
+                    {{ partner_name }}
+                </h3>
+                <p id="remoteSubText" class="text-xs md:text-sm text-gray-400 max-w-sm">
+                    Click "Start Call" below to initiate a private coaching call with {{ partner_name }}.
+                </p>
+                <p id="remoteCameraNotice" class="hidden text-xs text-amber-300 mt-3 font-semibold px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+                    📷 {{ partner_name }}'s camera is turned off
+                </p>
+            </div>
+
+            <!-- Cast Form Check Live Video Stage (Google Meet Presentation View) -->
+            <div id="castOverlay" class="hidden absolute inset-0 z-20 bg-black flex flex-col">
+                <div class="bg-black/80 backdrop-blur-md px-4 py-2.5 border-b border-gray-800 flex items-center justify-between z-10">
+                    <div class="flex items-center gap-2 text-white">
+                        <span class="p-1 rounded-lg bg-blue-600 text-xs">🏋️ CAST</span>
+                        <span id="castExerciseTitle" class="font-bold text-sm">Reviewing Form Check</span>
+                    </div>
+                    <button id="closeCastBtn" type="button" class="px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition flex items-center gap-1">
+                        <span>✕</span> Close Presentation
+                    </button>
+                </div>
+                <div class="flex-1 flex items-center justify-center p-2 bg-black relative">
+                    <video id="castVideo" controls playsinline class="w-full h-full max-h-[80vh] object-contain rounded-xl"></video>
+                </div>
+                <div id="castNotesBar" class="hidden bg-gray-900/90 text-gray-200 text-xs p-3 border-t border-gray-800 flex items-center justify-between">
+                    <div id="castNotesContent" class="truncate max-w-xl"></div>
+                </div>
+            </div>
+
+            <!-- Floating Picture-in-Picture Local Self Video (Top Right) -->
+            <div id="localVideoCard" class="absolute top-4 right-4 z-30 w-36 sm:w-48 aspect-video rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-gray-900 transition-transform duration-200">
+                <video id="localVideo" autoplay muted playsinline class="w-full h-full object-cover"></video>
+                <div id="localPlaceholder" class="hidden absolute inset-0 bg-gray-900 flex items-center justify-center text-xs text-gray-400">
+                    Camera Off
+                </div>
+                <div class="absolute bottom-1.5 left-2 right-2 flex items-center justify-between text-[10px] font-medium text-white/90 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded">
+                    <span>You</span>
+                    <span id="localMuteTag" class="hidden text-red-400">🔇</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Google Meet In-Call Chat Drawer (Slide-Over Panel) -->
+        <div id="inCallChatDrawer" class="hidden absolute top-0 right-0 bottom-0 w-80 sm:w-96 z-40 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 shadow-2xl flex flex-col transition-all duration-200">
+            <!-- Header -->
+            <div class="px-4 py-3.5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-gray-50/70 dark:bg-gray-900/70 backdrop-blur-sm">
+                <div class="flex items-center gap-2">
+                    <span class="text-base">💬</span>
+                    <h4 class="font-bold text-sm text-gray-900 dark:text-gray-100">In-call messages</h4>
+                </div>
+                <button id="closeChatBtn" type="button" class="p-1.5 rounded-lg text-gray-400 hover:text-black dark:hover:text-white transition" title="Close chat">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Notice / Privacy Banner -->
+            <div class="px-4 py-2 bg-blue-50/60 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/40 text-[11px] text-blue-800 dark:text-blue-300 flex items-start gap-2">
+                <span class="text-xs">🔒</span>
+                <span>Messages are sent directly to {{ partner_name }} and saved to your history.</span>
+            </div>
+
+            <!-- Message List -->
+            <div id="inCallChatList" class="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
+                <div id="inCallChatLoading" class="text-center py-8 text-gray-400 text-xs">
+                    Loading chat messages...
+                </div>
+            </div>
+
+            <!-- Input Bar -->
+            <form id="inCallChatForm" class="p-3 border-t border-gray-200 dark:border-gray-800 flex items-center gap-2 bg-white dark:bg-gray-900">
+                <input
+                    id="inCallChatInput"
+                    type="text"
+                    placeholder="Send a message to {{ partner_name }}..."
+                    autocomplete="off"
+                    class="flex-1 text-xs px-3.5 py-2.5 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition"
+                >
+                <button
+                    type="submit"
+                    class="p-2.5 rounded-full bg-black hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 text-white dark:text-black transition flex items-center justify-center shadow-md flex-shrink-0"
+                    title="Send Message"
+                >
+                    <span class="text-xs font-bold">➤</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- Bottom Control Dock (4 buttons only) -->
+        <div class="absolute bottom-5 inset-x-0 z-30 flex items-center justify-center px-4 pointer-events-none">
+            <div class="pointer-events-auto bg-black/85 backdrop-blur-lg border border-white/15 px-4 py-2.5 rounded-2xl flex items-center gap-3 shadow-2xl">
+
+                <!-- Mute -->
+                <button id="muteBtn" type="button"
+                    class="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white transition min-w-[52px]"
+                    title="Mute / Unmute">
+                    <span id="muteIcon" class="text-xl leading-none">🎙️</span>
+                    <span class="text-[10px] font-semibold">Mute</span>
+                </button>
+
+                <!-- Camera -->
+                <button id="videoBtn" type="button"
+                    class="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white transition min-w-[52px]"
+                    title="Camera on/off">
+                    <span id="videoIcon" class="text-xl leading-none">📹</span>
+                    <span class="text-[10px] font-semibold">Camera</span>
+                </button>
+
+                <!-- Screen share -->
+                <button id="screenBtn" type="button"
+                    class="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white transition min-w-[52px]"
+                    title="Share screen">
+                    <span id="screenIcon" class="text-xl leading-none">🖥️</span>
+                    <span class="text-[10px] font-semibold">Share</span>
+                </button>
+
+                <!-- Divider -->
+                <div class="w-px h-10 bg-white/20 mx-1"></div>
+
+                <!-- Start Call -->
+                <button id="startBtn" type="button"
+                    class="flex items-center gap-2 px-5 py-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold text-sm transition shadow-lg">
+                    <span>📞</span> Start Call
+                </button>
+
+                <!-- End Call (hidden until active) -->
+                <button id="endBtn" type="button"
+                    class="hidden flex items-center gap-2 px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition shadow-lg">
+                    <span>📵</span> End Call
+                </button>
+
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    window.partnerId = {{ partner_id }};
+    window.partnerName = "{{ partner_name }}";
+    window.currentUserId = {{ current_user.id }};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/simple-peer@latest/simplepeer.min.js"></script>
+<script src="{{ url_for('static', filename='js/voice_call.js') }}?v=13"></script>
+{% endblock %}

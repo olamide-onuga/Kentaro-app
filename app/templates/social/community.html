@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}{{ community.name }} - Community Hub - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+
+    <!-- Header & Navigation -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Community Hub</span>
+            <h1 class="text-3xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight mt-1 flex items-center gap-3">
+                <span>{{ community.name }}</span>
+                <span class="text-xs font-semibold px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                    {{ members|length }} Member{% if members|length != 1 %}s{% endif %}
+                </span>
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {{ community.description or 'Official group chat and community feed.' }}
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('social.friends') }}" class="px-4 py-2 rounded-xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-900 transition">
+                🤝 Friends & Connections
+            </a>
+        </div>
+    </div>
+
+    <!-- Main 2-Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        <!-- Sidebar: Community Members -->
+        <div class="lg:col-span-1 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm space-y-4 h-fit">
+            <h2 class="text-xs font-extrabold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-gray-800 pb-3">
+                🏆 Signed Squad Members
+            </h2>
+
+            <div class="space-y-3 max-h-[450px] overflow-y-auto pr-1">
+                {% for m in members %}
+                <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition">
+                    <div class="w-8 h-8 rounded-lg bg-black dark:bg-white text-white dark:text-black font-extrabold text-xs flex items-center justify-center">
+                        {{ m.user.email[0].upper() }}
+                    </div>
+                    <div class="truncate">
+                        <p class="text-xs font-bold text-gray-900 dark:text-gray-100 truncate">{{ m.user.email }}</p>
+                        <span class="text-[10px] text-gray-400">
+                            {% if m.user.is_coach %}Coach{% else %}Athlete{% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Main Feed / Chat -->
+        <div class="lg:col-span-3 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl shadow-sm flex flex-col h-[650px] overflow-hidden">
+
+            <!-- Chat Header Bar -->
+            <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/50 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100">Live Squad Chat Feed</h3>
+                </div>
+                <span class="text-xs text-gray-400">Video & Threaded Replies Enabled</span>
+            </div>
+
+            <!-- Messages Stream -->
+            <div id="communityStream" class="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/30 dark:bg-gray-950/30">
+                {% if messages %}
+                    {% for msg in messages %}
+                    <div class="flex items-start gap-3 {% if msg.sender_id == current_user.id %}flex-row-reverse{% endif %}" id="msg-{{ msg.id }}">
+                        <div class="w-9 h-9 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs flex items-center justify-center flex-shrink-0">
+                            {{ msg.sender.email[0].upper() }}
+                        </div>
+
+                        <div class="max-w-[75%] space-y-1">
+                            <div class="flex items-center gap-2 text-[11px] text-gray-400 {% if msg.sender_id == current_user.id %}justify-end{% endif %}">
+                                <span class="font-bold text-gray-700 dark:text-gray-300">
+                                    {% if msg.sender.is_coach and msg.sender.coach_profile %}Coach {{ msg.sender.coach_profile.first_name }}{% elif msg.sender.is_client and msg.sender.client_profile %}{{ msg.sender.client_profile.full_name }}{% else %}{{ msg.sender.email }}{% endif %}
+                                </span>
+                                <span>• {{ msg.created_at.strftime('%H:%M') }}</span>
+                            </div>
+
+                            <!-- Quoted Parent Message if Reply -->
+                            {% if msg.reply_to %}
+                            <div class="text-xs bg-gray-200/60 dark:bg-gray-800/60 border-l-4 border-indigo-500 rounded-r-xl p-2.5 text-gray-600 dark:text-gray-300 italic mb-1">
+                                <span class="font-bold text-[10px] uppercase text-indigo-600 dark:text-indigo-400 block not-italic">Replying to:</span>
+                                {{ msg.reply_to.content or '[Video Attachment]' }}
+                            </div>
+                            {% endif %}
+
+                            <!-- Message Content Box -->
+                            <div class="p-4 rounded-2xl text-sm shadow-sm space-y-3 {% if msg.sender_id == current_user.id %}bg-black text-white dark:bg-white dark:text-black rounded-tr-none{% else %}bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-none{% endif %}">
+                                {% if msg.content %}
+                                <p class="leading-relaxed whitespace-pre-wrap">{{ msg.content }}</p>
+                                {% endif %}
+
+                                {% if msg.video_url %}
+                                <div class="rounded-xl overflow-hidden border border-gray-300/30">
+                                    <video controls class="w-full max-h-72 object-cover bg-black">
+                                        <source src="{{ msg.video_url }}" type="video/mp4">
+                                        Your browser does not support video playback.
+                                    </video>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Action bar: Specific Reply -->
+                            <div class="flex items-center gap-2 text-[11px] {% if msg.sender_id == current_user.id %}justify-end{% endif %}">
+                                <button type="button" onclick="setReplyTo('{{ msg.id }}', '{{ (msg.content or '[Video]')|replace("'", "\\'") }}')" class="text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition font-semibold">
+                                    ↩ Reply
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="text-center py-16 text-gray-400 space-y-2">
+                    <span class="text-3xl block">💬</span>
+                    <p class="text-sm font-bold text-gray-600 dark:text-gray-400">Welcome to the Community!</p>
+                    <p class="text-xs">Be the first to post a message or upload a video update.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Message Input & Upload Form -->
+            <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-black space-y-2">
+
+                <!-- Reply Preview Banner -->
+                <div id="replyPreviewBanner" class="hidden items-center justify-between bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900 px-3 py-1.5 rounded-xl text-xs text-indigo-700 dark:text-indigo-300">
+                    <div class="truncate">
+                        <span class="font-bold">Replying to:</span> <span id="replyPreviewText" class="italic"></span>
+                    </div>
+                    <button type="button" onclick="cancelReply()" class="font-bold text-red-500 hover:text-red-700 ml-2">✕</button>
+                </div>
+
+                <form method="POST" action="{{ url_for('social.post_community_message', community_id=community.id) }}" enctype="multipart/form-data" class="space-y-3">
+                    <input type="hidden" name="reply_to_id" id="replyToIdInput" value="">
+
+                    <div class="flex items-center gap-3">
+                        <!-- Video File Input -->
+                        <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition flex items-center justify-center flex-shrink-0 text-xs font-bold" title="Upload Video">
+                            <span>🎥 Video</span>
+                            <input type="file" name="video" accept="video/*" class="hidden" onchange="if(this.files.length) { alert('Video selected: ' + this.files[0].name); }">
+                        </label>
+
+                        <!-- Text Input -->
+                        <input type="text" name="content" placeholder="Share an update or question with the squad..." class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-black dark:text-white placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition" autocomplete="off">
+
+                        <button type="submit" class="px-6 py-2.5 rounded-xl btn-primary-red font-bold text-sm shadow-sm transition flex-shrink-0">
+                            Post
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    const communityId = {{ community.id }};
+    const socket = window.socket;
+
+    if (socket) {
+        socket.emit('join_community', { community_id: communityId });
+    }
+
+    function setReplyTo(msgId, textSnippet) {
+        document.getElementById('replyToIdInput').value = msgId;
+        document.getElementById('replyPreviewText').innerText = textSnippet.substring(0, 50) + (textSnippet.length > 50 ? '...' : '');
+        document.getElementById('replyPreviewBanner').classList.remove('hidden');
+        document.getElementById('replyPreviewBanner').classList.add('flex');
+    }
+
+    function cancelReply() {
+        document.getElementById('replyToIdInput').value = '';
+        document.getElementById('replyPreviewBanner').classList.remove('flex');
+        document.getElementById('replyPreviewBanner').classList.add('hidden');
+    }
+
+    // Auto-scroll stream to bottom
+    const stream = document.getElementById('communityStream');
+    if (stream) {
+        stream.scrollTop = stream.scrollHeight;
+    }
+</script>
+{% endblock %}

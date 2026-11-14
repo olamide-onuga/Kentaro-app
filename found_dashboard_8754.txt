@@ -1,0 +1,34 @@
+Created At: 2026-10-06T20:26:46+01:00
+Completed At: 2026-10-06T20:26:46+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1410
+Total Bytes: 55957
+Showing lines 120 to 145
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+120:     partner_id = profile.coach.user_id
+121:     partner_name = f"Coach {profile.coach.first_name if profile.coach.first_name else 'Coach'}"
+122:     from app.models.progress import FormCheckSubmission
+123:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+124:     return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+125: 
+126: @client_bp.route('/dashboard')
+127: @login_required
+128: def dashboard():
+129:     profile = current_user.client_profile
+130:     today_workout = None
+131:     active_program = None
+132: 
+133:     if profile:
+134:         cp = profile.client_programs.filter_by(is_active=True).first()
+135:         if cp:
+136:             active_program = cp.program
+137:                         # Find today's workout — simple heuristic: find first uncompleted workout in order
+138:             completed_ids = [c.workout_id for c in profile.completions.all()]
+139:             # Compute total workouts in active program
+140:             total_workouts = 0
+141:             if active_program:
+142:                 for phase in active_program.phases:
+143:                     total_workouts += phase.workouts.count()
+144:             # progress dict passed to template
+145:             progress = {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

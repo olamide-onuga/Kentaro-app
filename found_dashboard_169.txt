@@ -1,0 +1,38 @@
+from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask_login import login_required, current_user
+from app.extensions import db
+from app.models.user import ClientProfile
+from app.models.coaching import CoachingPackage
+
+client_bp = Blueprint('client', __name__, url_prefix='/client')
+
+@client_bp.before_request
+@login_required
+def require_client():
+    if not current_user.is_client:
+        flash('You do not have permission to access this page.', 'danger')
+        return redirect(url_for('main.index'))
+
+@client_bp.route('/dashboard')
+def dashboard():
+    profile = current_user.client_profile
+    return render_template('client/dashboard.html', profile=profile)
+
+@client_bp.route('/select-package/<int:package_id>', methods=['GET', 'POST'])
+def select_package(package_id):
+    package = CoachingPackage.query.get_or_404(package_id)
+    
+    if request.method == 'POST':
+        profile = current_user.client_profile
+        if not profile:
+            profile = ClientProfile(user_id=current_user.id)
+            db.session.add(profile)
+            
+        profile.coach_id = package.coach_id
+        profile.active_package_id = package.id
+        db.session.commit()
+        
+        flash(f'Successfully enrolled in {package.name}!', 'success')
+        return redirect(url_for('client.dashboard'))
+        
+    return render_template('client/select_package.html', package=package)

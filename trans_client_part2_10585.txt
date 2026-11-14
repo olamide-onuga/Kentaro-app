@@ -1,0 +1,159 @@
+Created At: 2026-10-16T22:52:17+01:00
+Completed At: 2026-10-16T22:52:17+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1722
+Total Bytes: 68491
+Showing lines 800 to 950
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+800:         
+801:     contract.status = 'terminated'
+802:     contract.terminated_by = 'client'
+803:     contract.termination_reason = reason
+804:     contract.terminated_at = datetime.utcnow()
+805:     
+806:     coach = profile.coach
+807:     coach_user_id = profile.coach.user_id if profile.coach else None
+808:     profile.coach_id = None
+809:     profile.active_package_id = None
+810: 
+811:     # Clear chat messages with coach so fresh chat starts on future contracts/posts
+812:     from app.models.user import ChatMessage
+813:     if coach_user_id:
+814:         ChatMessage.query.filter(
+815:             ((ChatMessage.sender_id == current_user.id) & (ChatMessage.receiver_id == coach_user_id)) |
+816:             ((ChatMessage.sender_id == coach_user_id) & (ChatMessage.receiver_id == current_user.id))
+817:         ).delete()
+818: 
+819:     db.session.commit()
+820:     
+821:     from app.services.email import send_termination_emails
+822:     try:
+823:         send_termination_emails(coach, profile, 'client', reason)
+824:     except Exception: pass
+825:     
+826:     if coach_user_id:
+827:         socketio.emit('notification', {
+828:             'msg': f'Client {profile.full_name} ended their coaching contract.'
+829:         }, room=f'user_{coach_user_id}')
+830:         
+831:     flash('Your coaching contract has been terminated.', 'info')
+832:     return redirect(url_for('client.dashboard'))
+833: 
+834: @client_bp.route('/api/validate-discount', methods=['POST'])
+835: @login_required
+836: def validate_discount():
+837:     from flask import jsonify
+838:     data = request.get_json() or {}
+839:     code = data.get('code', '').strip().upper()
+840:     profile = current_user.client_profile
+841:     if not profile or not profile.coach_id:
+842:         return jsonify({'valid': False, 'message': 'No coach assigned.'})
+843:         
+844:     from app.models.coaching import CoachDiscount
+845:     disc = CoachDiscount.query.filter_by(coach_id=profile.coach_id, code=code, is_active=True).first()
+846:     if not disc:
+847:         return jsonify({'valid': False, 'message': 'Invalid or expired discount code.'})
+848:         
+849:     return jsonify({
+850:         'valid': True,
+851:         'code': disc.code,
+852:         'discount_type': disc.discount_type,
+853:         'discount_value': float(disc.discount_value),
+854:         'message': f'{disc.discount_value}% off applied!' if disc.discount_type == 'percentage' else f'${disc.discount_value} off applied!'
+855:     })
+856: 
+857: 
+858: @client_bp.route('/progress')
+859: @login_required
+860: def progress():
+861:     import os
+862:     from datetime import datetime, date
+863:     from app.models.progress import BodyweightLog, ProgressPhoto, FormCheckSubmission
+864:     from app.models.workout import Exercise
+865:     
+866:     profile = current_user.client_profile
+867:     if not profile:
+868:         flash('Please complete your profile first.', 'warning')
+869:         return redirect(url_for('client.dashboard'))
+870:         
+871:     weight_logs = profile.bodyweight_logs.order_by(BodyweightLog.date.asc(), BodyweightLog.created_at.asc()).all()
+872:     latest_weight = weight_logs[-1] if weight_logs else None
+873:     
+874:     chart_labels = [w.date.strftime('%b %d') for w in weight_logs]
+875:     chart_data = [w.weight for w in weight_logs]
+876:     
+877:     # Reverse order for the history table display
+878:     weight_logs_desc = list(reversed(weight_logs))
+879:     
+880:     photos = profile.progress_photos.order_by(ProgressPhoto.date.desc()).all()
+881:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+882:     
+883:     # Exercises for form-check dropdown
+884:     coach_id = profile.coach_id if profile else None
+885:     if coach_id:
+886:         exercises = Exercise.query.filter((Exercise.coach_id == coach_id) | (Exercise.coach_id == None)).all()
+887:     else:
+888:         exercises = Exercise.query.filter(Exercise.coach_id == None).all()
+889:         
+890:     today_str = date.today().isoformat()
+891:     
+892:     return render_template('client/progress.html',
+893:                            weight_logs=weight_logs_desc,
+894:                            latest_weight=latest_weight,
+895:                            chart_labels=chart_labels,
+896:                            chart_data=chart_data,
+897:                            photos=photos,
+898:                            form_checks=form_checks,
+899:                            exercises=exercises,
+900:                            today_str=today_str)
+901: 
+902: @client_bp.route('/progress/weight', methods=['POST'])
+903: @login_required
+904: def log_weight():
+905:     from datetime import datetime, date
+906:     from app.models.progress import BodyweightLog
+907:     
+908:     profile = current_user.client_profile
+909:     if not profile:
+910:         return redirect(url_for('client.dashboard'))
+911:         
+912:     weight_val = request.form.get('weight', type=float)
+913:     unit = request.form.get('unit', 'lbs')
+914:     date_str = request.form.get('date')
+915:     notes = request.form.get('notes')
+916:     
+917:     if not weight_val:
+918:         flash('Please enter a valid weight.', 'danger')
+919:         return redirect(url_for('client.progress'))
+920:         
+921:     try:
+922:         log_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else date.today()
+923:     except ValueError:
+924:         log_date = date.today()
+925:         
+926:     log = BodyweightLog(
+927:         client_id=profile.id,
+928:         weight=weight_val,
+929:         unit=unit,
+930:         date=log_date,
+931:         notes=notes
+932:     )
+933:     db.session.add(log)
+934:     db.session.commit()
+935:     
+936:     flash('Bodyweight logged successfully!', 'success')
+937:     return redirect(url_for('client.progress'))
+938: 
+939: @client_bp.route('/progress/weight/<int:log_id>/delete', methods=['POST'])
+940: @login_required
+941: def delete_weight(log_id):
+942:     from app.models.progress import BodyweightLog
+943:     profile = current_user.client_profile
+944:     log = BodyweightLog.query.get_or_404(log_id)
+945:     if log.client_id != profile.id:
+946:         flash('Access denied.', 'danger')
+947:         return redirect(url_for('client.progress'))
+948:         
+949:     db.session.delete(log)
+950:     db.session.commit()
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,208 @@
+Created At: 2026-10-02T22:30:45+01:00
+Completed At: 2026-10-02T22:30:45+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 1287
+Total Bytes: 52207
+Showing lines 1 to 200
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session, current_app
+2: from flask_login import login_required, current_user, logout_user
+3: from datetime import date
+4: from app.extensions import db
+5: from app.models.user import ClientProfile
+6: from app.models.coaching import CoachingPackage
+7: from app.models.workout import Workout, WorkoutExercise
+8: from app.models.progress import ClientProgram, WorkoutCompletion
+9: from app.models.features import ClientPost
+10: from app import socketio
+11: 
+12: client_bp = Blueprint('client', __name__, url_prefix='/client')
+13: 
+14: @client_bp.before_request
+15: @login_required
+16: def require_client():
+17:     if not current_user.is_client:
+18:         flash('You do not have permission to access this page.', 'danger')
+19:         return redirect(url_for('main.index'))
+20: 
+21: @client_bp.route('/chat')
+22: @login_required
+23: def chat():
+24:     profile = current_user.client_profile
+25:     if not profile or not profile.coach:
+26:         flash('No coach assigned. Choose a coach to start chatting.', 'warning')
+27:         return redirect(url_for('client.dashboard'))
+28:     partner_id = profile.coach.user_id
+29:     return render_template('client/chat.html', partner_id=partner_id, coach=profile.coach)
+30: 
+31: @client_bp.route('/profile', methods=['GET', 'POST'])
+32: @login_required
+33: def profile():
+34:     client_profile = current_user.client_profile
+35:     if not client_profile:
+36:         client_profile = ClientProfile(user_id=current_user.id)
+37:         db.session.add(client_profile)
+38:         db.session.commit()
+39: 
+40:     if request.method == 'POST':
+41:         client_profile.first_name = request.form.get('first_name', '').strip()
+42:         client_profile.last_name = request.form.get('last_name', '').strip()
+43:         client_profile.phone = request.form.get('phone', '').strip()
+44:         client_profile.timezone = request.form.get('timezone', 'UTC').strip()
+45:         client_profile.fitness_goals = request.form.get('fitness_goals', '').strip()
+46:         client_profile.bio = request.form.get('bio', '').strip()
+47: 
+48:         if 'profile_photo' in request.files:
+49:             file = request.files['profile_photo']
+50:             if file and file.filename:
+51:                 from werkzeug.utils import secure_filename
+52:                 import uuid, os
+53:                 filename = f"client_{current_user.id}_{uuid.uuid4().hex[:8]}_{secure_filename(file.filename)}"
+54:                 photo_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'photos')
+55:                 os.makedirs(photo_dir, exist_ok=True)
+56:                 file.save(os.path.join(photo_dir, filename))
+57:                 client_profile.profile_photo = f"/static/uploads/photos/{filename}"
+58: 
+59:         db.session.commit()
+60:         flash('Your profile has been saved successfully!', 'success')
+61:         return redirect(url_for('client.profile'))
+62: 
+63:     return render_template('client/profile.html', profile=client_profile)
+64: 
+65: @client_bp.route('/marketplace', methods=['GET', 'POST'])
+66: @login_required
+67: def marketplace():
+68:     profile = current_user.client_profile
+69:     if not profile:
+70:         flash('Please complete your profile first.', 'warning')
+71:         return redirect(url_for('client.profile'))
+72: 
+73:     if request.method == 'POST':
+74:         title = request.form.get('title', '').strip()
+75:         problem = request.form.get('problem', '').strip()
+76:         goal = request.form.get('goal', '').strip()
+77:         budget = request.form.get('budget', '').strip()
+78: 
+79:         if title and problem and goal:
+80:             post = ClientPost(
+81:                 client_id=profile.id,
+82:                 title=title,
+83:                 problem=problem,
+84:                 goal=goal,
+85:                 budget=budget
+86:             )
+87:             db.session.add(post)
+88:             db.session.commit()
+89:             flash('Your post looking for a coach has been published to the marketplace!', 'success')
+90:             return redirect(url_for('client.marketplace'))
+91:         else:
+92:             flash('Please fill in all required fields.', 'danger')
+93: 
+94:     my_posts = ClientPost.query.filter_by(client_id=profile.id).order_by(ClientPost.created_at.desc()).all()
+95:     all_active_posts = ClientPost.query.filter_by(status='active').order_by(ClientPost.created_at.desc()).all()
+96:     return render_template('client/marketplace.html', my_posts=my_posts, all_active_posts=all_active_posts)
+97: 
+98: @client_bp.route('/marketplace/post/<int:post_id>/close', methods=['POST'])
+99: @login_required
+100: def close_marketplace_post(post_id):
+101:     profile = current_user.client_profile
+102:     post = ClientPost.query.get_or_404(post_id)
+103:     if post.client_id == profile.id:
+104:         post.status = 'closed'
+105:         db.session.commit()
+106:         flash('Post marked as closed.', 'info')
+107:     return redirect(url_for('client.marketplace'))
+108: 
+109: @client_bp.route('/voice-call')
+110: @login_required
+111: def voice_call():
+112:     profile = current_user.client_profile
+113:     if not profile or not profile.coach:
+114:         flash('No coach assigned.', 'danger')
+115:         return redirect(url_for('client.dashboard'))
+116:     partner_id = profile.coach.user_id
+117:     partner_name = f"Coach {profile.coach.first_name if profile.coach.first_name else 'Coach'}"
+118:     from app.models.progress import FormCheckSubmission
+119:     form_checks = profile.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
+120:     return render_template('client/voice_call.html', partner_id=partner_id, coach=profile.coach, partner_name=partner_name, form_checks=form_checks)
+121: 
+122: @client_bp.route('/dashboard')
+123: def dashboard():
+124:     profile = current_user.client_profile
+125:     today_workout = None
+126:     active_program = None
+127: 
+128:     if profile:
+129:         cp = profile.client_programs.filter_by(is_active=True).first()
+130:         if cp:
+131:             active_program = cp.program
+132:             # Find today's workout — simple heuristic: find first uncompleted workout in order
+133:             completed_ids = [c.workout_id for c in profile.completions.all()]
+134:             for phase in cp.program.phases.order_by('order').all():
+135:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+136:                     if w.id not in completed_ids:
+137:                         today_workout = w
+138:                         break
+139:                 if today_workout:
+140:                     break
+141: 
+142:     upcoming_appointments = []
+143:     if profile:
+144:         from app.models.calendar import Appointment
+145:         from datetime import date as date_cls
+146:         upcoming_appointments = Appointment.query.filter(
+147:             Appointment.client_id == profile.id,
+148:             Appointment.date >= date_cls.today(),
+149:             Appointment.status == 'scheduled'
+150:         ).order_by(Appointment.date.asc(), Appointment.start_time.asc()).limit(3).all()
+151: 
+152:     # Calculate days remaining on active contract
+153:     days_remaining = None
+154:     active_contract = None
+155:     if profile:
+156:         from app.models.coaching import ClientContract
+157:         from datetime import datetime as dt_cls
+158:         active_contract = ClientContract.query.filter_by(
+159:             client_id=profile.id, status='active'
+160:         ).order_by(ClientContract.created_at.desc()).first()
+161:         if active_contract and active_contract.end_date:
+162:             delta = active_contract.end_date - dt_cls.utcnow()
+163:             days_remaining = max(0, delta.days)
+164:         elif active_contract and active_contract.start_date and profile.active_package:
+165:             weeks = profile.active_package.duration_weeks or 4
+166:             end_est = active_contract.start_date + __import__('datetime').timedelta(weeks=weeks)
+167:             delta = end_est - dt_cls.utcnow()
+168:             days_remaining = max(0, delta.days)
+169: 
+170:     workout_streak = _get_workout_streak(profile) if profile else 0
+171:     return render_template('client/dashboard.html',
+172:                            profile=profile,
+173:                            today_workout=today_workout,
+174:                            active_program=active_program,
+175:                            upcoming_appointments=upcoming_appointments,
+176:                            days_remaining=days_remaining,
+177:                            active_contract=active_contract,
+178:                            workout_streak=workout_streak)
+179: 
+180: @client_bp.route('/my-program')
+181: def my_program():
+182:     profile = current_user.client_profile
+183:     cp = profile.client_programs.filter_by(is_active=True).first() if profile else None
+184:     completed_ids = set(c.workout_id for c in profile.completions.all()) if profile else set()
+185:     return render_template('client/my_program.html', cp=cp, completed_ids=completed_ids)
+186: 
+187: @client_bp.route('/workout/<int:workout_id>')
+188: def workout_view(workout_id):
+189:     profile = current_user.client_profile
+190:     workout = Workout.query.get_or_404(workout_id)
+191:     already_completed = WorkoutCompletion.query.filter_by(
+192:         client_id=profile.id, workout_id=workout_id
+193:     ).first() if profile else None
+194:     
+195:     exercise_completions = {}
+196:     if already_completed:
+197:         for ec in already_completed.exercise_completions.all():
+198:             exercise_completions[ec.workout_exercise_id] = ec
+199:             
+200:     return render_template('client/workout_view.html',
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

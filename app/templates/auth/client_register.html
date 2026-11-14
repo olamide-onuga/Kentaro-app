@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Athlete Registration - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-8 bg-white dark:bg-kn-card-dark p-8 sm:p-10 border border-kn-border dark:border-kn-border-dark rounded-3xl shadow-sm">
+    <div class="text-center mb-8">
+        <span class="inline-block text-xs font-black tracking-widest uppercase text-brand-red dark:text-brand-red-dark mb-2">Athlete Account</span>
+        <h2 class="text-3xl font-black text-kn-text dark:text-kn-text-dark tracking-tight">Start Your Journey</h2>
+        <p class="text-xs text-kn-muted dark:text-kn-muted-dark mt-1">Train with dedicated coaches and track your progression</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.register_client') }}" class="space-y-6">
+        <div>
+            <label for="email" class="block text-xs font-bold uppercase tracking-wider text-kn-text dark:text-kn-text-dark mb-1">
+                Email Address *
+            </label>
+            <input type="email" name="email" id="email" required placeholder="you@domain.com" class="input-line" autocomplete="email" />
+        </div>
+
+        <div>
+            <label for="password" class="block text-xs font-bold uppercase tracking-wider text-kn-text dark:text-kn-text-dark mb-1">
+                Password *
+            </label>
+            <div class="relative">
+                <input type="password" name="password" id="password" required minlength="6" pattern="(?=.*[0-9])(?=.*[a-zA-Z]).{6,}" title="Password must be at least 6 characters and contain both letters and numbers." placeholder="••••••••" class="input-line pr-10" autocomplete="new-password" />
+                <button type="button" onclick="togglePassword('password', 'pwdToggleBtn1')" class="absolute right-1 top-1/2 -translate-y-1/2 text-sm p-1 text-kn-muted hover:text-kn-text dark:hover:text-kn-text-dark transition" id="pwdToggleBtn1" title="Toggle password visibility">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+            </div>
+            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Must be at least 6 characters with both letters and numbers.</p>
+        </div>
+
+        <div>
+            <label for="confirm_password" class="block text-xs font-bold uppercase tracking-wider text-kn-text dark:text-kn-text-dark mb-1">
+                Confirm Password *
+            </label>
+            <div class="relative">
+                <input type="password" name="confirm_password" id="confirm_password" required minlength="6" placeholder="••••••••" class="input-line pr-10" autocomplete="new-password" />
+                <button type="button" onclick="togglePassword('confirm_password', 'pwdToggleBtn2')" class="absolute right-1 top-1/2 -translate-y-1/2 text-sm p-1 text-kn-muted hover:text-kn-text dark:hover:text-kn-text-dark transition" id="pwdToggleBtn2" title="Toggle password visibility">
+                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex items-start gap-2 pt-2">
+            <input type="checkbox" name="terms" id="terms" required class="mt-1 h-4 w-4 rounded accent-brand-red cursor-pointer" />
+            <label for="terms" class="text-xs text-kn-muted dark:text-kn-muted-dark leading-relaxed cursor-pointer">
+                I agree to the <span class="text-kn-text dark:text-kn-text-dark font-semibold">Terms of Service</span> and acknowledge that I will receive an instant verification email to log in.
+            </label>
+        </div>
+
+        <button type="submit" class="w-full btn-primary-red py-3 px-4 rounded-xl font-bold text-sm shadow-md transition">
+            Create Athlete Account &rarr;
+        </button>
+    </form>
+
+    <div class="text-center mt-8 pt-6 border-t border-kn-border dark:border-kn-border-dark">
+        <p class="text-xs text-kn-muted dark:text-kn-muted-dark">
+            Already have an account?
+            <a href="{{ url_for('auth.login') }}" class="font-bold text-brand-red dark:text-brand-red-dark hover:underline ml-1">
+                Log In
+            </a>
+        </p>
+    </div>
+</div>
+{% endblock %}

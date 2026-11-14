@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}Support Ticket #{{ ticket.ticket_ref }} - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <!-- Breadcrumb & Nav -->
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <a href="{{ url_for('support.history') }}" class="hover:text-black dark:hover:text-white transition">Support Desk</a>
+            <span>/</span>
+            <span class="font-bold text-gray-900 dark:text-gray-100">#{{ ticket.ticket_ref }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{{ url_for('support.history') }}" class="px-3.5 py-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 transition">
+                Support History
+            </a>
+            <button onclick="document.getElementById('newTicketModal').classList.remove('hidden')" class="px-3.5 py-1.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-xs font-bold hover:opacity-90 transition">
+                + New Ticket
+            </button>
+        </div>
+    </div>
+
+    <!-- Ticket Summary Card -->
+    <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 p-6 shadow-sm mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100 dark:border-gray-800">
+            <div>
+                <div class="flex items-center gap-2.5 mb-1.5">
+                    <span class="font-mono text-xs font-black px-2.5 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+                        #{{ ticket.ticket_ref }}
+                    </span>
+                    <span class="px-2.5 py-0.5 rounded-lg text-xs font-extrabold uppercase tracking-wide bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+                        {{ ticket.category|capitalize }}
+                    </span>
+                    {% if ticket.status == 'pending' %}
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        Pending Review
+                    </span>
+                    {% elif ticket.status == 'active' %}
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Active Support
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                        Closed &amp; Resolved
+                    </span>
+                    {% endif %}
+                </div>
+                <h1 class="text-xl font-black text-gray-900 dark:text-gray-100">{{ ticket.subject }}</h1>
+            </div>
+
+            <div class="text-right sm:text-right text-xs text-gray-500 dark:text-gray-400">
+                <p>Submitted: <span class="font-medium text-gray-700 dark:text-gray-300">{{ ticket.created_at.strftime('%b %d, %Y · %H:%M') }}</span></p>
+                {% if ticket.assigned_admin %}
+                <p class="mt-0.5">Assigned Admin: <span class="font-bold text-gray-900 dark:text-gray-100">{{ assigned_admin_name }}</span></p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- STATE 1: PENDING WAITING INTERFACE -->
+        {% if ticket.status == 'pending' %}
+        <div class="pt-6">
+            <div class="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl p-6 text-center">
+                <div class="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-base font-bold text-gray-900 dark:text-gray-100 mb-1">
+                    Your support request has been submitted
+                </h3>
+                <p class="text-xs text-gray-600 dark:text-gray-300 max-w-md mx-auto leading-relaxed">
+                    Please wait while an administrator reviews and accepts your ticket. Once accepted, you will be notified immediately and live messaging will unlock.
+                </p>
+                <div class="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-900 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                    Waiting for support administrator to accept...
+                </div>
+            </div>
+        </div>
+        {% elif ticket.status == 'active' %}
+        <!-- STATE 2: ACTIVE WELCOME BANNER -->
+        <div class="pt-4">
+            <div class="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 rounded-2xl p-4 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 font-black">
+                    ✓
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-emerald-950 dark:text-emerald-200">
+                        Your ticket has been accepted by {{ assigned_admin_name }}
+                    </p>
+                    <p class="text-[11px] text-emerald-700 dark:text-emerald-400">
+                        You can now continue this conversation directly with your assigned support administrator.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% elif ticket.status == 'closed' %}
+        <!-- STATE 3: CLOSED BANNER & RATING -->
+        <div class="pt-4 space-y-4">
+            <div class="bg-gray-100 dark:bg-gray-800/60 rounded-2xl p-4 text-center">
+                <p class="text-xs font-bold text-gray-700 dark:text-gray-300">
+                    This support ticket has been closed.
+                </p>
+                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                    This conversation is now preserved as a permanent support record.
+                </p>
+            </div>
+
+            <!-- RATING CARD -->
+            {% if not is_admin %}
+                {% if ticket.rating is none %}
+                <div class="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-gray-800 dark:to-gray-800/80 border border-amber-200/80 dark:border-amber-900/50 rounded-2xl p-6 shadow-sm">
+                    <div class="text-center mb-4">
+                        <span class="text-2xl">⭐</span>
+                        <h3 class="text-sm font-black text-gray-900 dark:text-gray-100 mt-1">
+                            How was your support experience with {{ assigned_admin_name }}?
+                        </h3>
+                        <p class="text-xs text-gray-600 dark:text-gray-400">
+                            Please take a moment to rate the assistance you received.
+                        </p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('support.rate_ticket', ticket_ref=ticket.ticket_ref) }}" class="max-w-md mx-auto space-y-4">
+                        <!-- Star Picker -->
+                        <div class="flex items-center justify-center gap-2" id="starPickerContainer">
+                            {% for star in range(1, 6) %}
+                            <label class="cursor-pointer transition transform hover:scale-110">
+                                <input type="radio" name="rating" value="{{ star }}" class="sr-only star-radio" {% if star == 5 %}checked{% endif %}>
+                                <svg class="w-8 h-8 star-icon text-amber-400 fill-current" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                </svg>
+                            </label>
+                            {% endfor %}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Written Feedback (optional)
+                            </label>
+                            <textarea name="feedback" rows="2" placeholder="Let us know how {{ assigned_admin_name }} helped or how we can improve..."
+                                      class="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"></textarea>
+                        </div>
+
+                        <button type="submit" class="w-full py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-xs font-black hover:opacity-90 transition">
+                            Submit Support Rating
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 text-center">
+                    <p class="text-xs font-bold text-gray-800 dark:text-gray-200">
+                        You rated this support experience:
+                    </p>
+                    <div class="flex items-center justify-center gap-1 my-1 text-amber-400">
+                        {% for s in range(ticket.rating) %}★{% endfor %}{% for s in range(5 - ticket.rating) %}<span class="text-gray-300 dark:text-gray-600">★</span>{% endfor %}
+                        <span class="text-xs font-extrabold text-gray-700 dark:text-gray-300 ml-1">({{ ticket.rating }}/5)</span>
+                    </div>
+                    {% if ticket.rating_feedback %}
+                    <p class="text-xs italic text-gray-600 dark:text-gray-400 mt-1 max-w-md mx-auto">
+                        "{{ ticket.rating_feedback }}"
+                    </p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Message Feed -->
+    <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 p-6 shadow-sm mb-6">
+        <h2 class="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4">
+            Conversation History
+        </h2>
+
+        <div id="ticketMessagesList" class="space-y-4 mb-6">
+            {% for msg in messages %}
+                {% if msg.is_system %}
+                <!-- System Announcement Message -->
+                <div class="flex justify-center my-3">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300 max-w-xl text-center shadow-xs">
+                        <span class="text-blue-500 font-bold">ℹ️</span>
+                        <span>{{ msg.message }}</span>
+                        <span class="text-[10px] text-gray-400 ml-1">{{ msg.created_at.strftime('%H:%M') }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Standard Chat Bubble -->
+                {% set is_me = (msg.sender_id == current_user.id) %}
+                <div class="flex items-start gap-3 {% if is_me %}flex-row-reverse{% endif %}">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 {% if is_me %}bg-black dark:bg-white text-white dark:text-black{% else %}bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200{% endif %}">
+                        {% if is_me %}
+                            {{ current_user.email[0].upper() }}
+                        {% else %}
+                            {{ assigned_admin_name[0].upper() if ticket.assigned_admin else 'A' }}
+                        {% endif %}
+                    </div>
+
+                    <div class="max-w-[78%]">
+                        <div class="flex items-center gap-2 mb-1 {% if is_me %}justify-end{% endif %}">
+                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                {% if is_me %}
+                                    You
+                                {% else %}
+                                    {{ assigned_admin_name }}
+                                    <span class="ml-1 text-[10px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">Staff</span>
+                                {% endif %}
+                            </span>
+                            <span class="text-[10px] text-gray-400">
+                                {{ msg.created_at.strftime('%H:%M') }}
+                            </span>
+                        </div>
+
+                        <div class="p-4 rounded-2xl text-xs leading-relaxed {% if is_me %}bg-black dark:bg-white text-white dark:text-black rounded-tr-sm{% else %}bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm{% endif %}">
+                            <p class="whitespace-pre-wrap">{{ msg.message }}</p>
+                            {% if msg.attachment_url %}
+                            <div class="mt-2.5 pt-2 border-t {% if is_me %}border-white/20{% else %}border-gray-200 dark:border-gray-700{% endif %}">
+                                <a href="{{ msg.attachment_url }}" target="_blank" class="inline-flex items-center gap-1.5 font-bold hover:underline">
+                                    <span>📎 View Attachment</span>
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            {% else %}
+            <p class="text-xs text-gray-400 text-center py-6">No messages in this ticket yet.</p>
+            {% endfor %}
+        </div>
+
+        <!-- Reply Input Area -->
+        {% if ticket.status == 'active' %}
+        <form method="POST" action="{{ url_for('support.reply_ticket', ticket_ref=ticket.ticket_ref) }}" enctype="multipart/form-data" class="pt-4 border-t border-gray-100 dark:border-gray-800">
+            <div class="space-y-3">
+                <textarea name="message" rows="3" required placeholder="Type your reply to {{ assigned_admin_name }}..."
+                          class="w-full px-4 py-3 rounded-2xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 text-xs focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"></textarea>
+
+                <div class="flex items-center justify-between gap-3">
+                    <label class="cursor-pointer inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-black dark:hover:text-white transition">
+                        <span>📎 Attach File</span>
+                        <input type="file" name="attachment" class="hidden" onchange="document.getElementById('ticketFilePreview').textContent = this.files[0] ? this.files[0].name : ''">
+                    </label>
+                    <span id="ticketFilePreview" class="text-xs font-mono text-gray-500 truncate max-w-xs"></span>
+
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-xs font-black hover:opacity-90 transition">
+                        Send Reply
+                    </button>
+                </div>
+            </div>
+        </form>
+        {% elif ticket.status == 'pending' %}
+        <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 text-center text-xs text-gray-500 dark:text-gray-400">
+            💬 Conversation will unlock once an administrator accepts your ticket.
+        </div>
+        {% else %}
+        <div class="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 text-center text-xs text-gray-500 dark:text-gray-400">
+            🔒 This ticket is closed. If you need assistance with a new question or issue, please open a fresh support ticket.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- New Ticket Modal -->
+<div id="newTicketModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-3xl max-w-lg w-full p-6 border border-gray-200 dark:border-gray-800 shadow-2xl">
+        <div class="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800 mb-4">
+            <h3 class="text-base font-black text-gray-900 dark:text-gray-100">Create Support Ticket</h3>
+            <button onclick="document.getElementById('newTicketModal').classList.add('hidden')" class="p-1 rounded-xl text-gray-400 hover:text-black dark:hover:text-white transition">✕</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('support.create_ticket') }}" enctype="multipart/form-data" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                <select name="category" class="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100">
+                    <option value="general">General Support</option>
+                    <option value="billing">Billing &amp; Payments</option>
+                    <option value="coaching">Coaching &amp; Programs</option>
+                    <option value="technical">Technical Issue / Bug</option>
+                    <option value="account">Account &amp; Security</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Subject</label>
+                <input type="text" name="subject" required placeholder="Brief summary of your question..."
+                       class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Description / Details</label>
+                <textarea name="description" rows="4" required placeholder="Explain your issue in detail so our administrators can assist you faster..."
+                          class="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Attachment (optional)</label>
+                <input type="file" name="attachment" class="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-gray-100 dark:file:bg-gray-800 file:text-gray-800 dark:file:text-gray-200">
+            </div>
+
+            <button type="submit" class="w-full py-3 rounded-xl bg-black dark:bg-white text-white dark:text-black text-xs font-black hover:opacity-90 transition mt-2">
+                Submit Support Ticket
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Star rating picker interactivity
+    var starInputs = document.querySelectorAll('.star-radio');
+    starInputs.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            var val = parseInt(this.value);
+            var icons = document.querySelectorAll('.star-icon');
+            icons.forEach(function(icon, idx) {
+                if (idx < val) {
+                    icon.classList.add('text-amber-400');
+                    icon.classList.remove('text-gray-300', 'dark:text-gray-600');
+                } else {
+                    icon.classList.remove('text-amber-400');
+                    icon.classList.add('text-gray-300', 'dark:text-gray-600');
+                }
+            });
+        });
+    });
+
+    // Real-time Socket Listener for Ticket Room
+    if (typeof io !== 'undefined') {
+        var socket = io();
+        var ticketId = {{ ticket.id }};
+        socket.emit('join_ticket', { ticket_id: ticketId });
+
+        socket.on('ticket_accepted', function(data) {
+            if (data.ticket_id == ticketId) {
+                // Auto-refresh page to unlock active conversation
+                window.location.reload();
+            }
+        });
+
+        socket.on('ticket_closed', function(data) {
+            if (data.ticket_id == ticketId) {
+                window.location.reload();
+            }
+        });
+
+        socket.on('ticket_message', function(data) {
+            if (data.ticket_id == ticketId && data.sender_id != {{ current_user.id }}) {
+                window.location.reload();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

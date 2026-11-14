@@ -1,0 +1,243 @@
+{% extends "superadmin/layout.html" %}
+
+{% block title %}Super Admin Overview - Kentaro{% endblock %}
+
+{% block superadmin_content %}
+<div class="space-y-6">
+
+    <!-- Overview Header Card -->
+    <div class="bg-black dark:bg-white text-white dark:text-black rounded-3xl p-7 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-widest text-amber-400 dark:text-amber-600">Platform Command Center</span>
+                <h1 class="text-2xl sm:text-3xl font-black mt-1">Super Admin Overview</h1>
+                <p class="text-xs text-neutral-400 dark:text-neutral-600 mt-1">
+                    Complete administrative oversight of Kentaro Fitness &amp; Calisthenics Coaching Platform.
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="{{ url_for('superadmin.controls') }}"
+                   class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs shadow transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <span>Emergency Controls</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active System Controls Status Pill Bar -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex items-center justify-between">
+            <span class="text-xs font-bold text-gray-600 dark:text-gray-400">Maintenance Mode</span>
+            {% if metrics.maintenance_mode %}
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-red-500/20 text-red-600">ACTIVE</span>
+            {% else %}
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600">NORMAL</span>
+            {% endif %}
+        </div>
+        <div class="p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex items-center justify-between">
+            <span class="text-xs font-bold text-gray-600 dark:text-gray-400">User Registrations</span>
+            {% if metrics.allow_registrations %}
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600">ENABLED</span>
+            {% else %}
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-red-500/20 text-red-600">LOCKED</span>
+            {% endif %}
+        </div>
+        <div class="p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex items-center justify-between">
+            <span class="text-xs font-bold text-gray-600 dark:text-gray-400">Marketplace</span>
+            {% if metrics.allow_marketplace %}
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600">ONLINE</span>
+            {% else %}
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-amber-500/20 text-amber-600">PAUSED</span>
+            {% endif %}
+        </div>
+        <div class="p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex items-center justify-between">
+            <span class="text-xs font-bold text-gray-600 dark:text-gray-400">Custom Offers</span>
+            {% if metrics.allow_custom_offers %}
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600">ACTIVE</span>
+            {% else %}
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-amber-500/20 text-amber-600">PAUSED</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Real Database Metric Cards Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+        <!-- Registered Users -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Registered</span>
+            <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">
+                {{ metrics.total_users }}
+            </div>
+            <div class="flex items-center gap-2 mt-2 text-[11px] text-gray-500">
+                <span>{{ metrics.new_registrations }} new in 30d</span>
+            </div>
+        </div>
+
+        <!-- Coaches -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Coaches</span>
+            <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">
+                {{ metrics.total_coaches }}
+            </div>
+            <div class="flex items-center gap-2 mt-2 text-[11px] text-emerald-600 font-semibold">
+                <span>{{ metrics.active_subscriptions }} active plans</span>
+            </div>
+        </div>
+
+        <!-- Clients -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Clients</span>
+            <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">
+                {{ metrics.total_clients }}
+            </div>
+            <div class="flex items-center gap-2 mt-2 text-[11px] text-gray-500">
+                <span>{{ metrics.active_programs }} active programs</span>
+            </div>
+        </div>
+
+        <!-- Administrators -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Administrators</span>
+            <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">
+                {{ metrics.total_admins + metrics.total_superadmins }}
+            </div>
+            <div class="flex items-center gap-2 mt-2 text-[11px] text-amber-600 font-semibold">
+                <span>{{ metrics.total_superadmins }} Super &middot; {{ metrics.total_admins }} Normal</span>
+            </div>
+        </div>
+
+        <!-- Custom Program Revenue -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Custom Programs Paid</span>
+            <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">
+                ${{ "%.2f"|format(metrics.total_paid_offers_amount) }}
+            </div>
+            <div class="flex items-center gap-2 mt-2 text-[11px] text-emerald-600 font-semibold">
+                <span>{{ metrics.custom_program_purchases }} verified purchases</span>
+            </div>
+        </div>
+
+        <!-- Monthly Sub Revenue -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Subscription Volume</span>
+            <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">
+                ${{ "%.2f"|format(metrics.monthly_sub_revenue) }}/mo
+            </div>
+            <div class="flex items-center gap-2 mt-2 text-[11px] text-gray-500">
+                <span>Coach subscriptions</span>
+            </div>
+        </div>
+
+        <!-- Support Tickets Pending -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Pending Tickets</span>
+            <div class="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400 mt-1">
+                {{ metrics.pending_tickets }}
+            </div>
+            <div class="flex items-center gap-2 mt-2 text-[11px] text-gray-500">
+                <span>{{ metrics.in_progress_tickets }} in progress &middot; {{ metrics.closed_tickets }} resolved</span>
+            </div>
+        </div>
+
+        <!-- Marketplace Volume -->
+        <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-xs">
+            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Marketplace Activity</span>
+            <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 mt-1">
+                {{ metrics.marketplace_activity }}
+            </div>
+            <div class="flex items-center gap-2 mt-2 text-[11px] text-gray-500">
+                <span>Posts &amp; custom offers</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Quick Navigation Shortcuts -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <a href="{{ url_for('superadmin.admins') }}"
+           class="p-5 rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 hover:border-black dark:hover:border-white transition shadow-xs group">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-black uppercase tracking-wider text-amber-500">Authority Control</span>
+                <svg class="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </div>
+            <h3 class="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-2">Manage Administrators</h3>
+            <p class="text-xs text-gray-500 mt-1">Create normal admin accounts, assign granular permissions, suspend or restore access.</p>
+        </a>
+
+        <a href="{{ url_for('superadmin.finance') }}"
+           class="p-5 rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 hover:border-black dark:hover:border-white transition shadow-xs group">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-black uppercase tracking-wider text-emerald-500">Revenue &amp; Gateway</span>
+                <svg class="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </div>
+            <h3 class="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-2">Financial Oversight</h3>
+            <p class="text-xs text-gray-500 mt-1">Review verified Paystack payments, custom program sales, and coach subscriptions.</p>
+        </a>
+
+        <a href="{{ url_for('superadmin.support') }}"
+           class="p-5 rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 hover:border-black dark:hover:border-white transition shadow-xs group">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-black uppercase tracking-wider text-blue-500">Support Operations</span>
+                <svg class="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </div>
+            <h3 class="text-base font-extrabold text-gray-900 dark:text-gray-100 mt-2">Support Ticket Oversight</h3>
+            <p class="text-xs text-gray-500 mt-1">Triage pending tickets, reassign tickets across administrators, review transcripts.</p>
+        </a>
+    </div>
+
+    <!-- Recent Administrative Activity Log Table -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-base font-black text-gray-900 dark:text-gray-100">Recent Platform Activity</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Live audit log of operations performed across the platform.</p>
+            </div>
+            <a href="{{ url_for('superadmin.logs') }}" class="text-xs font-bold text-gray-900 dark:text-gray-100 hover:underline">
+                View All Logs &rarr;
+            </a>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+                <thead class="text-[10px] uppercase font-black tracking-wider text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                    <tr>
+                        <th class="py-2.5 px-3">Timestamp</th>
+                        <th class="py-2.5 px-3">Admin</th>
+                        <th class="py-2.5 px-3">Action</th>
+                        <th class="py-2.5 px-3">Details</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800/60 font-medium">
+                    {% if recent_logs %}
+                    {% for l in recent_logs %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/40 transition">
+                        <td class="py-3 px-3 text-gray-400 font-mono text-[11px] whitespace-nowrap">
+                            {{ l.created_at.strftime('%Y-%m-%d %H:%M') if l.created_at else '' }}
+                        </td>
+                        <td class="py-3 px-3 font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                            {{ l.admin.email if l.admin else 'System' }}
+                        </td>
+                        <td class="py-3 px-3">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+                                {{ l.action }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-gray-600 dark:text-gray-400 truncate max-w-xs">
+                            {{ l.detail or '-' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="py-6 text-center text-gray-400">No activity recorded yet.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

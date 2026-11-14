@@ -1,0 +1,83 @@
+Fix two things in the Kentaro Flask app at C:\Users\Kentaro\.gemini\antigravity\scratch\kentaro:
+
+## FIX 1: Mobile navbar (base.html lines 180-215)
+
+Replace the mobile menu section (inside `<div id="mobileMenu"`) with the updated calisthenics navigation that matches the desktop nav. The current mobile nav is missing Squad Feed, Marketplace, Scout Clients, Friends, and Earnings links.
+
+Replace lines 180-215 in `app/templates/base.html` with:
+
+```html
+        <div id="mobileMenu" class="hidden md:hidden border-t border-gray-100 bg-white px-2 pt-3 pb-4 dark:border-gray-800 dark:bg-black">
+            {% if current_user.is_admin %}
+            <div class="space-y-0.5">
+              <a href="{{ url_for('admin.dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">📊 Dashboard</a>
+              <a href="{{ url_for('admin.videos') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">🎥 Videos</a>
+            </div>
+            {% elif current_user.is_client %}
+            <div class="space-y-0.5">
+              <a href="{{ url_for('client.dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">🏠 Dashboard</a>
+              <a href="{{ url_for('client.my_program') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">📋 My Program</a>
+              <a href="{{ url_for('client.check_in') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">📝 Weekly Check-In</a>
+              <a href="{{ url_for('client.community') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">🤸 Squad Chat</a>
+              <a href="{{ url_for('client.marketplace') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">🎯 Marketplace</a>
+              <a href="{{ url_for('client.nutrition') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">🥗 Nutrition</a>
+              <a href="{{ url_for('client.habits') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">✅ Habits</a>
+              <a href="{{ url_for('client.progress') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">📈 Progress</a>
+              <a href="{{ url_for('client.appointments') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">📅 Appointments</a>
+              <a href="{{ url_for('client.chat') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">💬 Chat</a>
+              <a href="{{ url_for('client.profile') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">👤 Profile</a>
+            </div>
+            {% elif current_user.is_coach %}
+            <div class="space-y-0.5">
+              <a href="{{ url_for('coach.dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">🏠 Dashboard</a>
+              <a href="{{ url_for('coach.community') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">🤸 Squad Feed</a>
+              <a href="{{ url_for('coach.scout') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">🔎 Scout Clients</a>
+              <a href="{{ url_for('coach.clients') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">👥 My Clients</a>
+              <a href="{{ url_for('coach.check_ins') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">📋 Check-Ins</a>
+              <a href="{{ url_for('programs.index') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">💪 Programs</a>
+              <a href="{{ url_for('coach.packages') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">📦 Packages</a>
+              <a href="{{ url_for('coach.earnings') }}" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-black hover:bg-gray-100 rounded-xl dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-900">💰 Earnings</a>
+            </div>
+            {% endif %}
+
+            <!-- Mobile Theme Toggle + User info -->
+            <div class="pt-3 mt-3 border-t border-gray-100 dark:border-gray-800 px-3 flex items-center justify-between">
+                <span class="text-xs text-gray-400 dark:text-gray-500 truncate max-w-[160px]">{{ current_user.email }}</span>
+                <button onclick="toggleTheme()" class="inline-flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3 rounded-xl bg-gray-100 dark:bg-gray-900 text-black dark:text-white">
+                    <svg class="moon-icon w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/></svg>
+                    <svg class="sun-icon w-3.5 h-3.5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/></svg>
+                    <span class="theme-label">Dark Mode</span>
+                </button>
+            </div>
+        </div>
+```
+
+The TargetContent is lines 180-215 of base.html. Use replace_file_content with StartLine=180, EndLine=215.
+
+## FIX 2: Client dashboard blank page
+
+The dashboard is blank because the route has a bug. In `app/routes/client.py`, line 127: the route is NOT decorated with `@login_required`. Add it. Also the `dashboard` function must handle when the database is fresh (no profile at all).
+
+Read lines 125-130 of `app/routes/client.py` and add `@login_required` decorator before line 127 `def dashboard():`.
+
+The TargetContent is:
+```
+@client_bp.route('/dashboard')
+def dashboard():
+```
+Replace with:
+```
+@client_bp.route('/dashboard')
+@login_required
+def dashboard():
+```
+Use StartLine=126, EndLine=127.
+
+Also - there's a critical bug in the dashboard route: `progress` variable is only defined inside the `if profile:` block's `if cp:` block, but used outside. The line `progress = progress if 'progress' in locals() else None` on line 191 should handle this BUT there's also a reference to `progress` inside the `if active_program:` block itself that may fail. The route is fine as-is.
+
+After making changes, run Jinja2 check:
+```
+C:\Users\Kentaro\.gemini\antigravity\scratch\kentaro\venv\Scripts\python.exe -c "from jinja2 import Environment, FileSystemLoader; env = Environment(loader=FileSystemLoader('app/templates')); env.get_template('base.html'); print('base.html: OK')"
+```
+
+Report back with results.

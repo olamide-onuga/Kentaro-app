@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Session Notes{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Session Notes</h1>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- New Note Form -->
+        <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 h-fit">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Write New Note</h2>
+            <form method="POST" action="{{ url_for('coach.session_notes') }}" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Client</label>
+                    <select name="client_id" required class="w-full rounded-2xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white py-3 px-4 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white transition-colors">
+                        <option value="" disabled selected>Select a client...</option>
+                        {% for client in clients %}
+                        <option value="{{ client.id }}">{{ client.full_name or client.first_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
+                        <input type="text" name="title" value="Session Note" required class="w-full rounded-2xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white py-3 px-4 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date</label>
+                        <input type="date" name="session_date" required class="w-full rounded-2xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white py-3 px-4 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white transition-colors">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Summary & Notes</label>
+                    <textarea name="summary" rows="4" placeholder="What was discussed?" class="w-full rounded-2xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white py-3 px-4 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white transition-colors"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Homework / Action Items</label>
+                    <textarea name="homework" rows="2" placeholder="What should they do before next time?" class="w-full rounded-2xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white py-3 px-4 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white transition-colors"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Next Session Goal</label>
+                    <textarea name="next_goal" rows="2" placeholder="Focus for next session" class="w-full rounded-2xl border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white py-3 px-4 focus:ring-black dark:focus:ring-white focus:border-black dark:focus:border-white transition-colors"></textarea>
+                </div>
+
+                <button type="submit" class="w-full bg-black dark:bg-white text-white dark:text-black font-semibold py-4 px-6 rounded-2xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors">
+                    Save Session Note
+                </button>
+            </form>
+        </div>
+
+        <!-- Recent Notes -->
+        <div>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Recent Notes</h2>
+            {% if notes %}
+                <div class="space-y-4">
+                    {% for note in notes %}
+                    <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-all hover:shadow-md">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="font-bold text-gray-900 dark:text-white text-lg">{{ note.title }}</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                    Client: <span class="font-medium text-gray-700 dark:text-gray-300">{{ note.client.full_name or note.client.first_name }}</span>
+                                </p>
+                            </div>
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                                {{ note.session_date.strftime('%b %d, %Y') }}
+                            </span>
+                        </div>
+                        
+                        {% if note.summary %}
+                        <div class="mb-4">
+                            <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Summary</h4>
+                            <p class="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">{{ note.summary }}</p>
+                        </div>
+                        {% endif %}
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                            {% if note.homework %}
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Homework</h4>
+                                <p class="text-gray-700 dark:text-gray-300 text-sm">{{ note.homework }}</p>
+                            </div>
+                            {% endif %}
+                            {% if note.next_goal %}
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Next Goal</h4>
+                                <p class="text-gray-700 dark:text-gray-300 text-sm">{{ note.next_goal }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+                    <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-neutral-900 flex items-center justify-center mx-auto mb-4 text-gray-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">No Notes Yet</h3>
+                    <p class="text-gray-500 dark:text-gray-400">Your session notes will appear here.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

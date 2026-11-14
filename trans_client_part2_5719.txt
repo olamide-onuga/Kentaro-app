@@ -1,0 +1,99 @@
+Created At: 2026-09-22T23:26:26+01:00
+Completed At: 2026-09-22T23:26:26+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 840
+Total Bytes: 33431
+Showing lines 750 to 840
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+750:     profile = current_user.client_profile
+751:     if not profile:
+752:         return redirect(url_for('client.dashboard'))
+753:         
+754:     today = date.today()
+755:     upcoming = Appointment.query.filter(
+756:         Appointment.client_id == profile.id,
+757:         Appointment.date >= today,
+758:         Appointment.status == 'scheduled'
+759:     ).order_by(Appointment.date.asc(), Appointment.start_time.asc()).all()
+760:     
+761:     past = Appointment.query.filter(
+762:         Appointment.client_id == profile.id,
+763:         (Appointment.date < today) | (Appointment.status != 'scheduled')
+764:     ).order_by(Appointment.date.desc(), Appointment.start_time.desc()).all()
+765:     
+766:     return render_template('client/appointments.html',
+767:                            upcoming_appointments=upcoming,
+768:                            past_appointments=past)
+769: 
+770: @client_bp.route('/appointment/<int:appointment_id>/cancel', methods=['POST'])
+771: @login_required
+772: def cancel_appointment(appointment_id):
+773:     from app.models.calendar import Appointment
+774:     
+775:     profile = current_user.client_profile
+776:     appt = Appointment.query.get_or_404(appointment_id)
+777:     if appt.client_id != profile.id:
+778:         flash('Access denied.', 'danger')
+779:         return redirect(url_for('client.appointments'))
+780:         
+781:     appt.status = 'cancelled'
+782:     db.session.commit()
+783:     
+784:     # Notify coach
+785:     if profile.coach and profile.coach.user_id:
+786:         socketio.emit('notification', {
+787:             'msg': f'Client {profile.first_name or profile.user.email} cancelled their session on {appt.date.strftime("%b %d")}.'
+788:         }, room=f'user_{profile.coach.user_id}')
+789:         
+790:     flash('Appointment cancelled.', 'info')
+791:     return redirect(url_for('client.appointments'))
+792: 
+793: @client_bp.route('/delete_profile', methods=['POST'])
+794: @login_required
+795: def delete_profile():
+796:     from app.models.progress import (
+797:         BodyweightLog, ProgressPhoto, FormCheckSubmission,
+798:         WorkoutCompletion, ClientProgram, ExerciseCompletion
+799:     )
+800:     from app.models.calendar import Appointment
+801:     from app.models.user import ChatMessage
+802: 
+803:     profile = current_user.client_profile
+804:     user = current_user
+805: 
+806:     if profile:
+807:         # 1. Delete appointments
+808:         Appointment.query.filter_by(client_id=profile.id).delete()
+809: 
+810:         # 2. Delete progress tracking
+811:         BodyweightLog.query.filter_by(client_id=profile.id).delete()
+812:         ProgressPhoto.query.filter_by(client_id=profile.id).delete()
+813:         FormCheckSubmission.query.filter_by(client_id=profile.id).delete()
+814: 
+815:         # 3. Delete workout completions and exercise completions
+816:         completions = WorkoutCompletion.query.filter_by(client_id=profile.id).all()
+817:         for comp in completions:
+818:             ExerciseCompletion.query.filter_by(workout_completion_id=comp.id).delete()
+819:             db.session.delete(comp)
+820: 
+821:         # 4. Delete program assignments
+822:         ClientProgram.query.filter_by(client_id=profile.id).delete()
+823: 
+824:         # 5. Delete Chat messages involving this user
+825:         ChatMessage.query.filter(
+826:             (ChatMessage.sender_id == user.id) | (ChatMessage.receiver_id == user.id)
+827:         ).delete()
+828: 
+829:         # 6. Delete profile
+830:         db.session.delete(profile)
+831: 
+832:     # 7. Delete user account
+833:     db.session.delete(user)
+834:     db.session.commit()
+835: 
+836:     logout_user()
+837:     flash('Your client account and all progress data have been permanently deleted.', 'info')
+838:     return redirect(url_for('main.index'))
+839: 
+840: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

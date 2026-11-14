@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}{{ client.first_name }} {{ client.last_name }} - Client Details{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto pb-16">
+    <!-- Top Nav & Actions -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <a href="{{ url_for('coach.clients') }}" class="inline-flex items-center text-sm font-semibold text-gray-600 dark:text-gray-400 hover:text-black">
+            &larr; All Clients
+        </a>
+        <div class="flex items-center space-x-3">
+            <a href="{{ url_for('coach.coach_chat', client_id=client.id) }}" class="inline-flex items-center text-xs sm:text-sm font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 px-4 py-2 rounded-xl transition">
+                💬 Message Client
+            </a>
+            <a href="{{ url_for('coach.coach_voice_call', client_id=client.id) }}" class="inline-flex items-center text-xs sm:text-sm font-bold bg-green-600 hover:bg-green-700 text-white dark:text-black px-4 py-2 rounded-xl shadow transition">
+                📹 Video Call Client
+            </a>
+            <button onclick="document.getElementById('coachTerminateModal').classList.remove('hidden')" class="inline-flex items-center text-xs sm:text-sm font-semibold border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 px-3.5 py-2 rounded-xl hover:bg-red-100 transition">
+                🛑 End Contract
+            </button>
+        </div>
+    </div>
+
+    <!-- Client Header & Assign Program -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Client Profile Card -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50">
+            <div class="flex items-center mb-4">
+                <div class="w-16 h-16 bg-gray-900 text-white dark:text-black rounded-2xl flex items-center justify-center font-black text-2xl mr-4 shadow-sm dark:shadow-gray-900/50">
+                    {{ client.first_name[0] if client.first_name else 'C' }}
+                </div>
+                <div>
+                    <h1 class="text-xl font-black text-gray-900 dark:text-gray-100">{{ client.first_name }} {{ client.last_name }}</h1>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Client since {{ client.created_at.strftime('%b %Y') }}</p>
+                </div>
+            </div>
+            <div class="space-y-2.5 text-xs sm:text-sm border-t border-gray-100 dark:border-gray-800 pt-3">
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Email</span>
+                    <span class="font-bold text-gray-800 dark:text-gray-200">{{ client.user.email }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Package</span>
+                    <span class="font-bold text-green-600">{{ client.active_package.name if client.active_package else 'None' }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Workouts Done</span>
+                    <span class="font-black text-gray-900 dark:text-gray-100">{{ client.completions.count() }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Form Checks</span>
+                    <span class="font-black text-gray-900 dark:text-gray-100">{{ form_checks|length }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assign Program Card -->
+        <div class="lg:col-span-2 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50 flex flex-col justify-between">
+            <div>
+                <h2 class="text-lg font-black text-gray-900 dark:text-gray-100 mb-2">Program Assignment</h2>
+                {% if active_cp %}
+                <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 text-sm text-green-900 flex items-center justify-between">
+                    <div>
+                        <span class="text-xs text-green-600 uppercase font-bold tracking-wider block">Active Program</span>
+                        <strong class="text-base">{{ active_cp.program.name }}</strong>
+                    </div>
+                    <span class="text-xs font-bold px-3 py-1 bg-green-200 text-green-800 rounded-full">In Progress</span>
+                </div>
+                {% else %}
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Assign a training program to unlock workouts on this client's dashboard.</p>
+                {% endif %}
+            </div>
+
+            <form method="POST" action="{{ url_for('coach.assign_program', client_id=client.id) }}" class="flex flex-col sm:flex-row gap-3">
+                <select name="program_id" class="flex-1 border border-gray-300 dark:border-gray-700 rounded-xl p-2.5 text-sm font-semibold focus:border-black focus:ring-0">
+                    <option value="">Select a program...</option>
+                    {% for prog in programs %}
+                    <option value="{{ prog.id }}" {% if active_cp and active_cp.program_id == prog.id %}selected{% endif %}>{{ prog.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="bg-black dark:bg-white hover:bg-gray-800 text-white dark:text-black font-bold px-6 py-2.5 rounded-xl text-sm transition">
+                    {% if active_cp %}Reassign Program{% else %}Assign Program{% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabbed Content: 1. Workout History & Feedback, 2. Form Checks, 3. Progress Metrics -->
+    <div class="flex border-b border-gray-200 dark:border-gray-800 mb-8 space-x-2 sm:space-x-8 overflow-x-auto">
+        <button type="button" onclick="switchCoachTab('workouts')" id="coachTabBtn_workouts" class="pb-3 text-sm sm:text-base font-bold text-black dark:text-white border-b-2 border-black transition whitespace-nowrap">
+            🏋️ Workout History & Review
+        </button>
+        <button type="button" onclick="switchCoachTab('formchecks')" id="coachTabBtn_formchecks" class="pb-3 text-sm sm:text-base font-bold text-gray-400 dark:text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition whitespace-nowrap flex items-center">
+            📹 Form Check Submissions
+            {% set pending_fc = form_checks|selectattr('status', 'equalto', 'pending')|list|length %}
+            {% if pending_fc > 0 %}
+            <span class="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-bold">{{ pending_fc }} new</span>
+            {% endif %}
+        </button>
+        <button type="button" onclick="switchCoachTab('metrics')" id="coachTabBtn_metrics" class="pb-3 text-sm sm:text-base font-bold text-gray-400 dark:text-gray-500 hover:text-gray-700 border-b-2 border-transparent transition whitespace-nowrap">
+            📊 Bodyweight & Photos
+        </button>
+    </div>
+
+    <!-- TAB 1: WORKOUT HISTORY & FEEDBACK -->
+    <div id="coachTabContent_workouts" class="space-y-6">
+        {% if completions %}
+        <div class="space-y-6">
+            {% for c in completions %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50">
+                <!-- Workout Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-4 border-b border-gray-100 dark:border-gray-800">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h3 class="text-xl font-black text-gray-900 dark:text-gray-100">{{ c.workout.name }}</h3>
+                            {% if c.coach_feedback %}
+                            <span class="text-xs bg-green-100 text-green-800 px-2.5 py-0.5 rounded-full font-bold">Feedback Sent</span>
+                            {% else %}
+                            <span class="text-xs bg-yellow-100 text-yellow-800 px-2.5 py-0.5 rounded-full font-bold">Needs Review</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Completed on {{ c.completed_at.strftime('%A, %B %d, %Y at %I:%M %p') }}</p>
+                    </div>
+                    {% if c.perceived_effort %}
+                    <div class="text-center bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-2 w-max">
+                        <p class="text-xl font-black text-gray-900 dark:text-gray-100">{{ c.perceived_effort }}/10</p>
+                        <p class="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold">RPE</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if c.client_notes %}
+                <div class="mb-4 bg-gray-50 dark:bg-gray-950 p-3 rounded-xl text-xs text-gray-700 dark:text-gray-300">
+                    <span class="font-bold text-gray-500 dark:text-gray-400 uppercase">Client Notes:</span>
+                    <p class="mt-0.5 italic">"{{ c.client_notes }}"</p>
+                </div>
+                {% endif %}
+
+                <!-- Attached Workout Video (if uploaded) -->
+                {% if c.video_filename %}
+                <div class="mb-5 bg-black/5 p-4 rounded-xl border border-gray-200 dark:border-gray-800">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-2 flex items-center">
+                        <span class="mr-1.5">📹</span> Client Form Check Video
+                    </h4>
+                    <div class="rounded-xl overflow-hidden bg-black dark:bg-white max-w-sm aspect-video">
+                        <video controls playsinline class="w-full h-full object-contain">
+                            <source src="{{ url_for('static', filename='uploads/videos/' + c.video_filename) }}" type="video/mp4">
+                        </video>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Exercise-by-Exercise Logs -->
+                <div class="mb-6">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">Exercise Performance Logs</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-gray-100 dark:border-gray-800 text-gray-400 dark:text-gray-500 uppercase font-bold">
+                                    <th class="py-2">Exercise</th>
+                                    <th class="py-2">Sets</th>
+                                    <th class="py-2">Reps</th>
+                                    <th class="py-2">Weight</th>
+                                    <th class="py-2">Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                {% for ec in c.exercise_completions.all() %}
+                                <tr>
+                                    <td class="py-2.5 font-bold text-gray-900 dark:text-gray-100">{{ ec.workout_exercise.exercise.name }}</td>
+                                    <td class="py-2.5 font-semibold text-gray-700 dark:text-gray-300">{{ ec.actual_sets or '-' }}</td>
+                                    <td class="py-2.5 font-semibold text-gray-700 dark:text-gray-300">{{ ec.actual_reps or '-' }}</td>
+                                    <td class="py-2.5 font-semibold text-gray-700 dark:text-gray-300">{{ ec.actual_weight or '-' }}</td>
+                                    <td class="py-2.5 text-gray-500 dark:text-gray-400 italic">{{ ec.notes or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Coach Feedback Form -->
+                <div class="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                        <span class="mr-1.5">💬</span> Coach Feedback & Cueing
+                    </h4>
+                    <form method="POST" action="{{ url_for('coach.submit_workout_feedback', completion_id=c.id) }}">
+                        <textarea name="feedback" rows="3" placeholder="Leave technique feedback, encouragement, or adjustments for next session..." 
+                                  class="w-full bg-white dark:bg-black border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-xs sm:text-sm focus:border-black focus:ring-0 mb-3">{{ c.coach_feedback or '' }}</textarea>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-400 dark:text-gray-500">
+                                {% if c.reviewed_at %}Last saved on {{ c.reviewed_at.strftime('%b %d, %Y') }}{% endif %}
+                            </span>
+                            <button type="submit" class="bg-black dark:bg-white hover:bg-gray-800 text-white dark:text-black text-xs sm:text-sm font-bold px-5 py-2 rounded-xl transition">
+                                {% if c.coach_feedback %}Update Feedback{% else %}Send Feedback to Client{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-white dark:bg-black border border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-12 text-center text-gray-400 dark:text-gray-500">
+            This client hasn't logged any workouts yet.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- TAB 2: FORM CHECKS -->
+    <div id="coachTabContent_formchecks" class="hidden space-y-6">
+        {% if form_checks %}
+        <div class="space-y-6">
+            {% for fc in form_checks %}
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-gray-800">
+                    <div>
+                        <h4 class="text-lg font-black text-gray-900 dark:text-gray-100">{{ fc.exercise_name or (fc.exercise.name if fc.exercise else 'General Technique') }}</h4>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Submitted on {{ fc.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                    </div>
+                    <span class="text-xs font-bold px-3 py-1 rounded-full w-max
+                        {% if fc.status == 'reviewed' %}bg-green-100 text-green-800
+                        {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                        {{ '✓ Reviewed' if fc.status == 'reviewed' else '⏳ Needs Review' }}
+                    </span>
+                </div>
+
+                {% if fc.client_notes %}
+                <div class="mb-4 bg-gray-50 dark:bg-gray-950 p-3 rounded-xl text-xs text-gray-700 dark:text-gray-300">
+                    <span class="font-bold text-gray-500 dark:text-gray-400 uppercase">Client Notes & Questions:</span>
+                    <p class="mt-0.5 italic">"{{ fc.client_notes }}"</p>
+                </div>
+                {% endif %}
+
+                <!-- Video Player -->
+                <div class="mb-6 rounded-xl overflow-hidden bg-black dark:bg-white max-w-md aspect-video">
+                    <video controls playsinline class="w-full h-full object-contain">
+                        <source src="{{ url_for('static', filename='uploads/videos/' + fc.video_filename) }}" type="video/mp4">
+                    </video>
+                </div>
+
+                <!-- Form Check Feedback Form -->
+                <div class="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+                    <h5 class="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2">Coach Video Critique</h5>
+                    <form method="POST" action="{{ url_for('coach.submit_form_check_feedback', submission_id=fc.id) }}">
+                        <textarea name="feedback" rows="3" placeholder="Provide form critique (e.g. keep chest higher, drive through heels)..." 
+                                  class="w-full bg-white dark:bg-black border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-xs sm:text-sm focus:border-black focus:ring-0 mb-3">{{ fc.coach_feedback or '' }}</textarea>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-400 dark:text-gray-500">
+                                {% if fc.reviewed_at %}Reviewed {{ fc.reviewed_at.strftime('%b %d, %Y') }}{% endif %}
+                            </span>
+                            <button type="submit" class="bg-black dark:bg-white hover:bg-gray-800 text-white dark:text-black text-xs sm:text-sm font-bold px-5 py-2 rounded-xl transition">
+                                {% if fc.coach_feedback %}Update Critique{% else %}Save Review & Send to Client{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-white dark:bg-black border border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-12 text-center text-gray-400 dark:text-gray-500">
+            No form check videos submitted by this client yet.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- TAB 3: BODYWEIGHT & PHOTOS -->
+    <div id="coachTabContent_metrics" class="hidden space-y-8">
+        <!-- Bodyweight Chart -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50">
+            <h3 class="text-lg font-black text-gray-900 dark:text-gray-100 mb-4">Bodyweight Progression</h3>
+            <div class="h-64 sm:h-72 w-full">
+                <canvas id="coachWeightChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Progress Photos Gallery -->
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-gray-900/50">
+            <h3 class="text-lg font-black text-gray-900 dark:text-gray-100 mb-4">Physique Progress Photos</h3>
+            {% if photos %}
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {% for p in photos %}
+                <div class="bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm dark:shadow-gray-900/50">
+                    <div class="aspect-square bg-gray-200 dark:bg-gray-800 overflow-hidden relative">
+                        <img src="{{ url_for('static', filename='uploads/photos/' + p.photo_filename) }}" alt="Progress Photo" class="w-full h-full object-cover">
+                        <span class="absolute top-2 left-2 bg-black/75 text-white dark:text-black text-[10px] font-bold uppercase px-2 py-0.5 rounded-full">
+                            {{ p.category }}
+                        </span>
+                    </div>
+                    <div class="p-3 text-xs">
+                        <p class="font-bold text-gray-800 dark:text-gray-200">{{ p.date.strftime('%b %d, %Y') }}</p>
+                        {% if p.notes %}
+                        <p class="text-gray-500 dark:text-gray-400 truncate mt-0.5">{{ p.notes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
+                No progress photos uploaded by this client yet.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    function switchCoachTab(tabName) {
+        ['workouts', 'formchecks', 'metrics'].forEach(t => {
+            const content = document.getElementById(`coachTabContent_${t}`);
+            const btn = document.getElementById(`coachTabBtn_${t}`);
+            if (t === tabName) {
+                content.classList.remove('hidden');
+                btn.className = "pb-3 text-sm sm:text-base font-bold text-black border-b-2 border-black transition whitespace-nowrap";
+            } else {
+                content.classList.add('hidden');
+                btn.className = "pb-3 text-sm sm:text-base font-bold text-gray-400 hover:text-gray-700 border-b-2 border-transparent transition whitespace-nowrap";
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const ctx = document.getElementById('coachWeightChart');
+        if (!ctx) return;
+
+        const chartLabels = {{ (chart_labels or [])|tojson|safe }};
+        const chartData = {{ (chart_data or [])|tojson|safe }};
+
+        if (chartLabels.length === 0) {
+            ctx.parentNode.innerHTML = '<div class="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">No bodyweight records logged yet.</div>';
+            return;
+        }
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Weight',
+                    data: chartData,
+                    borderColor: '#000000',
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#000000'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                        ticks: { font: { size: 11, weight: 'bold' } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+<!-- Coach Terminate Contract Modal -->
+<div id="coachTerminateModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-extrabold text-lg text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <span>🛑</span> Terminate Contract with {{ client.first_name }}
+            </h3>
+            <button onclick="document.getElementById('coachTerminateModal').classList.add('hidden')" class="p-1.5 rounded-xl text-gray-400 hover:text-black dark:hover:text-white transition">✕</button>
+        </div>
+
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Ending contract will unassign {{ client.first_name }} from your roster. The client will be notified.
+        </p>
+
+        <form action="{{ url_for('coach.terminate_client_contract', client_id=client.id) }}" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Reason for termination</label>
+                <textarea name="reason" rows="3" placeholder="e.g. Program completed, mutual decision..." class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"></textarea>
+            </div>
+
+            <div class="pt-2 flex items-center justify-end gap-2">
+                <button type="button" onclick="document.getElementById('coachTerminateModal').classList.add('hidden')" class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition">Cancel</button>
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition shadow-md">Terminate Contract</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,118 @@
+Created At: 2026-08-30T22:53:03+01:00
+Completed At: 2026-08-30T22:53:03+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 110
+Total Bytes: 4513
+Showing lines 1 to 110
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+2: from flask_login import login_required, current_user
+3: from datetime import date
+4: from app.extensions import db
+5: from app.models.user import ClientProfile
+6: from app.models.coaching import CoachingPackage
+7: from app.models.workout import Workout, WorkoutExercise
+8: from app.models.progress import ClientProgram, WorkoutCompletion
+9: 
+10: client_bp = Blueprint('client', __name__, url_prefix='/client')
+11: 
+12: @client_bp.before_request
+13: @login_required
+14: def require_client():
+15:     if not current_user.is_client:
+16:         flash('You do not have permission to access this page.', 'danger')
+17:         return redirect(url_for('main.index'))
+18: 
+19: @client_bp.route('/dashboard')
+20: def dashboard():
+21:     profile = current_user.client_profile
+22:     today_workout = None
+23:     active_program = None
+24: 
+25:     if profile:
+26:         cp = profile.client_programs.filter_by(is_active=True).first()
+27:         if cp:
+28:             active_program = cp.program
+29:             # Find today's workout — simple heuristic: find first uncompleted workout in order
+30:             completed_ids = [c.workout_id for c in profile.completions.all()]
+31:             for phase in cp.program.phases.order_by('order').all():
+32:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+33:                     if w.id not in completed_ids:
+34:                         today_workout = w
+35:                         break
+36:                 if today_workout:
+37:                     break
+38: 
+39:     return render_template('client/dashboard.html',
+40:                            profile=profile,
+41:                            today_workout=today_workout,
+42:                            active_program=active_program)
+43: 
+44: @client_bp.route('/my-program')
+45: def my_program():
+46:     profile = current_user.client_profile
+47:     cp = profile.client_programs.filter_by(is_active=True).first() if profile else None
+48:     completed_ids = set(c.workout_id for c in profile.completions.all()) if profile else set()
+49:     return render_template('client/my_program.html', cp=cp, completed_ids=completed_ids)
+50: 
+51: @client_bp.route('/workout/<int:workout_id>')
+52: def workout_view(workout_id):
+53:     profile = current_user.client_profile
+54:     workout = Workout.query.get_or_404(workout_id)
+55:     already_completed = WorkoutCompletion.query.filter_by(
+56:         client_id=profile.id, workout_id=workout_id
+57:     ).first() if profile else None
+58:     return render_template('client/workout_view.html',
+59:                            workout=workout,
+60:                            already_completed=already_completed)
+61: 
+62: @client_bp.route('/workout/<int:workout_id>/complete', methods=['POST'])
+63: def complete_workout(workout_id):
+64:     profile = current_user.client_profile
+65:     if not profile:
+66:         flash('Profile not found.', 'danger')
+67:         return redirect(url_for('client.dashboard'))
+68: 
+69:     # Prevent duplicate completions
+70:     existing = WorkoutCompletion.query.filter_by(client_id=profile.id, workout_id=workout_id).first()
+71:     if not existing:
+72:         completion = WorkoutCompletion(
+73:             client_id=profile.id,
+74:             workout_id=workout_id,
+75:             client_notes=request.form.get('notes'),
+76:             perceived_effort=request.form.get('perceived_effort') or None
+77:         )
+78:         db.session.add(completion)
+79:         db.session.commit()
+80:         socketio.emit('notification', {'msg': f'Client {profile.user.email} completed workout {workout.name}.'}, room=f'user_{profile.coach_id}')
+81:     else:
+82:         flash('You already completed this workout.', 'info')
+83: 
+84:     return redirect(url_for('client.dashboard'))
+85: 
+86: @client_bp.route('/history')
+87: def history():
+88:     profile = current_user.client_profile
+89:     completions = profile.completions.order_by(WorkoutCompletion.completed_at.desc()).all() if profile else []
+90:     return render_template('client/history.html', completions=completions)
+91: 
+92: @client_bp.route('/select-package/<int:package_id>', methods=['GET', 'POST'])
+93: def select_package(package_id):
+94:     package = CoachingPackage.query.get_or_404(package_id)
+95: 
+96:     if request.method == 'POST':
+97:         profile = current_user.client_profile
+98:         if not profile:
+99:             profile = ClientProfile(user_id=current_user.id)
+100:             db.session.add(profile)
+101: 
+102:         profile.coach_id = package.coach_id
+103:         profile.active_package_id = package.id
+104:         db.session.commit()
+105: 
+106:         flash(f'Successfully enrolled in {package.name}!', 'success')
+107:         return redirect(url_for('client.dashboard'))
+108: 
+109:     return render_template('client/select_package.html', package=package)
+110: 
+The above content shows the entire, complete file contents of the requested file.

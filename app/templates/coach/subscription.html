@@ -1,0 +1,184 @@
+﻿{% extends "base.html" %}
+{% block title %}My Subscription - Kentaro{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8 pb-10">
+
+  {# Header #}
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <a href="{{ url_for('coach.dashboard') }}" class="text-xs text-gray-400 hover:text-black dark:hover:text-white mb-1 inline-block">&larr; Dashboard</a>
+      <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100">My Subscription 💎</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Manage your coaching plan, client capacity, and feature access.</p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="px-4 py-3 rounded-2xl text-sm font-medium
+        {% if cat == 'danger' %}bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900
+        {% elif cat == 'success' %}bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-900
+        {% elif cat == 'warning' %}bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-900
+        {% else %}bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900{% endif %}">
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {# Current Plan Card #}
+  <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Current Plan</p>
+        <div class="flex items-center gap-3">
+          <h2 class="text-3xl font-black text-gray-900 dark:text-gray-100">{{ plan.name }}</h2>
+          {% if subscription.status == 'active' %}
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400">Active</span>
+          {% elif subscription.status == 'expired' %}
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400">Expired</span>
+          {% else %}
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400">{{ subscription.status|title }}</span>
+          {% endif %}
+        </div>
+        {% if plan.description %}
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ plan.description }}</p>
+        {% endif %}
+      </div>
+      <div class="text-right">
+        <p class="text-3xl font-black text-gray-900 dark:text-gray-100">{{ plan.price_display }}</p>
+        {% if subscription.current_period_end %}
+          <p class="text-xs text-gray-400 mt-1">Renews {{ subscription.current_period_end.strftime('%b %d, %Y') }}</p>
+        {% else %}
+          <p class="text-xs text-green-500 mt-1">No expiry date</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Client Usage Bar #}
+    <div class="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-sm font-bold text-gray-700 dark:text-gray-300">Active Clients</p>
+        <p class="text-sm font-black text-gray-900 dark:text-gray-100">
+          {{ client_info.current_count }} /
+          {% if client_info.is_unlimited %}
+            <span class="text-green-600 dark:text-green-400">Unlimited</span>
+          {% else %}
+            {{ client_info.max_limit }}
+          {% endif %}
+        </p>
+      </div>
+      {% if not client_info.is_unlimited and client_info.max_limit %}
+        {% set pct = [(client_info.current_count / client_info.max_limit * 100), 100]|min|int %}
+        <div class="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2.5">
+          <div class="h-2.5 rounded-full transition-all
+            {% if pct >= 100 %}bg-red-500{% elif pct >= 80 %}bg-yellow-500{% else %}bg-green-500{% endif %}"
+            style="width: {{ pct }}%"></div>
+        </div>
+        {% if pct >= 100 %}
+          <p class="text-xs text-red-500 mt-1.5 font-semibold">âš ï¸ Client limit reached. Upgrade your plan to add more clients.</p>
+        {% elif pct >= 80 %}
+          <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1.5">Almost at your limit ({{ client_info.max_limit - client_info.current_count }} slots remaining).</p>
+        {% else %}
+          <p class="text-xs text-gray-400 mt-1.5">{{ client_info.max_limit - client_info.current_count }} client slots remaining.</p>
+        {% endif %}
+      {% else %}
+        <div class="w-full bg-green-100 dark:bg-green-950/30 rounded-full h-2.5">
+          <div class="h-2.5 rounded-full bg-green-500" style="width: 30%"></div>
+        </div>
+        <p class="text-xs text-green-600 dark:text-green-400 mt-1.5">Unlimited capacity — you can add as many clients as you need.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Available Plans Comparison #}
+  <div>
+    <h2 class="text-lg font-black text-gray-900 dark:text-gray-100 mb-4">Available Plans</h2>
+    <div class="grid grid-cols-1 md:grid-cols-{{ [available_plans|length, 3]|min }} gap-4">
+      {% for ap in available_plans %}
+      {% set is_current = (subscription.plan_id == ap.id) %}
+      <div class="bg-white dark:bg-gray-950 border-2 rounded-3xl p-6 flex flex-col gap-4 shadow-sm
+        {{ 'border-black dark:border-white' if is_current else 'border-gray-200 dark:border-gray-800' }}">
+
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="text-lg font-black text-gray-900 dark:text-gray-100">{{ ap.name }}</h3>
+            {% if ap.description %}
+              <p class="text-xs text-gray-400 mt-0.5">{{ ap.description }}</p>
+            {% endif %}
+          </div>
+          <div class="text-right">
+            <p class="text-xl font-black text-gray-900 dark:text-gray-100">
+              {% if ap.price == 0 %}Free{% else %}\${{ "%.0f"|format(ap.price) }}<span class="text-sm font-normal text-gray-400">/mo</span>{% endif %}
+            </p>
+          </div>
+        </div>
+
+        {% if is_current %}
+          <span class="inline-flex self-start px-3 py-1 rounded-full text-xs font-bold bg-black dark:bg-white text-white dark:text-black">&#10003; Current Plan</span>
+        {% endif %}
+
+        <ul class="space-y-1.5 text-sm flex-1">
+          <li class="flex items-center gap-2">
+            <span class="text-gray-900 dark:text-gray-100 font-semibold">👥 {{ ap.client_limit_display }}</span>
+          </li>
+          {% for key, label in feature_labels.items() %}
+          <li class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+            {% if ap.has_feature(key) %}
+              <span class="text-green-500 w-4 text-center">&#10003;…</span>
+            {% else %}
+              <span class="text-gray-300 dark:text-gray-700 w-4 text-center">âŒ</span>
+            {% endif %}
+            <span class="{{ '' if ap.has_feature(key) else 'line-through text-gray-300 dark:text-gray-700' }}">{{ label }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+
+        {% if not is_current %}
+          <form method="POST" action="{{ url_for('coach.subscription_checkout', plan_id=ap.id) }}">
+            <input type="hidden" name="billing_interval" value="monthly">
+            <button type="submit" class="w-full py-2.5 rounded-xl text-sm font-bold transition
+              {% if ap.price > (plan.price or 0) %}bg-black dark:bg-white text-white dark:text-black hover:opacity-80{% elif ap.price == 0 %}bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200{% else %}bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200{% endif %}">
+              {% if ap.price > (plan.price or 0) %}Upgrade to {{ ap.name }}{% elif ap.price == 0 %}Downgrade to Free{% else %}Switch to {{ ap.name }}{% endif %}
+            </button>
+          </form>
+        {% else %}
+          <div class="py-2.5 text-center text-sm text-gray-400">Your current plan</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# Payment History #}
+  {% set payments = recent_payments if recent_payments is defined else (subscription.recent_payments if subscription else []) %}
+  {% if payments %}
+  <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-sm">
+    <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+      <h3 class="font-black text-gray-900 dark:text-gray-100">Payment History</h3>
+    </div>
+    <div class="divide-y divide-gray-100 dark:divide-gray-800">
+      {% for pmt in payments %}
+      <div class="px-6 py-3 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ pmt.plan.name if pmt.plan else 'Subscription' }}</p>
+          <p class="text-xs text-gray-400">{{ pmt.created_at.strftime('%b %d, %Y') }} Â· Ref: <code>{{ pmt.reference[:16] }}...</code></p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-bold text-gray-900 dark:text-gray-100">
+            {% if pmt.amount_paid_ngn %}&#8358;{{ "%.0f"|format(pmt.amount_paid_ngn) }}{% else %}{{ pmt.amount | money }}{% endif %}
+          </span>
+          {% if pmt.status == 'successful' %}
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400">Paid</span>
+          {% elif pmt.status == 'failed' %}
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400">Failed</span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400">Pending</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

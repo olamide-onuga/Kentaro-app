@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Session Notes - Kentaro{% endblock %}
+
+{% block content %}
+<div class="space-y-6 pb-10 max-w-4xl mx-auto">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+                Session Notes
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Recaps and action items from your 1-on-1 calls.
+            </p>
+        </div>
+        <a href="{{ url_for('client.dashboard') }}" class="text-sm font-semibold text-gray-500 hover:text-black dark:hover:text-white transition">
+            &larr; Dashboard
+        </a>
+    </div>
+
+    {% if notes %}
+    <div class="space-y-5 mt-6">
+        {% for note in notes %}
+        <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-6 md:p-8 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ note.title or 'Coaching Session' }}</h2>
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs font-semibold">
+                    {{ note.session_date.strftime('%B %d, %Y') }}
+                </div>
+            </div>
+
+            {% if note.summary %}
+            <div class="mb-6">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Summary</h3>
+                <div class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{{ note.summary }}</div>
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+                {% if note.homework %}
+                <div class="bg-gray-50 dark:bg-neutral-900 rounded-2xl p-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 flex items-center gap-2">
+                        Action Items
+                    </h3>
+                    <div class="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">{{ note.homework }}</div>
+                </div>
+                {% endif %}
+
+                {% if note.next_goal %}
+                <div class="bg-gray-50 dark:bg-neutral-900 rounded-2xl p-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 flex items-center gap-2">
+                        Next Goal
+                    </h3>
+                    <div class="text-sm text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">{{ note.next_goal }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white dark:bg-black border border-dashed border-gray-200 dark:border-gray-800 rounded-3xl p-10 text-center mt-6">
+        <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-neutral-800 flex items-center justify-center mx-auto mb-3 text-gray-400">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">No session notes yet</h2>
+        <p class="text-sm text-gray-500 mt-2 max-w-sm mx-auto">
+            After your 1-on-1 coaching calls, your coach's summary and action items will appear here.
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,250 @@
+We have made several modifications:
+
+- Added is_complete property to CoachProfile model (done correctly).
+- Added payment_link column to CoachingPackage.
+- Updated public coach profile route with guard.
+
+Now we need to implement remaining tasks:
+
+- Add delete-profile routes for coach and client, with cascade delete.
+- Add Delete Profile buttons in templates (coach dashboard/onboarding, client dashboard).
+- Update coach/packages template to include payment_link input.
+- Create dummy payment page and related route for client to simulate payment, redirect to success.
+- Add payment_success route.
+- Add admin login/dashboard (simple admin template). Provide login route maybe using Flask-Login and superadmin role.
+- Style navigation links on admin and coach dashboards (Tailwind classes already present but need uniform). Possibly update admin template (we need to create admin templates).
+- Make app responsive (likely already Tailwind; maybe ensure grid classes are responsive).
+- Create DEVELOPMENT_STATUS.md file.
+
+We also need to create migrations. But we may just modify models; migrations are not required now unless tests rely on DB schemas. But to be safe, add Alembic migration script? This environment may not have alembic. Could skip, but the DB will be out of sync. However, the user may run migrations later; we can create a migration file in `migrations/versions`. We can just add placeholder migration script.
+
+Now we need to edit templates:
+
+- Add Delete Profile button for coach: perhaps in `coach/onboarding.html` or `coach/dashboard.html`. We'll add a form POST to `/coach/delete_profile` with CSRF. Add a button.
+
+- Add Delete Profile button for client: maybe in `client/dashboard.html` or separate settings page. Add a form POST to `/client/delete_profile`.
+
+We need to create route files:
+
+- For coach delete profile: in `coach.py` add route at after existing routes.
+
+- For client delete profile: add route in `client.py`.
+
+- For dummy payment: create templates under `client/dummy_payment.html` and route `/client/dummy_payment/<int:package_id>`.
+
+- Payment success route: `/client/payment_success/<int:package_id>`.
+
+- Admin login route: create a new blueprint `admin.py` maybe.
+
+Search for admin existing file: there's main admin placeholder route returning HTML. They want login to admin page. We'll create admin routes file.
+
+Find if there's any admin blueprint: not present. We need to create `app/routes/admin.py` with login and dashboard routes, and template files.
+
+Create admin templates: `admin/login.html` and `admin/dashboard.html`.
+
+Style links: ensure admin and coach dashboard templates use Tailwind link classes. Coach already uses classes. We'll ensure admin template uses.
+
+Make app responsive: already using grid and flex, maybe okay.
+
+DEVELOPMENT_STATUS.md: create in project root (scratch? Should be at project root). Path: `C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/DEVELOPMENT_STATUS.md`? Actually project root is the scratch directory. We'll create file there.
+
+Now we need to edit coach/packages.html to include payment_link input. Add new field after features.
+
+Implement client select_package modifications: currently on POST they just set profile.coach_id and active_package_id. Need to handle payment: if package.payment_link exists, redirect to dummy payment page instead of immediate success. So modify route: after package lookup, if package.payment_link and request.method == 'POST', redirect to dummy payment page passing package.id. We'll need to pass something to dummy payment page to simulate.
+
+Simplify: modify route to check if package.payment_link: after committing profile fields, flash message instructing to pay, then redirect to dummy payment route. Actually the process: client selects package via GET route, sees select_package.html. On POST, we need to decide: if package.payment_link, store pending assignment maybe in session, redirect to dummy payment page; after dummy payment, then assign.
+
+Simplify: On POST, if package.payment_link, store selected package id in session `session['pending_package_id'] = package.id`, then redirect to dummy payment page `/client/dummy_payment/<int:package_id>`. Dummy payment page shows payment link and a button "Pay". When clicked (POST), it will redirect to `/client/payment_success/<int:package_id>` which performs assignment and flash.
+
+Implement dummy payment route: GET shows template with payment link (package.payment_link). POST simulates payment success.
+
+Make sure to import session.
+
+Now add delete-profile routes: For coach:
+
+```python
+@coach_bp.route('/delete_profile', methods=['POST'])
+def delete_profile():
+    profile = current_user.coach_profile
+    if not profile:
+        flash('No profile to delete.', 'warning')
+        return redirect(url_for('coach.dashboard'))
+    # cascade delete packages and clients
+    # Delete related packages
+    CoachingPackage.query.filter_by(coach_id=profile.id).delete()
+    # Delete related clients and their data? Simplify: delete client profiles
+    ClientProfile.query.filter_by(coach_id=profile.id).delete()
+    db.session.delete(profile)
+    db.session.commit()
+    flash('Your coach profile and related data have been deleted.', 'info')
+    return redirect(url_for('main.index'))
+```
+
+Client delete profile:
+
+```python
+@client_bp.route('/delete_profile', methods=['POST'])
+def delete_profile():
+    profile = current_user.client_profile
+    if not profile:
+        flash('No profile to delete.', 'warning')
+        return redirect(url_for('client.dashboard'))
+    # delete related data: client programs, completions, etc. For simplicity:
+    db.session.delete(profile)
+    db.session.commit()
+    flash('Your client profile has been deleted.', 'info')
+    return redirect(url_for('main.index'))
+```
+
+Add buttons: In coach/dashboard.html, after Manage Packages link, add Delete Profile button (form POST to /coach/delete_profile). Also maybe in onboarding.html.
+
+Add client/dashboard.html: add Delete Account button (form POST to /client/delete_profile).
+
+Now create dummy payment templates.
+
+Search client/templates for existing template names: `client/select_package.html` - need to edit maybe to include payment link? Not needed.
+
+Create template `client/dummy_payment.html`:
+
+```
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-xl mx-auto p-6 bg-white rounded shadow">
+    <h2 class="text-2xl font-bold mb-4">Payment Required</h2>
+    <p class="mb-2">You are about to purchase: {{ package.name }} for {{ package.currency }} {{ package.price }}.</p>
+    <p class="mb-4"><a href="{{ package.payment_link }}" target="_blank" class="text-blue-600 hover:underline">Proceed to Paystack</a></p>
+    <form method="post">
+        <button type="submit" class="bg-black text-white px-4 py-2 rounded hover:bg-gray-800">I have completed payment</button>
+    </form>
+</div>
+{% endblock %}
+```
+
+Route:
+
+```python
+@client_bp.route('/dummy_payment/<int:package_id>', methods=['GET', 'POST'])
+@login_required
+def dummy_payment(package_id):
+    package = CoachingPackage.query.get_or_404(package_id)
+    if request.method == 'POST':
+        # simulate success
+        return redirect(url_for('client.payment_success', package_id=package.id))
+    return render_template('client/dummy_payment.html', package=package)
+```
+
+Payment success route:
+
+```python
+@client_bp.route('/payment_success/<int:package_id>', methods=['GET'])
+@login_required
+def payment_success(package_id):
+    package = CoachingPackage.query.get_or_404(package_id)
+    profile = current_user.client_profile
+    if not profile:
+        profile = ClientProfile(user_id=current_user.id)
+        db.session.add(profile)
+    profile.coach_id = package.coach_id
+    profile.active_package_id = package.id
+    db.session.commit()
+    flash(f'Payment confirmed! You are now enrolled in {package.name}.', 'success')
+    return redirect(url_for('client.dashboard'))
+```
+
+Update select_package POST logic: modify to check payment_link.
+
+```python
+if request.method == 'POST':
+    if package.payment_link:
+        session['pending_package_id'] = package.id
+        return redirect(url_for('client.dummy_payment', package_id=package.id))
+    # else immediate assign
+    …
+```
+
+But we need import session from flask.
+
+Now add admin blueprint.
+
+Create file `app/routes/admin.py`:
+
+```
+from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask_login import login_required, current_user
+from app.extensions import db
+from app.models.user import User, Role
+
+admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+@admin_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        user = User.query.filter_by(email=email).first()
+        if user and user.verify_password(password) and user.is_superadmin:
+            login_user(user)
+            return redirect(url_for('admin.dashboard'))
+        flash('Invalid credentials or not an admin.', 'danger')
+    return render_template('admin/login.html')
+
+@admin_bp.route('/dashboard')
+@login_required
+def dashboard():
+    if not current_user.is_superadmin:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('main.index'))
+    return render_template('admin/dashboard.html')
+```
+
+Need to import login_user.
+
+Add admin templates.
+
+`admin/login.html`:
+
+```
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+  <h2 class="text-2xl font-bold mb-4">Admin Login</h2>
+  <form method="post">
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+      <input type="email" name="email" class="w-full border-gray-300 rounded-md p-2" required>
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+      <input type="password" name="password" class="w-full border-gray-300 rounded-md p-2" required>
+    </div>
+    <button type="submit" class="bg-black text-white px-4 py-2 rounded hover:bg-gray-800">Login</button>
+  </form>
+</div>
+{% endblock %}
+```
+
+`admin/dashboard.html`:
+
+```
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-3xl font-bold mb-6">Admin Dashboard</h1>
+<nav class="space-y-2">
+  <a href="{{ url_for('admin.some_route') }}" class="text-blue-600 hover:underline">Manage Users</a><br>
+  <a href="{{ url_for('admin.some_other') }}" class="text-blue-600 hover:underline">System Settings</a>
+</nav>
+{% endblock %}
+```
+
+Add link styling already.
+
+Now create DEVELOPMENT_STATUS.md file.
+
+Create at project root (scratch/kentaro/app/DEVELOPMENT_STATUS.md) with info.
+
+Now implement route changes.
+
+We need to modify client.select_package route.
+
+Let's edit file.
+

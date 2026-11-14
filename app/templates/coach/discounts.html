@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Discounts - Coach Portal{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Top Navigation -->
+    <div class="flex items-center justify-between">
+        <a href="{{ url_for('coach.dashboard') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white transition">
+            <span>←</span> Back to Dashboard
+        </a>
+        <span class="text-xs text-gray-400">Coach Portal • Discounts & Promo Codes</span>
+    </div>
+
+    <!-- Header Section -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-extrabold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <span>🏷️</span> Package Discounts & Promos
+            </h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Create promotional discount codes for your client packages and contract renewals.
+            </p>
+        </div>
+        <button onclick="document.getElementById('createDiscountModal').classList.remove('hidden')" class="px-5 py-2.5 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs hover:bg-gray-800 dark:hover:bg-gray-200 transition shadow-md flex items-center gap-2 flex-shrink-0">
+            <span>+</span> Create Discount Code
+        </button>
+    </div>
+
+    <!-- Discounts List Table -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-sm">
+        <div class="p-6 border-b border-gray-100 dark:border-gray-800">
+            <h3 class="font-bold text-sm text-gray-900 dark:text-gray-100">Your Active Discount Codes</h3>
+        </div>
+
+        {% if discounts %}
+        <div class="divide-y divide-gray-100 dark:divide-gray-800">
+            {% for d in discounts %}
+            <div class="p-5 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center font-mono font-bold text-sm">
+                        🏷️
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono font-extrabold text-base text-gray-900 dark:text-gray-100 tracking-wider">{{ d.code }}</span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' if d.is_active else 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' }}">
+                                {{ 'Active' if d.is_active else 'Inactive' }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-0.5">
+                            {% if d.discount_type == 'percentage' %}
+                            <strong>{{ d.discount_value }}% OFF</strong>
+                            {% else %}
+                            <strong>${{ d.discount_value }} OFF</strong>
+                            {% endif %}
+                            • Used {{ d.usage_count }}{% if d.max_uses %} / {{ d.max_uses }}{% endif %} times
+                        </p>
+                    </div>
+                </div>
+
+                <form action="{{ url_for('coach.toggle_discount', discount_id=d.id) }}" method="POST">
+                    <button type="submit" class="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900 transition shadow-sm">
+                        {{ 'Deactivate' if d.is_active else 'Activate' }}
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-16 text-gray-400 dark:text-gray-500">
+            <span class="text-3xl block mb-2">🏷️</span>
+            <p class="text-xs">No discount codes created yet. Click "Create Discount Code" above to add one!</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Create Discount Modal -->
+<div id="createDiscountModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="font-extrabold text-lg text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <span>🏷️</span> Create Discount Code
+            </h3>
+            <button onclick="document.getElementById('createDiscountModal').classList.add('hidden')" class="p-1.5 rounded-xl text-gray-400 hover:text-black dark:hover:text-white transition">✕</button>
+        </div>
+
+        <form action="{{ url_for('coach.create_discount') }}" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Discount Code (e.g. SUMMER20)</label>
+                <input type="text" name="code" placeholder="PROMO10" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 font-mono uppercase text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Discount Type</label>
+                    <select name="discount_type" class="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed Amount ($)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Value</label>
+                    <input type="number" step="0.01" name="discount_value" placeholder="10" required class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Max Uses (Optional)</label>
+                <input type="number" name="max_uses" placeholder="Unlimited" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2">
+                <button type="button" onclick="document.getElementById('createDiscountModal').classList.add('hidden')" class="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 transition">Cancel</button>
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs hover:bg-gray-800 dark:hover:bg-gray-200 transition shadow-md">Create Code</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

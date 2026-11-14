@@ -1,0 +1,188 @@
+{% extends "admin/layout.html" %}
+{% block title %}System Bug Reports &amp; Flags - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/60">
+                    Incident Desk
+                </span>
+                <span class="text-xs text-gray-400 font-mono">Bug &amp; Flag Center</span>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                System Reports 🚨
+            </h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Review user bug submissions, coach conduct flags, and manage resolution statuses.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            {% if pending_count and pending_count > 0 %}
+            <span class="px-3.5 py-1.5 rounded-2xl text-xs font-extrabold bg-red-600 text-white shadow-sm">
+                {{ pending_count }} Pending Review
+            </span>
+            {% endif %}
+            {% if investigating_count and investigating_count > 0 %}
+            <span class="px-3.5 py-1.5 rounded-2xl text-xs font-extrabold bg-blue-600 text-white shadow-sm">
+                {{ investigating_count }} Investigating
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-5 shadow-sm space-y-4">
+        <!-- Status Filter Pills -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-2 flex-wrap text-xs font-bold">
+                <span class="text-[10px] text-gray-400 uppercase tracking-wider mr-1">Status:</span>
+                {% for s in ['pending', 'investigating', 'resolved', 'dismissed', 'all'] %}
+                <a href="{{ url_for('admin.reports', status=s, type=type_filter) }}"
+                   class="px-3.5 py-1.5 rounded-full transition
+                          {% if status_filter == s %}btn-primary-red text-white shadow-xs
+                          {% else %}bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800{% endif %}">
+                    {{ s|capitalize }}
+                    {% if s == 'pending' and pending_count > 0 %}
+                    <span class="ml-1 px-1.5 py-0.2 rounded-full text-[9px] bg-red-500 text-white font-extrabold">{{ pending_count }}</span>
+                    {% elif s == 'investigating' and investigating_count > 0 %}
+                    <span class="ml-1 px-1.5 py-0.2 rounded-full text-[9px] bg-blue-500 text-white font-extrabold">{{ investigating_count }}</span>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+
+            <!-- Report Type Pills -->
+            <div class="flex items-center gap-2 text-xs font-bold">
+                <span class="text-[10px] text-gray-400 uppercase tracking-wider mr-1">Type:</span>
+                {% for t in ['all', 'bug', 'coach', 'other'] %}
+                <a href="{{ url_for('admin.reports', status=status_filter, type=t) }}"
+                   class="px-3 py-1 rounded-full text-[11px] transition
+                          {% if type_filter == t %}bg-red-600 text-white
+                          {% else %}bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-200{% endif %}">
+                    {{ t|capitalize }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Feed -->
+    {% if reports %}
+    <div class="space-y-4">
+        {% for r in reports %}
+        <div class="bg-white dark:bg-gray-950 rounded-3xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm space-y-4">
+            
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-900 pb-3">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- Status Badge -->
+                    <span class="px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase tracking-wider
+                          {% if r.status == 'pending' %}bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800
+                          {% elif r.status == 'investigating' %}bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800
+                          {% elif r.status == 'resolved' %}bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800
+                          {% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700{% endif %}">
+                        {{ r.status|capitalize }}
+                    </span>
+
+                    <!-- Type Badge -->
+                    <span class="px-2.5 py-1 rounded-full font-bold text-[10px] uppercase tracking-wider
+                          {% if r.report_type == 'coach' %}bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800
+                          {% else %}bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800{% endif %}">
+                        {{ '🚩 Coach Conduct Flag' if r.report_type == 'coach' else '🐛 Platform Bug' }}
+                    </span>
+
+                    <h3 class="font-extrabold text-sm text-gray-900 dark:text-gray-100">
+                        {{ r.title }}
+                    </h3>
+                </div>
+                
+                <span class="text-xs text-gray-400 font-mono">
+                    #{{ r.id }} • {{ r.created_at.strftime('%b %d, %Y at %I:%M %p') if r.created_at else '' }}
+                </span>
+            </div>
+
+            <!-- Reporter & Target Meta -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div>
+                    <span class="text-gray-400 uppercase font-bold text-[10px] block mb-0.5">Reporter</span>
+                    <span class="font-semibold text-gray-800 dark:text-gray-200 font-mono">
+                        {{ r.reporter.email if r.reporter else 'Anonymous User' }}
+                    </span>
+                </div>
+                
+                {% if r.target_coach %}
+                <div>
+                    <span class="text-gray-400 uppercase font-bold text-[10px] block mb-0.5">Reported Coach</span>
+                    <a href="{{ url_for('admin.coach_detail', coach_id=r.target_coach.id) }}" class="font-bold text-red-600 dark:text-red-400 hover:underline">
+                        Coach {{ r.target_coach.first_name }} {{ r.target_coach.last_name }} &rarr;
+                    </a>
+                </div>
+                {% endif %}
+
+                <div>
+                    <span class="text-gray-400 uppercase font-bold text-[10px] block mb-0.5">Resolution Status</span>
+                    <span class="font-extrabold uppercase tracking-wider text-[10px]
+                          {% if r.status == 'pending' %}text-amber-600 dark:text-amber-400
+                          {% elif r.status == 'investigating' %}text-blue-600 dark:text-blue-400
+                          {% elif r.status == 'resolved' %}text-emerald-600 dark:text-emerald-400
+                          {% else %}text-gray-400{% endif %}">
+                        ● {{ r.status }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Description Body -->
+            <div class="bg-gray-50 dark:bg-gray-900/60 p-4 rounded-2xl text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-sans whitespace-pre-line">
+                {{ r.description }}
+            </div>
+
+            <!-- Existing Admin Notes -->
+            {% if r.admin_notes %}
+            <div class="bg-blue-50/50 dark:bg-blue-950/30 p-3.5 rounded-2xl border border-blue-200 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-300">
+                <span class="font-bold block mb-1">Administrative Notes:</span>
+                {{ r.admin_notes }}
+            </div>
+            {% endif %}
+
+            <!-- Status Update Action Form -->
+            <form method="POST" action="{{ url_for('admin.update_report_status', report_id=r.id) }}" class="pt-3 border-t border-gray-100 dark:border-gray-900 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-2 flex-1">
+                    <select name="status" class="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none">
+                        <option value="pending" {% if r.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="investigating" {% if r.status == 'investigating' %}selected{% endif %}>Investigating</option>
+                        <option value="resolved" {% if r.status == 'resolved' %}selected{% endif %}>Resolved</option>
+                        <option value="dismissed" {% if r.status == 'dismissed' %}selected{% endif %}>Dismissed</option>
+                    </select>
+
+                    <input type="text" name="admin_notes" placeholder="Add resolution note or action summary..."
+                           class="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 text-xs text-gray-900 dark:text-gray-100 focus:outline-none">
+                </div>
+
+                <div class="flex items-center gap-2">
+                    {% if r.target_coach and r.target_coach.is_approved %}
+                    <button type="submit" name="action" value="unapprove_coach" onclick="return confirm('Revoke approval for reported coach?')"
+                            class="px-3 py-2 rounded-xl border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 font-bold text-xs hover:bg-red-50 dark:hover:bg-red-950/40 transition">
+                        Unapprove Coach
+                    </button>
+                    {% endif %}
+                    
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-xs hover:opacity-85 transition shadow-sm">
+                        Update Report Status
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-3xl p-12 text-center text-gray-400">
+        <span class="text-3xl block mb-2">🎉</span>
+        No reports found under the selected criteria.
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

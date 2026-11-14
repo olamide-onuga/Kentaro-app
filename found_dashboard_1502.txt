@@ -1,0 +1,39 @@
+Created At: 2026-09-07T22:17:03+01:00
+Completed At: 2026-09-07T22:17:03+01:00
+File Path: `file:///C:/Users/Kentaro/.gemini/antigravity/scratch/kentaro/app/routes/client.py`
+Total Lines: 594
+Total Bytes: 22697
+Showing lines 30 to 60
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+30: @client_bp.route('/voice-call')
+31: @login_required
+32: def voice_call():
+33:     profile = current_user.client_profile
+34:     if not profile or not profile.coach:
+35:         flash('No coach assigned.', 'danger')
+36:         return redirect(url_for('client.dashboard'))
+37:     partner_id = profile.coach.user_id
+38:     return render_template('client/voice_call.html', partner_id=partner_id)
+39: 
+40: @client_bp.route('/dashboard')
+41: def dashboard():
+42:     profile = current_user.client_profile
+43:     today_workout = None
+44:     active_program = None
+45: 
+46:     if profile:
+47:         cp = profile.client_programs.filter_by(is_active=True).first()
+48:         if cp:
+49:             active_program = cp.program
+50:             # Find today's workout — simple heuristic: find first uncompleted workout in order
+51:             completed_ids = [c.workout_id for c in profile.completions.all()]
+52:             for phase in cp.program.phases.order_by('order').all():
+53:                 for w in phase.workouts.order_by('week_number', 'day_number').all():
+54:                     if w.id not in completed_ids:
+55:                         today_workout = w
+56:                         break
+57:                 if today_workout:
+58:                     break
+59: 
+60:     return render_template('client/dashboard.html',
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

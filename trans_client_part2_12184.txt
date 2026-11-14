@@ -1,0 +1,50 @@
+Created At: 2026-10-20T12:46:20+01:00
+Completed At: 2026-10-20T12:46:51+01:00
+Command exited with code 0.
+
+Command output:
+
+app\routes\client.py:614:        # Route through dummy payment page for testable Paystack checkout
+app\routes\client.py:669:            'msg': f'New client {profile.first_name or current_user.email} enrolled in 
+{package.name} via Paystack!'
+app\routes\client.py:735:            'msg': f'Client {profile.full_name} renewed their contract for {months} month(s) 
+via Paystack!'
+app\routes\client.py:778:            'msg': f'?? {profile.full_name} paid and accepted your custom offer: 
+"{offer.title}" via Paystack!'
+app\routes\client.py:792:    from app.services.paystack import get_paystack_public_key
+app\routes\client.py:793:    paystack_public_key = get_paystack_public_key()
+app\routes\client.py:801:                           paystack_public_key=paystack_public_key,
+app\routes\client.py:802:                           payment_reference=ref,
+app\routes\client.py:815:@client_bp.route('/paystack/initialize/<payment_type>/<int:target_id>')
+app\routes\client.py:817:def paystack_initialize(payment_type, target_id):
+app\routes\client.py:818:    from app.services.paystack import initialize_paystack_payment
+app\routes\client.py:833:        callback_url = url_for('client.paystack_callback', type='package', id=package.id, 
+_external=True)
+app\routes\client.py:834:        res = initialize_paystack_payment(current_user.email, amount, currency, ref, 
+callback_url,
+app\routes\client.py:844:        callback_url = url_for('client.paystack_callback', type='renewal', id=package.id, 
+_external=True)
+app\routes\client.py:845:        res = initialize_paystack_payment(current_user.email, amount, currency, ref, 
+callback_url,
+app\routes\client.py:852:        callback_url = url_for('client.paystack_callback', type='offer', id=offer.id, 
+_external=True)
+app\routes\client.py:853:        res = initialize_paystack_payment(current_user.email, amount, currency, ref, 
+callback_url,
+app\routes\client.py:868:@client_bp.route('/paystack/callback')
+app\routes\client.py:870:def paystack_callback():
+app\routes\client.py:876:        flash('No payment reference found.', 'danger')
+app\routes\client.py:879:    from app.services.paystack import verify_paystack_payment
+app\routes\client.py:880:    verify_res = verify_paystack_payment(reference)
+app\routes\client.py:969:    from app.services.paystack import get_paystack_public_key
+app\routes\client.py:970:    paystack_public_key = get_paystack_public_key()
+app\routes\client.py:982:                           paystack_public_key=paystack_public_key,
+app\routes\client.py:983:                           payment_reference=ref,
+app\routes\client.py:1948:    from app.services.paystack import get_paystack_public_key
+app\routes\client.py:1949:    paystack_public_key = get_paystack_public_key()
+app\routes\client.py:1959:                           paystack_public_key=paystack_public_key,
+app\routes\client.py:1960:                           payment_reference=ref,
+app\models\user.py:97:    # Additional fields like paystack config
+app\models\user.py:98:    paystack_public_key = db.Column(db.String(255))
+app\models\user.py:99:    paystack_secret_key = db.Column(db.String(255))
+
+

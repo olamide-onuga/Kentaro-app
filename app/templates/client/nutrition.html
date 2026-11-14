@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Nutrition Tracker - Kentaro{% endblock %}
+
+{% block content %}
+<div class="space-y-6 pb-10 max-w-5xl mx-auto">
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
+                Nutrition
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Track your meals and macros.
+            </p>
+        </div>
+        
+        <!-- Date Navigator -->
+        <div class="flex items-center gap-4 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-full px-4 py-2">
+            <a href="{{ url_for('client.nutrition', date=prev_date.isoformat()) }}" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-full transition text-xl">&larr;</a>
+            <span class="font-bold text-sm min-w-[100px] text-center">{{ selected_date.strftime('%a, %b %d') }}</span>
+            <a href="{{ url_for('client.nutrition', date=next_date.isoformat()) }}" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-full transition text-xl">&rarr;</a>
+        </div>
+    </div>
+
+    <!-- Macros Progress -->
+    <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm">
+        <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">Daily Summary</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            
+            <!-- Calories -->
+            <div>
+                <div class="flex justify-between text-xs font-semibold mb-1 text-gray-600 dark:text-gray-400">
+                    <span>Calories</span>
+                    <span>{{ totals.calories|round|int }} {% if targets %}/ {{ targets.calories_target }}{% endif %} kcal</span>
+                </div>
+                <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    {% set cal_pct = (totals.calories / targets.calories_target * 100) if targets and targets.calories_target else (100 if totals.calories > 0 else 0) %}
+                    <div class="h-full bg-black dark:bg-white rounded-full" style="width: {{ cal_pct if cal_pct < 100 else 100 }}%"></div>
+                </div>
+            </div>
+
+            <!-- Protein -->
+            <div>
+                <div class="flex justify-between text-xs font-semibold mb-1 text-gray-600 dark:text-gray-400">
+                    <span>Protein</span>
+                    <span>{{ totals.protein_g|round|int }} {% if targets %}/ {{ targets.protein_target }}{% endif %} g</span>
+                </div>
+                <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    {% set p_pct = (totals.protein_g / targets.protein_target * 100) if targets and targets.protein_target else (100 if totals.protein_g > 0 else 0) %}
+                    <div class="h-full bg-black dark:bg-white rounded-full" style="width: {{ p_pct if p_pct < 100 else 100 }}%"></div>
+                </div>
+            </div>
+
+            <!-- Carbs -->
+            <div>
+                <div class="flex justify-between text-xs font-semibold mb-1 text-gray-600 dark:text-gray-400">
+                    <span>Carbs</span>
+                    <span>{{ totals.carbs_g|round|int }} {% if targets %}/ {{ targets.carbs_target }}{% endif %} g</span>
+                </div>
+                <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    {% set c_pct = (totals.carbs_g / targets.carbs_target * 100) if targets and targets.carbs_target else (100 if totals.carbs_g > 0 else 0) %}
+                    <div class="h-full bg-black dark:bg-white rounded-full" style="width: {{ c_pct if c_pct < 100 else 100 }}%"></div>
+                </div>
+            </div>
+
+            <!-- Fat -->
+            <div>
+                <div class="flex justify-between text-xs font-semibold mb-1 text-gray-600 dark:text-gray-400">
+                    <span>Fat</span>
+                    <span>{{ totals.fat_g|round|int }} {% if targets %}/ {{ targets.fat_target }}{% endif %} g</span>
+                </div>
+                <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    {% set f_pct = (totals.fat_g / targets.fat_target * 100) if targets and targets.fat_target else (100 if totals.fat_g > 0 else 0) %}
+                    <div class="h-full bg-black dark:bg-white rounded-full" style="width: {{ f_pct if f_pct < 100 else 100 }}%"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Add Meal & Logs -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Logs List -->
+        <div class="lg:col-span-2 space-y-4">
+            <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">Meals Logged</h2>
+            
+            {% if logs %}
+                {% for log in logs %}
+                <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-gray-900 dark:text-gray-100">{{ log.meal_name }}</h3>
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ log.calories }} kcal · {{ log.protein_g }}g P · {{ log.carbs_g }}g C · {{ log.fat_g }}g F
+                        </p>
+                        {% if log.notes %}
+                        <p class="text-xs text-gray-400 mt-2 italic">{{ log.notes }}</p>
+                        {% endif %}
+                    </div>
+                    <form action="{{ url_for('client.delete_nutrition_log', log_id=log.id) }}" method="POST">
+                        <button type="submit" class="text-gray-400 hover:text-red-500 transition" title="Delete meal">✕</button>
+                    </form>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="bg-white dark:bg-black border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl p-8 text-center">
+                    <p class="text-sm text-gray-500">No meals logged for this date.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Add Form -->
+        <div>
+            <div class="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm sticky top-6">
+                <h3 class="font-bold text-gray-900 dark:text-gray-100 mb-4">Add Meal</h3>
+                <form action="{{ url_for('client.nutrition') }}" method="POST" class="space-y-4">
+                    <input type="hidden" name="log_date" value="{{ selected_date.isoformat() }}">
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Meal Name</label>
+                        <input type="text" name="meal_name" required placeholder="e.g. Breakfast, Chicken Salad" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Calories</label>
+                            <input type="number" step="1" name="calories" value="0" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Protein (g)</label>
+                            <input type="number" step="0.1" name="protein_g" value="0" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Carbs (g)</label>
+                            <input type="number" step="0.1" name="carbs_g" value="0" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Fat (g)</label>
+                            <input type="number" step="0.1" name="fat_g" value="0" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Notes (optional)</label>
+                        <input type="text" name="notes" placeholder="Brand, portion size, etc." class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-neutral-900 text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white">
+                    </div>
+                    
+                    <button type="submit" class="w-full py-2.5 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-sm shadow-sm transition hover:opacity-80">
+                        Add Meal
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
