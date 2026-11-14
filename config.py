@@ -9,13 +9,26 @@ class Config:
     
     # SQLAlchemy configuration
     raw_db_uri = os.environ.get('DATABASE_URL', '').strip()
-    if not raw_db_uri or 'dpg-davu8krncjis73fpdf2g-a' in raw_db_uri:
-        # Fallback to local SQLite when DATABASE_URL is empty or points to Render internal host from local machine
-        db_uri = 'sqlite:///' + os.path.join(basedir, 'kentaro.db')
-    else:
+    is_production = bool(
+        os.environ.get('RENDER') or 
+        os.environ.get('DYNO') or 
+        os.environ.get('RAILWAY_ENVIRONMENT') or 
+        os.environ.get('FLASK_CONFIG') == 'production'
+    )
+
+    if raw_db_uri and is_production:
+        # In cloud hosting (Render, Railway, Heroku), always use the provided DATABASE_URL
         db_uri = raw_db_uri
         if db_uri.startswith("postgres://"):
             db_uri = db_uri.replace("postgres://", "postgresql://", 1)
+    elif raw_db_uri and not ('dpg-' in raw_db_uri and not is_production):
+        # External postgres connection when accessible
+        db_uri = raw_db_uri
+        if db_uri.startswith("postgres://"):
+            db_uri = db_uri.replace("postgres://", "postgresql://", 1)
+    else:
+        # Local development defaults to SQLite
+        db_uri = 'sqlite:///' + os.path.join(basedir, 'kentaro.db')
         
     SQLALCHEMY_DATABASE_URI = db_uri
     SQLALCHEMY_TRACK_MODIFICATIONS = False

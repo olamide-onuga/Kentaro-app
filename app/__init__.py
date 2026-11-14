@@ -807,4 +807,22 @@ def create_app(config_name='default'):
             pass
         return {'unread_count': 0}
 
+    # Automatically ensure database tables and standard roles exist on fresh deployment
+    with app.app_context():
+        try:
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            existing_tables = set(inspector.get_table_names())
+            if 'users' not in existing_tables:
+                app.logger.info("Fresh database detected. Auto-creating all tables and standard roles...")
+                db.create_all()
+                from app.models.user import Role
+                for r_name in ['admin', 'coach', 'client', 'superadmin']:
+                    if not Role.query.filter_by(name=r_name).first():
+                        db.session.add(Role(name=r_name))
+                db.session.commit()
+                app.logger.info("Database initialization completed successfully.")
+        except Exception as e:
+            app.logger.warning(f"Auto-database initialization check: {e}")
+
     return app
