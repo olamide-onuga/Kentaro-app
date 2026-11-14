@@ -11,6 +11,12 @@ def make_shell_context():
 
 app.shell_context_processor(make_shell_context)
 
+@app.cli.command('create-superadmin')
+def cli_create_superadmin():
+    """Create or promote a superadmin user."""
+    from create_superadmin import create_superadmin
+    create_superadmin()
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     host = os.environ.get('HOST', '0.0.0.0' if os.environ.get('PORT') else '127.0.0.1')
