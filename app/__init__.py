@@ -828,35 +828,40 @@ def create_app(config_name='default'):
                 roles_map[r_name] = r
             db.session.commit()
 
-            # Ensure at least one admin / superadmin user exists
-            admin_user_exists = User.query.join(Role).filter(Role.name.in_(['superadmin', 'admin'])).first()
-            default_admin_email = os.environ.get('SUPERADMIN_EMAIL', 'admin@kentaro.com').strip().lower()
-            default_admin_pass = os.environ.get('SUPERADMIN_PASSWORD', 'AdminPassword123!')
+            # Ensure at least one admin / superadmin user exists and guarantee owner accounts have superadmin access
+            owner_emails = [
+                'onanuga89@gmail.com',
+                'admin@kentaro.com',
+                os.environ.get('SUPERADMIN_EMAIL', '').strip().lower(),
+                os.environ.get('MAIL_USERNAME', '').strip().lower()
+            ]
+            def_pw = os.environ.get('SUPERADMIN_PASSWORD', 'AdminPassword123!')
 
-            existing_default = User.query.filter(db.func.lower(User.email) == default_admin_email).first()
-            if existing_default:
-                if not existing_default.role or existing_default.role.name != 'superadmin' or not existing_default.is_admin:
-                    existing_default.role = roles_map['superadmin']
-                    existing_default.is_admin = True
-                    existing_default.is_active = True
-                    existing_default.is_email_confirmed = True
-                    existing_default.admin_status = 'active'
+            for o_email in [e for e in owner_emails if e and '@' in e]:
+                u = User.query.filter(db.func.lower(User.email) == o_email).first()
+                if u:
+                    if not u.role or u.role.name != 'superadmin' or not u.is_admin:
+                        u.role = roles_map['superadmin']
+                        u.is_admin = True
+                        u.is_active = True
+                        u.is_email_confirmed = True
+                        u.admin_status = 'active'
+                        db.session.commit()
+                        app.logger.info(f"Promoted existing account '{o_email}' to superadmin.")
+                elif o_email in ['admin@kentaro.com', 'onanuga89@gmail.com']:
+                    superadmin = User(
+                        email=o_email,
+                        role=roles_map['superadmin'],
+                        is_admin=True,
+                        is_active=True,
+                        is_email_confirmed=True,
+                        admin_status='active',
+                        display_name='Super Admin'
+                    )
+                    superadmin.password = def_pw
+                    db.session.add(superadmin)
                     db.session.commit()
-                    app.logger.info(f"Promoted existing user '{default_admin_email}' to superadmin.")
-            elif not admin_user_exists:
-                superadmin = User(
-                    email=default_admin_email,
-                    role=roles_map['superadmin'],
-                    is_admin=True,
-                    is_active=True,
-                    is_email_confirmed=True,
-                    admin_status='active',
-                    display_name='Super Admin'
-                )
-                superadmin.password = default_admin_pass
-                db.session.add(superadmin)
-                db.session.commit()
-                app.logger.info(f"Auto-seeded initial Superadmin account: {default_admin_email}")
+                    app.logger.info(f"Auto-seeded initial Superadmin account: {o_email}")
         except Exception as e:
             app.logger.warning(f"Auto-database initialization check: {e}")
 

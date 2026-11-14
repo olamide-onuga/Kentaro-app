@@ -59,7 +59,7 @@ def log_admin_activity(action, target_type=None, target_id=None, detail=None):
 
 @admin_bp.before_request
 def check_admin_access():
-    if request.endpoint == 'admin.login':
+    if request.endpoint in ('admin.login', 'admin.register'):
         return None
     if not current_user.is_authenticated:
         flash('Please log in to access the admin area.', 'warning')
@@ -68,6 +68,10 @@ def check_admin_access():
     if not is_adm:
         flash('Admin access required.', 'danger')
         return redirect(url_for('main.index'))
+
+@admin_bp.route('/register')
+def register():
+    return redirect(url_for('auth.register_admin'))
 
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def login():

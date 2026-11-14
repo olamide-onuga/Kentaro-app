@@ -207,7 +207,7 @@ def register_admin():
         return redirect(url_for('main.index'))
         
     if request.method == 'POST':
-        email = request.form.get('email', '').strip()
+        email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
         admin_key = request.form.get('admin_key', '').strip()
@@ -226,35 +226,56 @@ def register_admin():
             flash(pw_err, 'danger')
             return render_template('auth/admin_register.html')
 
-        # Require admin key unless no admin user exists in DB
-        admin_count = User.query.filter_by(is_admin=True).count()
-        if admin_count > 0 and admin_key != expected_key:
-            flash('Invalid Admin Security Key. Please contact system owner.', 'danger')
+        owner_emails = [
+            'onanuga89@gmail.com',
+            'admin@kentaro.com',
+            os.environ.get('SUPERADMIN_EMAIL', '').strip().lower(),
+            os.environ.get('MAIL_USERNAME', '').strip().lower()
+        ]
+        is_owner_email = email in [e for e in owner_emails if e]
+
+        # Require admin key unless no superadmin user exists in DB or owner email is used
+        superadmin_count = User.query.join(Role).filter(Role.name == 'superadmin').count()
+        if superadmin_count > 0 and admin_key != expected_key and not is_owner_email:
+            flash('Invalid Admin Security Key. Please enter the secret key (default: kentaro-admin-secret-2026).', 'danger')
             return render_template('auth/admin_register.html')
             
-        if User.query.filter_by(email=email).first():
-            flash('Email already registered.', 'danger')
-            return render_template('auth/admin_register.html')
-            
-        role = Role.query.filter_by(name='admin').first()
-        if not role:
-            role = Role(name='admin')
-            db.session.add(role)
+        superadmin_role = Role.query.filter_by(name='superadmin').first()
+        if not superadmin_role:
+            superadmin_role = Role(name='superadmin')
+            db.session.add(superadmin_role)
             db.session.commit()
+
+        existing_user = User.query.filter(db.func.lower(User.email) == email).first()
+        if existing_user:
+            # Promote existing user to superadmin
+            existing_user.role = superadmin_role
+            existing_user.is_admin = True
+            existing_user.is_active = True
+            existing_user.is_email_confirmed = True
+            existing_user.admin_status = 'active'
+            existing_user.password = password
+            db.session.commit()
+            login_user(existing_user)
+            flash(f'Account {email} has been promoted to Superadmin successfully!', 'success')
+            return redirect(url_for('superadmin.dashboard'))
             
         user = User(
             email=email,
-            role=role,
+            role=superadmin_role,
             is_admin=True,
             is_active=True,
-            is_email_confirmed=True
+            is_email_confirmed=True,
+            admin_status='active',
+            display_name='Super Admin'
         )
         user.password = password
         db.session.add(user)
         db.session.commit()
+        login_user(user)
         
-        flash('Admin account created successfully! You may log in now.', 'success')
-        return redirect(url_for('admin.login'))
+        flash('Superadmin account created successfully!', 'success')
+        return redirect(url_for('superadmin.dashboard'))
         
     return render_template('auth/admin_register.html')
 
