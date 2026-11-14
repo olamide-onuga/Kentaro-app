@@ -48,7 +48,7 @@ def create_app(config_name='default'):
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
-    socketio.init_app(app)
+    socketio.init_app(app, async_mode='threading')
     login_manager.init_app(app)
     mail.init_app(app)
     scheduler.init_app(app)
