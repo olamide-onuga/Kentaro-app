@@ -71,13 +71,23 @@ def check_admin_access():
 
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
+    def _is_admin(u):
+        return bool(
+            getattr(u, 'is_admin', False) or 
+            getattr(u, 'is_superadmin', False) or 
+            (getattr(u, 'role', None) and getattr(u.role, 'name', None) in ['admin', 'superadmin'])
+        )
+
+    if current_user.is_authenticated and _is_admin(current_user):
         return redirect(url_for('admin.dashboard'))
     if request.method == 'POST':
-        email = request.form.get('email', '').strip()
+        email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
-        user = User.query.filter_by(email=email).first()
-        if user and user.verify_password(password) and getattr(user, 'is_admin', False):
+        user = User.query.filter(db.func.lower(User.email) == email).first()
+        if user and user.verify_password(password) and _is_admin(user):
+            if not user.is_admin:
+                user.is_admin = True
+                db.session.commit()
             login_user(user)
             log_admin_activity('admin_login', 'user', user.id, f'Admin logged in: {user.email}')
             flash('Admin logged in successfully.', 'success')

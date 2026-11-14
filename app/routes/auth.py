@@ -38,7 +38,9 @@ def _get_dashboard_url(user):
     """Return the role-specific dashboard URL for a user."""
     if not user:
         return url_for('main.index')
-    if getattr(user, 'is_admin', False) or getattr(user, 'is_superadmin', False):
+    if getattr(user, 'is_superadmin', False) or (getattr(user, 'role', None) and getattr(user.role, 'name', None) == 'superadmin'):
+        return url_for('superadmin.dashboard')
+    if getattr(user, 'is_admin', False) or (getattr(user, 'role', None) and getattr(user.role, 'name', None) in ['admin', 'superadmin']):
         return url_for('admin.dashboard')
     elif getattr(user, 'is_coach', False) or getattr(user, 'coach_profile', None) is not None:
         return url_for('coach.dashboard')
@@ -51,16 +53,17 @@ def login():
     if current_user.is_authenticated:
         return redirect(_get_dashboard_url(current_user))
     if request.method == 'POST':
-        email = request.form.get('email', '').strip()
+        email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter(db.func.lower(User.email) == email).first()
         if user and user.verify_password(password):
             if not user.is_active:
                 from flask import session as flask_session
                 flask_session['suspended_user_id'] = user.id
                 return redirect(url_for('auth.suspended'))
-            # Disallow login before email confirmation (admins exempt)
-            if not user.is_email_confirmed and not getattr(user, 'is_admin', False):
+            # Disallow login before email confirmation (admins and superadmins exempt)
+            is_adm_or_super = bool(getattr(user, 'is_admin', False) or getattr(user, 'is_superadmin', False) or (getattr(user, 'role', None) and getattr(user.role, 'name', None) in ['admin', 'superadmin']))
+            if not user.is_email_confirmed and not is_adm_or_super:
                 flash('Please verify your email address before logging in. Check your inbox for the instant verification link.', 'warning')
                 return render_template('auth/login.html')
             login_user(user)

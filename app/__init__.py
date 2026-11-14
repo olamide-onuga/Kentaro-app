@@ -807,21 +807,56 @@ def create_app(config_name='default'):
             pass
         return {'unread_count': 0}
 
-    # Automatically ensure database tables and standard roles exist on fresh deployment
+    # Automatically ensure database tables, standard roles, and initial superadmin exist
     with app.app_context():
         try:
             from sqlalchemy import inspect
             inspector = inspect(db.engine)
             existing_tables = set(inspector.get_table_names())
             if 'users' not in existing_tables:
-                app.logger.info("Fresh database detected. Auto-creating all tables and standard roles...")
+                app.logger.info("Fresh database detected. Auto-creating all tables...")
                 db.create_all()
-                from app.models.user import Role
-                for r_name in ['admin', 'coach', 'client', 'superadmin']:
-                    if not Role.query.filter_by(name=r_name).first():
-                        db.session.add(Role(name=r_name))
+
+            from app.models.user import User, Role
+            roles_map = {}
+            for r_name in ['admin', 'coach', 'client', 'superadmin']:
+                r = Role.query.filter_by(name=r_name).first()
+                if not r:
+                    r = Role(name=r_name)
+                    db.session.add(r)
+                    db.session.flush()
+                roles_map[r_name] = r
+            db.session.commit()
+
+            # Ensure at least one admin / superadmin user exists
+            admin_user_exists = User.query.join(Role).filter(Role.name.in_(['superadmin', 'admin'])).first()
+            default_admin_email = os.environ.get('SUPERADMIN_EMAIL', 'admin@kentaro.com').strip().lower()
+            default_admin_pass = os.environ.get('SUPERADMIN_PASSWORD', 'AdminPassword123!')
+
+            existing_default = User.query.filter(db.func.lower(User.email) == default_admin_email).first()
+            if existing_default:
+                if not existing_default.role or existing_default.role.name != 'superadmin' or not existing_default.is_admin:
+                    existing_default.role = roles_map['superadmin']
+                    existing_default.is_admin = True
+                    existing_default.is_active = True
+                    existing_default.is_email_confirmed = True
+                    existing_default.admin_status = 'active'
+                    db.session.commit()
+                    app.logger.info(f"Promoted existing user '{default_admin_email}' to superadmin.")
+            elif not admin_user_exists:
+                superadmin = User(
+                    email=default_admin_email,
+                    role=roles_map['superadmin'],
+                    is_admin=True,
+                    is_active=True,
+                    is_email_confirmed=True,
+                    admin_status='active',
+                    display_name='Super Admin'
+                )
+                superadmin.password = default_admin_pass
+                db.session.add(superadmin)
                 db.session.commit()
-                app.logger.info("Database initialization completed successfully.")
+                app.logger.info(f"Auto-seeded initial Superadmin account: {default_admin_email}")
         except Exception as e:
             app.logger.warning(f"Auto-database initialization check: {e}")
 
