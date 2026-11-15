@@ -232,6 +232,27 @@ def create_support_ticket(user_id, subject, category='general', description='', 
         'created_at': ticket.created_at.strftime('%Y-%m-%d %H:%M')
     }, room='admin_support')
 
+    # Send persistent notifications to all administrators
+    try:
+        admins = User.query.filter(
+            (User.is_admin == True) | 
+            (User.role.has(name='admin')) | 
+            (User.role.has(name='superadmin'))
+        ).all()
+        for admin in admins:
+            send_system_notification(
+                recipient_id=admin.id,
+                notif_type='support_ticket',
+                title=f"New Support Ticket #{ticket.ticket_ref}",
+                text=f"{user_name} ({role_name}): {ticket.subject}",
+                link="/admin/support",
+                target_type='ticket',
+                target_id=ticket.id,
+                emit_socket=True
+            )
+    except Exception as e:
+        logging.error(f"[create_support_ticket admin notification error]: {e}")
+
     return ticket
 
 

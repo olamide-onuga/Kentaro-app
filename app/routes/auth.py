@@ -19,15 +19,22 @@ def _send_email(to, subject, template, **kwargs):
         current_app.logger.error(f"Email template render failed ({template}): {e}\n{traceback.format_exc()}")
         return False
 
+    sender_email = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME')
+    sender_name = current_app.config.get('MAIL_SENDER_NAME', 'Kentaro Coaching Platform')
+    if sender_email and isinstance(sender_email, str) and '<' not in sender_email:
+        sender = (sender_name, sender_email)
+    else:
+        sender = sender_email or ('Kentaro Support', 'noreply@kentaro.app')
+
     msg = Message(
         subject,
         recipients=[to],
-        sender=current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME')
+        sender=sender
     )
     msg.html = html_body
     try:
         mail.send(msg)
-        current_app.logger.info(f"Email sent to {to} — subject: {subject}")
+        current_app.logger.info(f"Email sent successfully to {to} — subject: {subject}")
         return True
     except Exception as e:
         current_app.logger.error(f"Failed to send email to {to}: {e}\n{traceback.format_exc()}")
@@ -64,8 +71,10 @@ def login():
             # Disallow login before email confirmation (admins and superadmins exempt)
             is_adm_or_super = bool(getattr(user, 'is_admin', False) or getattr(user, 'is_superadmin', False) or (getattr(user, 'role', None) and getattr(user.role, 'name', None) in ['admin', 'superadmin']))
             if not user.is_email_confirmed and not is_adm_or_super:
-                flash('Please verify your email address before logging in. Check your inbox for the instant verification link.', 'warning')
-                return render_template('auth/login.html')
+                token = generate_confirmation_token(user.email)
+                confirm_url = url_for('auth.confirm_email', token=token, _external=True)
+                flash('Please verify your email address before logging in.', 'warning')
+                return render_template('auth/login.html', unverified_email=user.email, unverified_confirm_url=confirm_url)
             login_user(user)
             return redirect(_get_dashboard_url(user))
         flash('Invalid email or password.', 'danger')
@@ -154,9 +163,13 @@ def register_client():
         db.session.commit()
         token = generate_confirmation_token(email)
         confirm_url = url_for('auth.confirm_email', token=token, _external=True)
-        _send_email(email, 'Please confirm your email', 'auth/email_confirmation.html', confirm_url=confirm_url, user=user)
-        flash('Registration successful! Please check your email and click the verification link to immediately log in.', 'info')
-        return redirect(url_for('auth.login'))
+        sent = _send_email(email, 'Please confirm your email', 'auth/email_confirmation.html', confirm_url=confirm_url, user=user)
+        if sent:
+            flash('Registration successful! Please check your email (and spam folder) for the verification link.', 'success')
+            return redirect(url_for('auth.login'))
+        else:
+            flash('Registration successful! Our automated mailer is queueing verification emails. You can also click below to verify immediately.', 'info')
+            return render_template('auth/login.html', unverified_email=email, unverified_confirm_url=confirm_url)
     return render_template('auth/client_register.html')
 
 # Coach registration – new flow
@@ -195,9 +208,13 @@ def register_coach():
 
         token = generate_confirmation_token(email)
         confirm_url = url_for('auth.confirm_email', token=token, _external=True)
-        _send_email(email, 'Please confirm your email', 'auth/email_confirmation.html', confirm_url=confirm_url, user=user)
-        flash('Coach account registered! Please check your email to verify and log in. Note: Coach accounts require administrator approval before becoming publicly visible.', 'info')
-        return redirect(url_for('auth.login'))
+        sent = _send_email(email, 'Please confirm your email', 'auth/email_confirmation.html', confirm_url=confirm_url, user=user)
+        if sent:
+            flash('Coach account registered! Please check your email to verify and log in. Note: Coach accounts require administrator approval before becoming publicly visible.', 'success')
+            return redirect(url_for('auth.login'))
+        else:
+            flash('Coach account registered! You can verify below to activate your account.', 'info')
+            return render_template('auth/login.html', unverified_email=email, unverified_confirm_url=confirm_url)
     return render_template('auth/coach_register.html')
 
 # Admin registration
@@ -297,6 +314,33 @@ def confirm_email(token):
     login_user(user, remember=True)
     flash('Email verified successfully! You are now logged in.', 'success')
     return redirect(_get_dashboard_url(user))
+
+@auth_bp.route('/resend-confirmation', methods=['GET', 'POST'])
+def resend_confirmation():
+    if current_user.is_authenticated:
+        return redirect(_get_dashboard_url(current_user))
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        if not email:
+            flash('Please enter your email address.', 'warning')
+            return render_template('auth/resend_confirmation.html')
+        user = User.query.filter(db.func.lower(User.email) == email).first()
+        if not user:
+            flash('If that email is registered, a new confirmation link has been sent.', 'info')
+            return redirect(url_for('auth.login'))
+        if user.is_email_confirmed:
+            flash('This account is already verified! You can log in directly.', 'success')
+            return redirect(url_for('auth.login'))
+        token = generate_confirmation_token(user.email)
+        confirm_url = url_for('auth.confirm_email', token=token, _external=True)
+        sent = _send_email(user.email, 'Confirm your Kentaro account', 'auth/email_confirmation.html', confirm_url=confirm_url, user=user)
+        if sent:
+            flash('A new verification email has been sent! Please check your inbox and spam folder.', 'success')
+            return redirect(url_for('auth.login'))
+        else:
+            flash('A new verification link was generated. You can verify your account directly below.', 'info')
+            return render_template('auth/login.html', unverified_email=user.email, unverified_confirm_url=confirm_url)
+    return render_template('auth/resend_confirmation.html')
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():

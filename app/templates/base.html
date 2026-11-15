@@ -474,7 +474,10 @@
             } catch(e) { console.warn('[WebAudio Ringtone Error]', e); }
         }
 
+        var _incomingCallTimeout = null;
+
         function stopRinging() {
+            if (_incomingCallTimeout) { clearTimeout(_incomingCallTimeout); _incomingCallTimeout = null; }
             var ringtoneEl = document.getElementById('ringtoneAudio');
             if (ringtoneEl) { try { ringtoneEl.pause(); ringtoneEl.currentTime = 0; } catch(e) {} }
             if (_ringInterval) { clearInterval(_ringInterval); _ringInterval = null; }
@@ -483,7 +486,7 @@
 
         window.stopRinging = stopRinging;
 
-        // â”€â”€ Incoming Call â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // Incoming Call Management
         var currentCallerId = null;
 
         window.showDeclinedModal = function(message) {
@@ -504,12 +507,29 @@
             // 1. Play ringing sound
             startRinging();
 
+            // Auto-cancel incoming call after 35s if no action taken
+            if (_incomingCallTimeout) { clearTimeout(_incomingCallTimeout); _incomingCallTimeout = null; }
+            _incomingCallTimeout = setTimeout(function() {
+                stopRinging();
+                var modal = document.getElementById('incomingCallModal');
+                if (modal) modal.classList.add('hidden');
+                if (currentCallerId) {
+                    socket.emit('call_declined', { target_user_id: currentCallerId, reason: 'timeout' });
+                }
+            }, 35000);
+
+            var rawUrl = data.join_url || '/client/voice-call';
+            var navUrl = rawUrl;
+            if (navUrl.indexOf('auto_answer=true') === -1) {
+                navUrl += (navUrl.indexOf('?') === -1 ? '?' : '&') + 'auto_answer=true';
+            }
+
             // 2. Fire System Desktop Notification
             sendSystemNotification('Incoming Video Call', {
                 body: callerName + ' is calling you on Kentaro!',
                 tag: 'incoming_call_' + currentCallerId,
                 requireInteraction: true,
-                onClickUrl: data.join_url + '?auto_answer=true'
+                onClickUrl: navUrl
             });
 
             document.getElementById('acceptCallBtn').onclick = function() {
@@ -519,9 +539,9 @@
                     window.answerCall();
                 } else {
                     if (typeof window.spaNavigate === 'function') {
-                        window.spaNavigate(data.join_url + '?auto_answer=true');
+                        window.spaNavigate(navUrl);
                     } else {
-                        window.location.href = data.join_url + '?auto_answer=true';
+                        window.location.href = navUrl;
                     }
                 }
             };
@@ -540,6 +560,18 @@
 
         socket.on('voice_signal', function(data) {
             stopRinging();
+        });
+
+        socket.on('voice_call_end', function(data) {
+            stopRinging();
+            var modal = document.getElementById('incomingCallModal');
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+                var callerName = (data && data.from_name) || 'The caller';
+                if (typeof showToastNotification === 'function') {
+                    showToastNotification(callerName + ' ended the call.', 'Missed Call', 'warning');
+                }
+            }
         });
 
         socket.on('call_declined', function(data) {

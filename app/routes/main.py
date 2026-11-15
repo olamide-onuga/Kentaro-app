@@ -94,6 +94,47 @@ def submit_report():
     db.session.add(report)
     db.session.commit()
     
+    # Notify all admin team members
+    try:
+        from app.models.user import User
+        from app.services.messaging import send_system_notification
+        from app import socketio
+
+        reporter_name = current_user.email
+        if getattr(current_user, 'is_coach', False) and current_user.coach_profile:
+            reporter_name = f"Coach {current_user.coach_profile.first_name}"
+        elif getattr(current_user, 'is_client', False) and current_user.client_profile:
+            reporter_name = current_user.client_profile.full_name
+
+        admins = User.query.filter(
+            (User.is_admin == True) | 
+            (User.role.has(name='admin')) | 
+            (User.role.has(name='superadmin'))
+        ).all()
+
+        for admin in admins:
+            send_system_notification(
+                recipient_id=admin.id,
+                notif_type='system_report',
+                title=f"New System Report: {title}",
+                text=f"Reported by {reporter_name} ({report_type}): {description[:120]}",
+                link="/admin/reports",
+                target_type='report',
+                target_id=report.id,
+                emit_socket=True
+            )
+
+        socketio.emit('new_system_report', {
+            'id': report.id,
+            'report_type': report_type,
+            'title': title,
+            'reporter': reporter_name,
+            'created_at': report.created_at.strftime('%Y-%m-%d %H:%M') if getattr(report, 'created_at', None) else ''
+        }, room='admin_support')
+    except Exception as e:
+        import logging
+        logging.error(f"[SystemReport notification error]: {e}")
+
     flash('Thank you! Your report has been submitted to the admin team.', 'success')
     return redirect(request.referrer or url_for('main.index'))
 

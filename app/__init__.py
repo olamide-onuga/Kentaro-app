@@ -330,10 +330,13 @@ def create_app(config_name='default'):
         caller_name = "Someone"
         if current_user.is_coach:
             caller_name = f"Coach {current_user.coach_profile.first_name if current_user.coach_profile and current_user.coach_profile.first_name else 'Coach'}"
-            join_url = "/client/voice-call"
+            join_url = f"/client/voice-call?partner_id={current_user.id}&auto_answer=true"
         elif current_user.is_client:
             caller_name = current_user.client_profile.first_name if current_user.client_profile and current_user.client_profile.first_name else 'Client'
-            join_url = f"/coach/voice-call/{current_user.client_profile.id if current_user.client_profile else current_user.id}"
+            join_url = f"/coach/voice-call/{current_user.client_profile.id if current_user.client_profile else current_user.id}?auto_answer=true"
+        elif getattr(current_user, 'is_admin', False) or getattr(current_user, 'is_superadmin', False):
+            caller_name = "Kentaro Platform Support"
+            join_url = f"/client/voice-call?partner_id={current_user.id}&auto_answer=true"
             
         logging.debug(f'call_invite sending to room user_{target_id} with url {join_url}')
         socketio.emit('call_invite', {

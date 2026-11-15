@@ -349,6 +349,7 @@ def clients():
 @coach_bp.route('/voice-call/<int:client_id>')
 @login_required
 def coach_voice_call(client_id):
+    import os
     client = ClientProfile.query.get_or_404(client_id)
     if client.coach_id != current_user.coach_profile.id:
         flash('Access denied.', 'danger')
@@ -357,7 +358,24 @@ def coach_voice_call(client_id):
     partner_name = f"{client.first_name} {client.last_name}".strip() or "Client"
     from app.models.progress import FormCheckSubmission
     form_checks = client.form_checks.order_by(FormCheckSubmission.created_at.desc()).all()
-    return render_template('coach/voice_call.html', partner_id=partner_id, client=client, partner_name=partner_name, form_checks=form_checks)
+
+    turn_config = None
+    turn_url = os.environ.get('TURN_URL') or os.environ.get('COTURN_URL')
+    if turn_url:
+        turn_config = {
+            'urls': turn_url,
+            'username': os.environ.get('TURN_USERNAME', ''),
+            'credential': os.environ.get('TURN_CREDENTIAL', '')
+        }
+
+    return render_template(
+        'coach/voice_call.html',
+        partner_id=partner_id,
+        client=client,
+        partner_name=partner_name,
+        form_checks=form_checks,
+        turn_config=turn_config
+    )
 
 @coach_bp.route('/clients/<int:client_id>')
 @login_required

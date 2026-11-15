@@ -12,11 +12,14 @@
     let screenStream = null;
     let currentVideoTrack = null;
     let callTimerInterval = null;
+    let callTimeoutTimer = null;
     let callSeconds = 0;
     let isAudioMuted = false;
     let isVideoOff = false;
     let isSharingScreen = false;
+    let currentFacingMode = 'user'; // 'user' (front) or 'environment' (back)
     let pendingCandidates = [];   // buffer ICE candidates before peer ready
+    let pendingOffer = null;
     let peerReady = false;        // true once peer object exists
 
     // ── Element refs ───────────────────────────────────────────────────────
@@ -30,6 +33,7 @@
     const muteIcon          = document.getElementById('muteIcon');
     const videoBtn          = document.getElementById('videoBtn');
     const videoIcon         = document.getElementById('videoIcon');
+    const flipCameraBtn     = document.getElementById('flipCameraBtn');
     const screenBtn         = document.getElementById('screenBtn');
     const screenIcon        = document.getElementById('screenIcon');
     const callStatus        = document.getElementById('callStatus');
@@ -50,13 +54,17 @@
     const castTitle         = document.getElementById('castExerciseTitle');
     const closeCastBtn      = document.getElementById('closeCastBtn');
 
-    // ── ICE servers ────────────────────────────────────────────────────────
-    const iceServers = [
+    // ── ICE servers (STUN + optional TURN from environment) ───────────────────
+    const defaultIceServers = [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' }
     ];
+    const iceServers = [...defaultIceServers];
+    if (window.turnConfig && window.turnConfig.urls) {
+        iceServers.push(window.turnConfig);
+    }
 
     // ── Helpers ────────────────────────────────────────────────────────────
     function getPartnerId()   { return window.partnerId || null; }
@@ -64,8 +72,8 @@
 
     function setStatus(text, colorClass) {
         if (callStatus) {
-            callStatus.textContent = text;
-            callStatus.className = 'text-xs font-semibold px-3 py-1 rounded-full ' +
+            callStatus.innerHTML = `<span class="w-2 h-2 rounded-full ${text === 'Connected' ? 'bg-green-500' : (text.includes('Calling') || text.includes('Connecting') ? 'bg-amber-500 animate-ping' : 'bg-gray-400')}"></span><span>${text}</span>`;
+            callStatus.className = 'text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 ' +
                 (colorClass || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300');
         }
         if (remoteStatusDot) {
@@ -110,20 +118,44 @@
     // ── Media acquisition ──────────────────────────────────────────────────
     function initMedia() {
         if (localStream) return Promise.resolve(localStream);
-        return navigator.mediaDevices.getUserMedia({ audio: true, video: { width: { ideal: 1280 }, height: { ideal: 720 } } })
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            setStatus('WebRTC not supported', 'bg-red-900 text-red-100');
+            alert('Your browser does not support WebRTC audio/video calls.');
+            return Promise.reject(new Error('getUserMedia not supported'));
+        }
+
+        const hdConstraints = {
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            video: { facingMode: currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+        };
+
+        return navigator.mediaDevices.getUserMedia(hdConstraints)
             .catch(err => {
-                console.warn('[voice_call] getUserMedia HD failed, retrying standard audio/video:', err);
-                return navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                console.warn('[voice_call] HD video failed, retrying standard audio/video:', err);
+                return navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: { facingMode: currentFacingMode }
+                });
             })
             .catch(err => {
-                console.warn('[voice_call] getUserMedia audio/video failed, retrying audio only:', err);
+                console.warn('[voice_call] Video failed, retrying audio only:', err);
                 return navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             })
             .then(stream => {
                 localStream = stream;
                 window.localStream = stream;
                 const vt = stream.getVideoTracks();
-                if (vt.length) { cameraTrack = vt[0]; currentVideoTrack = cameraTrack; }
+                if (vt.length) {
+                    cameraTrack = vt[0];
+                    currentVideoTrack = cameraTrack;
+                    if (localPlaceholder) localPlaceholder.classList.add('hidden');
+                } else {
+                    cameraTrack = null;
+                    currentVideoTrack = null;
+                    if (localPlaceholder) localPlaceholder.classList.remove('hidden');
+                }
+
                 if (localVideo) {
                     localVideo.srcObject = stream;
                     localVideo.muted = true;
@@ -135,17 +167,64 @@
                     floatingLocalVideo.muted = true;
                     floatingLocalVideo.play().catch(() => {});
                 }
-                if (!cameraTrack && localPlaceholder) localPlaceholder.classList.remove('hidden');
                 return stream;
             })
             .catch(err => {
                 console.error('[voice_call] getUserMedia all fallbacks failed:', err);
-                setStatus('Camera/mic permission denied', 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300');
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    setStatus('Camera/Mic permission blocked', 'bg-red-950 text-red-300');
+                    alert('Camera or microphone permission was blocked. Please allow permissions in your browser address bar and refresh.');
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    setStatus('No camera/mic found', 'bg-amber-950 text-amber-300');
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    setStatus('Camera in use by other app', 'bg-red-950 text-red-300');
+                    alert('Your camera or microphone is in use by another application.');
+                } else {
+                    setStatus('Media error: ' + err.name, 'bg-red-950 text-red-300');
+                }
                 throw err;
             });
     }
 
-    let pendingOffer = null;
+    // ── Switch Camera (Front/Rear on mobile) ─────────────────────────────────
+    function switchCamera() {
+        if (!localStream) return;
+        currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+        navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: { facingMode: currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+        }).then(newStream => {
+            const newTrack = newStream.getVideoTracks()[0];
+            if (!newTrack) return;
+
+            if (peer && currentVideoTrack) {
+                try {
+                    peer.replaceTrack(currentVideoTrack, newTrack, localStream);
+                } catch(e) {
+                    console.warn('[voice_call] peer.replaceTrack error:', e);
+                }
+            }
+
+            if (cameraTrack) {
+                try { cameraTrack.stop(); } catch(e) {}
+            }
+            cameraTrack = newTrack;
+            currentVideoTrack = newTrack;
+
+            // Update local stream tracks
+            const oldTracks = localStream.getVideoTracks();
+            oldTracks.forEach(t => localStream.removeTrack(t));
+            localStream.addTrack(newTrack);
+
+            if (localVideo) {
+                localVideo.srcObject = localStream;
+                localVideo.play().catch(() => {});
+            }
+            console.log('[voice_call] Switched camera to facingMode:', currentFacingMode);
+        }).catch(err => {
+            console.warn('[voice_call] switchCamera failed:', err);
+        });
+    }
 
     // ── Peer factory ───────────────────────────────────────────────────────
     function createPeer(stream, initiator) {
@@ -167,7 +246,6 @@
         });
 
         p.on('signal', signal => {
-            console.log('[voice_call] peer signal →', signal.type || 'candidate');
             socket.emit('voice_signal', { target_user_id: getPartnerId(), signal: signal });
         });
 
@@ -177,7 +255,8 @@
         });
 
         p.on('connect', () => {
-            console.log('[voice_call] peer data-channel connected');
+            console.log('[voice_call] peer connected');
+            setStatus('Connected', 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300');
         });
 
         p.on('close', () => {
@@ -187,13 +266,30 @@
 
         p.on('error', err => {
             console.error('[voice_call] peer error:', err);
+            if (err.code === 'ERR_CONNECTION_FAILURE' || String(err).includes('Connection failed')) {
+                setStatus('Connection failed', 'bg-red-950 text-red-300');
+            }
         });
+
+        // ICE Connection State Monitoring
+        if (p._pc) {
+            p._pc.oniceconnectionstatechange = () => {
+                const state = p._pc.iceConnectionState;
+                console.log('[voice_call] ICE state:', state);
+                if (state === 'connected' || state === 'completed') {
+                    setStatus('Connected', 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300');
+                } else if (state === 'disconnected') {
+                    setStatus('Reconnecting…', 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300');
+                } else if (state === 'failed') {
+                    setStatus('Connection failed', 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300');
+                }
+            };
+        }
 
         peerReady = true;
 
         // Apply pending SDP offer/answer first
         if (pendingOffer) {
-            console.log('[voice_call] applying pending SDP offer/answer:', pendingOffer.type);
             const offer = pendingOffer;
             pendingOffer = null;
             try { p.signal(offer); } catch(e) { console.warn('[voice_call] Error applying pending offer:', e); }
@@ -201,7 +297,6 @@
 
         // Flush any buffered ICE candidates AFTER SDP offer is set
         if (pendingCandidates.length) {
-            console.log('[voice_call] flushing', pendingCandidates.length, 'buffered candidates');
             const candidates = pendingCandidates.splice(0);
             candidates.forEach(sig => { try { p.signal(sig); } catch(e) { console.warn('[voice_call] candidate error:', e); } });
         }
@@ -209,10 +304,11 @@
     }
 
     function attachRemoteStream(remoteStream) {
-        console.log('[voice_call] attachRemoteStream triggered with stream:', remoteStream);
         remoteStreamStore = remoteStream;
         window.remoteStreamStore = remoteStream;
+        if (callTimeoutTimer) { clearTimeout(callTimeoutTimer); callTimeoutTimer = null; }
         if (typeof window.stopRinging === 'function') window.stopRinging();
+
         if (remoteVideo) {
             remoteVideo.srcObject = remoteStream;
             remoteVideo.muted = false;
@@ -227,14 +323,13 @@
             }
         }
 
-        // Attach remoteStream to floating mini video player if present
         const floatingRemoteVideo = document.getElementById('floatingRemoteVideo');
         if (floatingRemoteVideo) {
             floatingRemoteVideo.srcObject = remoteStream;
             floatingRemoteVideo.play().catch(() => {});
         }
 
-        // Strip auto_answer or auto_join query parameters from URL so F5 refresh won't re-trigger
+        // Strip auto_answer from URL so F5 won't re-trigger
         if (window.history && window.history.replaceState) {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -242,6 +337,7 @@
         if (remotePlaceholder) remotePlaceholder.classList.add('hidden');
         setStatus('Connected', 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300');
         startTimer();
+
         try {
             localStorage.setItem('kentaro_active_call', JSON.stringify({
                 isActive: true, partnerName: getPartnerName(),
@@ -258,14 +354,23 @@
         if (peer) return;
         if (typeof window.stopRinging === 'function') window.stopRinging();
         const targetId = getPartnerId();
-        if (!targetId) { alert('Partner not found – make sure you are on the correct call page.'); return; }
+        if (!targetId) { alert('Calling partner not identified.'); return; }
 
         setStatus(`Calling ${getPartnerName()}…`, 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300');
         if (startBtn) startBtn.classList.add('hidden');
         if (endBtn)   endBtn.classList.remove('hidden');
 
+        // 35s call timeout
+        if (callTimeoutTimer) clearTimeout(callTimeoutTimer);
+        callTimeoutTimer = setTimeout(() => {
+            if (!remoteStreamStore) {
+                console.warn('[voice_call] Outgoing call timed out');
+                setStatus('No answer from partner', 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300');
+                endCall();
+            }
+        }, 35000);
+
         initMedia().then(() => {
-            console.log('[voice_call] emitting call_invite to', targetId);
             socket.emit('call_invite', { target_user_id: targetId });
         }).catch(() => cleanup());
     }
@@ -281,7 +386,6 @@
         if (endBtn)   endBtn.classList.remove('hidden');
 
         initMedia().then(stream => {
-            console.log('[voice_call] Callee media initialized, creating non-initiator peer & emitting call_accepted to', targetId);
             if (!peer) {
                 peer = createPeer(stream, false);
             }
@@ -290,74 +394,33 @@
     }
 
     // ── Socket signaling ───────────────────────────────────────────────────
-
-    // ── Incoming call modal refs ───────────────────────────────────────────
-    const incomingCallModal  = document.getElementById('incomingCallModal');
-    const incomingCallerName = document.getElementById('incomingCallerName');
-    const acceptCallBtn      = document.getElementById('acceptCallBtn');
-    const declineCallBtn     = document.getElementById('declineCallBtn');
-
-    let pendingCallerId = null;  // user id of the caller, needed to decline
-
-    function showIncomingModal(callerName, callerUserId) {
-        pendingCallerId = callerUserId;
-        if (incomingCallerName) incomingCallerName.textContent = callerName;
-        if (incomingCallModal)  incomingCallModal.classList.remove('hidden');
-    }
-
-    function hideIncomingModal() {
-        if (incomingCallModal) incomingCallModal.classList.add('hidden');
-        pendingCallerId = null;
-    }
-
-    if (acceptCallBtn) {
-        acceptCallBtn.addEventListener('click', () => {
-            hideIncomingModal();
-            answerCall();
-        });
-    }
-
-    if (declineCallBtn) {
-        declineCallBtn.addEventListener('click', () => {
-            const targetId = pendingCallerId || getPartnerId();
-            hideIncomingModal();
-            if (targetId && socket) socket.emit('call_declined', { target_user_id: targetId });
-            setStatus('Call declined', 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300');
-        });
-    }
-
-    // Callee: incoming call → status update (base.html handles the modal & ringing)
     socket.on('call_invite', data => {
         const name = data.caller_name || 'Someone';
         setStatus(`Incoming call from ${name}…`, 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300');
     });
 
-    // Caller: callee accepted → NOW create initiator peer (camera starts here for caller)
     socket.on('call_accepted', data => {
         const name = (data && data.from_name) || getPartnerName();
         setStatus(`Connecting to ${name}…`, 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300');
+        if (callTimeoutTimer) { clearTimeout(callTimeoutTimer); callTimeoutTimer = null; }
         initMedia().then(stream => {
-            peer = createPeer(stream, true);  // initiator = true
+            peer = createPeer(stream, true); // initiator = true
         }).catch(() => cleanup());
     });
 
-    // Both sides: exchange SDP offers/answers and ICE candidates
     socket.on('voice_signal', data => {
         const sig = data.signal;
         if (!sig) return;
-        console.log('[voice_call] received voice_signal', sig.type || 'candidate');
 
         if (peer && peerReady) {
             try { peer.signal(sig); } catch(e) { console.warn('[voice_call] signal error:', e); }
         } else {
-            // Buffer until peer is created
             if (sig.type === 'offer' || sig.type === 'answer') {
                 pendingOffer = sig;
             } else if (sig.candidate) {
                 pendingCandidates.push(sig);
             }
 
-            // If this is an offer and we have no peer yet, create non-initiator peer
             if (sig.type === 'offer' && !peer) {
                 initMedia().then(stream => {
                     peer = createPeer(stream, false);
@@ -366,21 +429,18 @@
         }
     });
 
-    // Call ended by remote
     socket.on('voice_call_end', data => {
         const name = (data && data.from_name) || getPartnerName();
         cleanup();
         setStatus(`Call ended by ${name}`, 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300');
     });
 
-    // Call declined
     socket.on('call_declined', data => {
         const name = (data && data.from_name) || getPartnerName();
         cleanup();
-        setStatus(`${name} declined the call`, 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300');
+        setStatus(`${name} unavailable`, 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300');
     });
 
-    // Remote peer state (mute / camera / screen)
     socket.on('call_peer_state', data => {
         const name = (data && data.from_name) || getPartnerName();
         if (remoteMuteBadge) {
@@ -393,7 +453,10 @@
         }
         if (data.is_video_off) {
             if (remotePlaceholder) remotePlaceholder.classList.remove('hidden');
-            if (remoteCameraNotice) { remoteCameraNotice.classList.remove('hidden'); remoteCameraNotice.textContent = `📷 ${name}'s camera is off`; }
+            if (remoteCameraNotice) {
+                remoteCameraNotice.classList.remove('hidden');
+                remoteCameraNotice.textContent = `📷 ${name}'s camera is off`;
+            }
         } else {
             if (remoteCameraNotice) remoteCameraNotice.classList.add('hidden');
             if (remoteVideo && remoteVideo.srcObject && remotePlaceholder) remotePlaceholder.classList.add('hidden');
@@ -423,6 +486,8 @@
             if (muteIcon) muteIcon.textContent = isAudioMuted ? '🔇' : '🎙️';
             muteBtn.title = isAudioMuted ? 'Unmute' : 'Mute';
         }
+        const localMuteTag = document.getElementById('localMuteTag');
+        if (localMuteTag) localMuteTag.classList.toggle('hidden', !isAudioMuted);
         broadcastPeerState();
     }
 
@@ -445,6 +510,10 @@
     }
 
     function toggleScreenShare() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+            alert('Screen sharing is not supported on your browser or mobile device.');
+            return;
+        }
         if (isSharingScreen) {
             stopScreenSharing();
         } else {
@@ -460,7 +529,6 @@
                     if (screenBtn) {
                         screenBtn.classList.remove('bg-white/10', 'hover:bg-white/20');
                         screenBtn.classList.add('bg-green-600', 'hover:bg-green-700');
-                        if (screenIcon) screenIcon.textContent = '🖥️';
                         screenBtn.title = 'Stop sharing';
                     }
                     broadcastPeerState();
@@ -471,14 +539,19 @@
 
     function stopScreenSharing() {
         if (!isSharingScreen) return;
-        if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
-        if (peer && cameraTrack) { peer.replaceTrack(currentVideoTrack, cameraTrack, localStream); currentVideoTrack = cameraTrack; }
+        if (screenStream) {
+            screenStream.getTracks().forEach(t => { try { t.stop(); } catch(e) {} });
+            screenStream = null;
+        }
+        if (peer && cameraTrack) {
+            peer.replaceTrack(currentVideoTrack, cameraTrack, localStream);
+            currentVideoTrack = cameraTrack;
+        }
         if (localVideo && localStream) localVideo.srcObject = localStream;
         isSharingScreen = false;
         if (screenBtn) {
             screenBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
             screenBtn.classList.add('bg-white/10', 'hover:bg-white/20');
-            if (screenIcon) screenIcon.textContent = '🖥️';
             screenBtn.title = 'Share screen';
         }
         broadcastPeerState();
@@ -495,10 +568,9 @@
     function cleanup() {
         stopTimer();
         stopScreenSharing();
-        hideIncomingModal();   // dismiss incoming call modal if still showing
+        if (callTimeoutTimer) { clearTimeout(callTimeoutTimer); callTimeoutTimer = null; }
         try { localStorage.removeItem('kentaro_active_call'); } catch(e) {}
 
-        // Strip auto_answer or auto_join query parameters from URL so F5 refresh won't re-trigger
         if (window.history && window.history.replaceState) {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -510,9 +582,17 @@
         window.remoteStreamStore = null;
         window.localStream = null;
         if (typeof window.stopRinging === 'function') window.stopRinging();
+
         if (peer) { try { peer.destroy(); } catch(e) {} peer = null; }
-        if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-        cameraTrack = null; currentVideoTrack = null;
+
+        // Hard stop all tracks so camera hardware light turns off
+        if (localStream) {
+            localStream.getTracks().forEach(t => { try { t.stop(); } catch(e) {} });
+            localStream = null;
+        }
+        cameraTrack = null;
+        currentVideoTrack = null;
+
         if (localVideo) localVideo.srcObject = null;
         if (remoteVideo) remoteVideo.srcObject = null;
 
@@ -536,15 +616,40 @@
         if (curStartBtn) curStartBtn.classList.remove('hidden');
         if (curEndBtn)   curEndBtn.classList.add('hidden');
 
-        isAudioMuted = false; isVideoOff = false;
-        if (muteBtn) { muteBtn.classList.remove('bg-red-600','hover:bg-red-700'); muteBtn.classList.add('bg-white/10','hover:bg-white/20'); if (muteIcon) muteIcon.textContent = '🎙️'; }
-        if (videoBtn) { videoBtn.classList.remove('bg-red-600','hover:bg-red-700'); videoBtn.classList.add('bg-white/10','hover:bg-white/20'); if (videoIcon) videoIcon.textContent = '📹'; }
+        isAudioMuted = false;
+        isVideoOff = false;
+        if (muteBtn) {
+            muteBtn.classList.remove('bg-red-600','hover:bg-red-700');
+            muteBtn.classList.add('bg-white/10','hover:bg-white/20');
+            if (muteIcon) muteIcon.textContent = '🎙️';
+        }
+        if (videoBtn) {
+            videoBtn.classList.remove('bg-red-600','hover:bg-red-700');
+            videoBtn.classList.add('bg-white/10','hover:bg-white/20');
+            if (videoIcon) videoIcon.textContent = '📹';
+        }
         setStatus('Ready', 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300');
 
         if (typeof window.syncActiveCallBanner === 'function') {
             window.syncActiveCallBanner();
         }
     }
+
+    // Window unload cleanup (never leave mic/camera active)
+    window.addEventListener('beforeunload', () => {
+        if (peer || localStream) {
+            const t = getPartnerId();
+            if (t && socket) socket.emit('voice_call_end', { target_user_id: t });
+            cleanup();
+        }
+    });
+    window.addEventListener('pagehide', () => {
+        if (peer || localStream) {
+            const t = getPartnerId();
+            if (t && socket) socket.emit('voice_call_end', { target_user_id: t });
+            cleanup();
+        }
+    });
 
     // ── In-call Chat ───────────────────────────────────────────────────────
     socket.on('chat_history', data => {
@@ -566,7 +671,7 @@
         const isMe = (msg.from_user_id && String(msg.from_user_id) === String(window.currentUserId));
         div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`;
         const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        div.innerHTML = `<div class="max-w-[75%] px-3 py-2 rounded-2xl text-xs ${isMe ? 'bg-black text-white dark:bg-white dark:text-black rounded-br-sm' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm'}">
+        div.innerHTML = `<div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs ${isMe ? 'bg-black text-white dark:bg-white dark:text-black rounded-br-xs' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-xs'}">
             ${!isMe ? `<span class="block font-semibold text-[10px] mb-0.5 opacity-60">${msg.from_name || 'Partner'}</span>` : ''}
             <span>${msg.content}</span>
             <span class="block text-[10px] opacity-50 mt-0.5 text-right">${time}</span>
@@ -618,11 +723,12 @@
     }
 
     // ── Button event listeners ─────────────────────────────────────────────
-    if (startBtn)   startBtn.addEventListener('click', startCall);
-    if (endBtn)     endBtn.addEventListener('click', endCall);
-    if (muteBtn)    muteBtn.addEventListener('click', toggleAudio);
-    if (videoBtn)   videoBtn.addEventListener('click', toggleVideo);
-    if (screenBtn)  screenBtn.addEventListener('click', toggleScreenShare);
+    if (startBtn)      startBtn.addEventListener('click', startCall);
+    if (endBtn)        endBtn.addEventListener('click', endCall);
+    if (muteBtn)       muteBtn.addEventListener('click', toggleAudio);
+    if (videoBtn)      videoBtn.addEventListener('click', toggleVideo);
+    if (flipCameraBtn) flipCameraBtn.addEventListener('click', switchCamera);
+    if (screenBtn)     screenBtn.addEventListener('click', toggleScreenShare);
 
     const castFormBtn = document.getElementById('castFormBtn');
     if (castFormBtn) {
@@ -632,86 +738,18 @@
         });
     }
 
-    function rebindCallUI() {
-        if (window.location.pathname.indexOf('/voice-call') === -1) return;
-        console.log('[voice_call] rebindCallUI triggered');
-        const rVideo = document.getElementById('remoteVideo');
-        const lVideo = document.getElementById('localVideo');
-        const sBtn   = document.getElementById('startBtn');
-        const eBtn   = document.getElementById('endBtn');
-        const rPlace = document.getElementById('remotePlaceholder');
-        const lPlace = document.getElementById('localPlaceholder');
-        const widget = document.getElementById('activeCallFloatingWidget');
-        const banner = document.getElementById('activeCallBanner');
-
-        if (widget) widget.classList.add('hidden');
-        if (banner) banner.classList.add('hidden');
-
-        let activeCallInfo = null;
-        try { activeCallInfo = JSON.parse(localStorage.getItem('kentaro_active_call') || 'null'); } catch(e) {}
-        const isCallActive = !!(peer || localStream || remoteStreamStore || (activeCallInfo && activeCallInfo.isActive));
-
-        if (isCallActive) {
-            if (sBtn) sBtn.classList.add('hidden');
-            if (eBtn) eBtn.classList.remove('hidden');
-            setStatus('Connected', 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300');
-        } else {
-            if (sBtn) sBtn.classList.remove('hidden');
-            if (eBtn) eBtn.classList.add('hidden');
-            setStatus('Ready', 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300');
-        }
-
-        if (localStream && lVideo) {
-            lVideo.srcObject = localStream;
-            lVideo.muted = true;
-            lVideo.play().catch(() => {});
-            if (lPlace && cameraTrack) lPlace.classList.add('hidden');
-        }
-
-        if (remoteStreamStore && rVideo) {
-            rVideo.srcObject = remoteStreamStore;
-            rVideo.muted = false;
-            rVideo.volume = 1.0;
-            rVideo.play().catch(() => {});
-            if (rPlace) rPlace.classList.add('hidden');
-        }
-
-        const nStartBtn = document.getElementById('startBtn');
-        const nEndBtn   = document.getElementById('endBtn');
-        const nMuteBtn  = document.getElementById('muteBtn');
-        const nVideoBtn = document.getElementById('videoBtn');
-        const nScreenBtn= document.getElementById('screenBtn');
-
-        if (nStartBtn)  nStartBtn.onclick  = startCall;
-        if (nEndBtn)    nEndBtn.onclick    = endCall;
-        if (nMuteBtn)   nMuteBtn.onclick   = toggleAudio;
-        if (nVideoBtn)  nVideoBtn.onclick  = toggleVideo;
-        if (nScreenBtn) nScreenBtn.onclick = toggleScreenShare;
-    }
-
     // ── Expose globals ─────────────────────────────────────────────────────
     window.startCall = startCall;
     window.answerCall = answerCall;
     window.cleanup = cleanup;
-    window.rebindCallUI = rebindCallUI;
-
-    let initCallInfo = null;
-    try { initCallInfo = JSON.parse(localStorage.getItem('kentaro_active_call') || 'null'); } catch(e) {}
-    if (initCallInfo && initCallInfo.isActive) {
-        if (startBtn) startBtn.classList.add('hidden');
-        if (endBtn)   endBtn.classList.remove('hidden');
-        rebindCallUI();
-    } else {
-        if (startBtn) startBtn.classList.remove('hidden');
-        if (endBtn)   endBtn.classList.add('hidden');
-    }
+    window.switchCamera = switchCamera;
 
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('auto_answer') === 'true' || urlParams.get('auto_join') === 'true') {
-        setTimeout(answerCall, 800);
+        setTimeout(answerCall, 600);
     }
 
-    // ── Auto Picture-in-Picture on Tab Switch ─────────────────────────────
+    // Auto Picture-in-Picture on Tab Switch
     document.addEventListener('visibilitychange', () => {
         if (document.hidden && remoteVideo && remoteVideo.srcObject && !document.pictureInPictureElement) {
             try { remoteVideo.requestPictureInPicture().catch(() => {}); } catch(e) {}

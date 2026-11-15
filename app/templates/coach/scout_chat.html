@@ -36,6 +36,10 @@
     color: #8696a0;
   }
 
+  #messages {
+    overflow-anchor: auto !important;
+    scroll-behavior: auto !important;
+  }
   /* Custom scrollbar for chat */
   .chat-scroll::-webkit-scrollbar {
     width: 6px;
@@ -564,10 +568,18 @@
         }
     }
 
-    function scrollToBottom() {
-        if (messagesDiv) {
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
+    function scrollToBottom(smooth = false) {
+        if (!messagesDiv) return;
+        const scroll = () => {
+            messagesDiv.scrollTo({
+                top: messagesDiv.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+        };
+        scroll();
+        requestAnimationFrame(scroll);
+        setTimeout(scroll, 50);
+        setTimeout(scroll, 150);
     }
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -610,7 +622,8 @@
         // Reset input
         msgInput.value = '';
         msgInput.style.height = '42px';
-        msgInput.focus();
+        msgInput.focus({ preventScroll: true });
+        scrollToBottom();
     }
 
     // Incoming real-time message listener

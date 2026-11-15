@@ -277,10 +277,18 @@
     const currentUserId = {{ current_user.id }};
     const socket = (typeof window.socket !== 'undefined' && window.socket) ? window.socket : io();
 
-    function scrollToBottom() {
-        if (messagesDiv) {
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
+    function scrollToBottom(smooth = false) {
+        if (!messagesDiv) return;
+        const scroll = () => {
+            messagesDiv.scrollTo({
+                top: messagesDiv.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+        };
+        scroll();
+        requestAnimationFrame(scroll);
+        setTimeout(scroll, 50);
+        setTimeout(scroll, 150);
     }
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -351,7 +359,8 @@
 
         msgInput.value = '';
         msgInput.style.height = '42px';
-        msgInput.focus();
+        msgInput.focus({ preventScroll: true });
+        scrollToBottom();
     }
 
     function escapeHtml(text) {

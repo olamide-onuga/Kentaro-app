@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Resend Verification Email - Kentaro{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-8 bg-white dark:bg-kn-card-dark p-8 sm:p-10 border border-kn-border dark:border-kn-border-dark rounded-3xl shadow-sm">
+    <div class="text-center mb-8">
+        <span class="inline-block text-xs font-black tracking-widest uppercase text-brand-red dark:text-brand-red-dark mb-2">Account Verification</span>
+        <h2 class="text-3xl font-black text-kn-text dark:text-kn-text-dark tracking-tight">Verify Your Email</h2>
+        <p class="text-xs text-kn-muted dark:text-kn-muted-dark mt-1">Enter your registered email address and we will send you a new verification link.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.resend_confirmation') }}" class="space-y-6">
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-kn-text dark:text-kn-text-dark mb-1" for="email">
+                Email Address
+            </label>
+            <input class="input-line" type="email" name="email" id="email" placeholder="you@domain.com" required autocomplete="email">
+        </div>
+
+        <button type="submit" class="w-full btn-primary-red py-3 px-4 rounded-xl font-bold text-sm shadow-md transition">
+            Send Verification Link
+        </button>
+    </form>
+
+    <div class="text-center mt-8 pt-6 border-t border-kn-border dark:border-kn-border-dark space-y-2">
+        <p class="text-xs text-kn-muted dark:text-kn-muted-dark">
+            Already verified?
+            <a href="{{ url_for('auth.login') }}" class="font-bold text-brand-red dark:text-brand-red-dark hover:underline ml-1">
+                Log In
+            </a>
+        </p>
+    </div>
+</div>
+{% endblock %}

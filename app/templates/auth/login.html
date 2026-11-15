@@ -10,6 +10,32 @@
         <p class="text-xs text-kn-muted dark:text-kn-muted-dark mt-1">Log in to continue your coaching and workouts</p>
     </div>
 
+    {% if unverified_email %}
+    <div class="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-2">
+        <div class="flex items-center gap-2 font-bold">
+            <span>⚠️</span>
+            <span>Email verification pending for <strong>{{ unverified_email }}</strong></span>
+        </div>
+        <p class="text-[11px] text-amber-700 dark:text-amber-300">
+            Please check your inbox and spam folder for the verification link.
+        </p>
+        <div class="pt-1 flex flex-wrap items-center gap-3">
+            <form method="POST" action="{{ url_for('auth.resend_confirmation') }}" class="inline">
+                <input type="hidden" name="email" value="{{ unverified_email }}">
+                <button type="submit" class="font-bold underline text-amber-900 dark:text-amber-100 hover:text-black dark:hover:text-white transition">
+                    Resend Email Link
+                </button>
+            </form>
+            {% if unverified_confirm_url or fallback_confirm_url %}
+            <span class="text-amber-400">•</span>
+            <a href="{{ unverified_confirm_url or fallback_confirm_url }}" class="font-bold text-emerald-700 dark:text-emerald-400 hover:underline">
+                Click here to verify directly &rarr;
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-6">
         <div>
             <label class="block text-xs font-bold uppercase tracking-wider text-kn-text dark:text-kn-text-dark mb-1" for="email">
@@ -40,7 +66,13 @@
         </button>
     </form>
 
-    <div class="text-center mt-8 pt-6 border-t border-kn-border dark:border-kn-border-dark">
+    <div class="text-center mt-8 pt-6 border-t border-kn-border dark:border-kn-border-dark space-y-2">
+        <p class="text-xs text-kn-muted dark:text-kn-muted-dark">
+            Didn't receive your verification email?
+            <a href="{{ url_for('auth.resend_confirmation') }}" class="font-bold text-kn-text dark:text-kn-text-dark hover:underline ml-1">
+                Resend Link
+            </a>
+        </p>
         <p class="text-xs text-kn-muted dark:text-kn-muted-dark">
             Don't have an account yet?
             <a href="{{ url_for('auth.register_choice') }}" class="font-bold text-brand-red dark:text-brand-red-dark hover:underline ml-1">

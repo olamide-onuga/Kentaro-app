@@ -1865,8 +1865,58 @@ def validate_discount():
 @client_bp.route('/voice-call')
 @login_required
 def voice_call():
+    import os
+    from app.models.user import User
+    from app import _allowed_communication
+
     profile = current_user.client_profile
-    return render_template('client/voice_call.html', profile=profile)
+    partner_id = request.args.get('partner_id', type=int)
+
+    # If partner_id not provided via URL, fallback to the client's assigned coach
+    if not partner_id and profile and profile.coach and profile.coach.user:
+        partner_id = profile.coach.user.id
+
+    if not partner_id:
+        flash('No coach or calling partner found. Please select a coach or contact first.', 'warning')
+        return redirect(url_for('client.dashboard'))
+
+    # Verify authorization
+    if not _allowed_communication(current_user.id, partner_id):
+        flash('You are not permitted to start a call with this user.', 'danger')
+        return redirect(url_for('client.dashboard'))
+
+    partner_user = User.query.get(partner_id)
+    if not partner_user:
+        flash('Calling partner not found.', 'danger')
+        return redirect(url_for('client.dashboard'))
+
+    partner_name = "Coach"
+    if partner_user.coach_profile:
+        name = partner_user.coach_profile.first_name or "Coach"
+        partner_name = f"Coach {name}".strip()
+    elif partner_user.client_profile:
+        partner_name = partner_user.client_profile.full_name or "Athlete"
+    elif partner_user.is_admin:
+        partner_name = "Kentaro Support"
+    else:
+        partner_name = partner_user.email.split('@')[0] if partner_user.email else "Participant"
+
+    turn_config = None
+    turn_url = os.environ.get('TURN_URL') or os.environ.get('COTURN_URL')
+    if turn_url:
+        turn_config = {
+            'urls': turn_url,
+            'username': os.environ.get('TURN_USERNAME', ''),
+            'credential': os.environ.get('TURN_CREDENTIAL', '')
+        }
+
+    return render_template(
+        'client/voice_call.html',
+        profile=profile,
+        partner_id=partner_id,
+        partner_name=partner_name,
+        turn_config=turn_config
+    )
 
 
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
